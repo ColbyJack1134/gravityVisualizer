@@ -39,6 +39,7 @@
       this.spectrum.autoSensitivity = true;
       this.audioGain = 1;
       this.sustainStrength = 1;
+      this.showIdleParticles = true;
       this.shakeStrength = 0.7;
       this.palette = new GravityPalette.Palette();
       this.idlePalette = new GravityPalette.Palette();
@@ -140,7 +141,7 @@
         if (typeof settings[key] === 'number' && Number.isFinite(settings[key]))
           this[key] = Math.max(min, Math.min(max, settings[key]));
       }
-      for (const key of ['spinning', 'paused'])
+      for (const key of ['spinning', 'paused', 'showIdleParticles'])
         if (typeof settings[key] === 'boolean') this[key] = settings[key];
       if ([16384, 32768, 65536, 131072, 262144, 524288].includes(settings.count))
         this.count = settings.count;
@@ -514,6 +515,7 @@
       this.gl.uniform3fv(this.loc('uBandColors[0]'), this.paletteColors);
       this.f('uFadeSeconds', this.fadeSeconds);
       this.f('uAudioDriven', this.spectrum.driven);
+      this.f('uIdleParticles', this.showIdleParticles ? 1 : 0);
       this.f('uMaterial', this.material);
       this.v3('uVolumeGrid', this.volumeGrid);
       this.v3('uVolumeExtent', this.volumeExtent);

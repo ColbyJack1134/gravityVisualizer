@@ -368,6 +368,7 @@ summary {
       <input id="sustained-light" type="range" min="0" max="100" value="100">
       <label class="range-label" for="bass-shake">Bass shake <output id="bass-shake-value">70%</output></label>
       <input id="bass-shake" type="range" min="0" max="100" value="70">
+      <label class="check-label"><input id="show-idle-particles" type="checkbox" checked> Show particles during silence</label>
     </section>
 
     <section class="control-section">
@@ -1154,7 +1155,7 @@ layout(location=0) in vec4 aPosition;
 layout(location=1) in vec4 aMomentum;
 layout(location=2) in vec2 aLifecycle;
 uniform float uSpin,uISCO,uMaterial,uParticleWeight,uFadeSeconds;
-uniform float uBands[24],uAudioDriven;
+uniform float uBands[24],uAudioDriven,uIdleParticles;
 uniform int uBandCount;
 uniform float uSustainStrength;
 uniform vec3 uBandColors[24];
@@ -1177,15 +1178,11 @@ void main(){
   int band=int(hash(float(gl_VertexID)+81.3)*float(uBandCount));
   float level=uBands[band];
   vColor=uBandColors[band]*(.28+1.9*heat)*mix(.65,1.4,kind);
-  float emission=.70;
-  if(uAudioDriven>0.){
-    float amount=clamp(level*uSustainStrength,0.,1.);
-    float rank=hash(float(gl_VertexID)+113.9);
-    float visibility=smoothstep(rank-.025,rank+.025,mix(-.025,1.025,amount));
-    vWeight*=mix(1.,visibility,uAudioDriven);
-    emission=mix(.70,1.725,uAudioDriven);
-  }
-  vColor*=emission;
+  float amount=clamp(level*uSustainStrength,0.,1.);
+  float rank=hash(float(gl_VertexID)+113.9);
+  float visibility=smoothstep(rank-.025,rank+.025,mix(-.025,1.025,amount));
+  vWeight*=mix(uIdleParticles,visibility,uAudioDriven);
+  vColor*=mix(.70,1.725,uAudioDriven);
   vWeight*=mix(.18,1.8,pow(hash(float(gl_VertexID)+51.),2.));
   vColor*=pow(heat,1.4);
   vec3 dx,dp;float dt;flow(x,aMomentum.xyz,aMomentum.w,uSpin,dx,dp,dt);
@@ -1423,6 +1420,7 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
       this.spectrum.autoSensitivity = true;
       this.audioGain = 1;
       this.sustainStrength = 1;
+      this.showIdleParticles = true;
       this.shakeStrength = 0.7;
       this.palette = new GravityPalette.Palette();
       this.idlePalette = new GravityPalette.Palette();
@@ -1524,7 +1522,7 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
         if (typeof settings[key] === 'number' && Number.isFinite(settings[key]))
           this[key] = Math.max(min, Math.min(max, settings[key]));
       }
-      for (const key of ['spinning', 'paused'])
+      for (const key of ['spinning', 'paused', 'showIdleParticles'])
         if (typeof settings[key] === 'boolean') this[key] = settings[key];
       if ([16384, 32768, 65536, 131072, 262144, 524288].includes(settings.count))
         this.count = settings.count;
@@ -1898,6 +1896,7 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
       this.gl.uniform3fv(this.loc('uBandColors[0]'), this.paletteColors);
       this.f('uFadeSeconds', this.fadeSeconds);
       this.f('uAudioDriven', this.spectrum.driven);
+      this.f('uIdleParticles', this.showIdleParticles ? 1 : 0);
       this.f('uMaterial', this.material);
       this.v3('uVolumeGrid', this.volumeGrid);
       this.v3('uVolumeExtent', this.volumeExtent);
@@ -2312,6 +2311,7 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
       $('audio-gain').value = this.audioGain;
       $('audio-gain-value').textContent = this.audioGain.toFixed(1) + '×';
       $('auto-sensitivity').checked = this.spectrum.autoSensitivity;
+      $('show-idle-particles').checked = this.showIdleParticles;
       $('manual-sensitivity').hidden = this.spectrum.autoSensitivity;
       $('bass-shake').value = this.shakeStrength * 100;
       $('bass-shake-value').textContent = Math.round(this.shakeStrength * 100) + '%';
@@ -2376,6 +2376,8 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
     bindUI() {
       $('auto-sensitivity').addEventListener('change', (event) =>
         this.applySettings({ autoSensitivity: event.target.checked }));
+      $('show-idle-particles').addEventListener('change', (event) =>
+        this.applySettings({ showIdleParticles: event.target.checked }));
       $('palette-target').addEventListener('change', (event) => {
         this.paletteTarget = event.target.value;
         this.renderColorStops();

@@ -51,7 +51,8 @@ const project = require('../wallpaper/project.json');
       return { stats: r.stats(), framing: [r.framing, r.framingY], fps: r.fpsLimit,
         material: r.material, exposure: r.exposure, sharpness: r.sharpness, fade: r.fadeSeconds,
         animated: r.palette.hsv.animated, colors: r.palette.custom.stops.map(c => c.toUpperCase()), registrations: audioRegistrations,
-        idle: [r.idlePalette.mode, r.idlePalette.solid], rendered: Array.from(r.paletteColors), auto: r.spectrum.autoSensitivity };
+        idle: [r.idlePalette.mode, r.idlePalette.solid], rendered: Array.from(r.paletteColors), auto: r.spectrum.autoSensitivity,
+        showIdleParticles: r.showIdleParticles };
     });
     assert.equal(defaults.stats.cacheBuilds, 1, 'Early settings must precede the first cache allocation');
     assert.equal(defaults.stats.particles, 65536); assert.equal(defaults.stats.spin, 0.25);
@@ -62,6 +63,14 @@ const project = require('../wallpaper/project.json');
     assert.equal(defaults.registrations, 1);
     assert.deepEqual(defaults.idle, ['solid', '#ffffff']); assert.ok(defaults.rendered.every(v => v === 1));
     assert.equal(defaults.auto, true);
+    assert.equal(defaults.showIdleParticles, true);
+    await apply({ showidleparticles: false });
+    assert.equal(await page.evaluate(() => {
+      const r = GravityWallpaper.renderer, gl = r.gl; r.deposit();
+      return gl.getUniform(r.programs.deposit.p, gl.getUniformLocation(r.programs.deposit.p, 'uIdleParticles'));
+    }), 0);
+    await apply({ showidleparticles: true });
+    assert.equal(await page.evaluate(() => GravityWallpaper.renderer.showIdleParticles), true);
     const properties = project.general.properties;
     assert.deepEqual(Object.values(properties).filter(p => p.type === 'group').map(p => p.text),
       ['General', 'Audio', 'Audio colors', 'Idle colors', 'Background', 'Camera', 'Black hole', 'Material and light', 'Performance']);

@@ -137,9 +137,15 @@ function interruptedTone(){
     assert.equal(await page.evaluate(()=>GravityDemo.spectrum.driven),0);
     assert.ok(await page.evaluate(()=>GravityDemo.paletteColors.every(v=>v===1)));
     const idle=await pixels();assert.equal(idle.hash,regular.hash,'Silent audio mode must return to the exact regular image');
+    assert.equal(await page.locator('#show-idle-particles').isChecked(),true);
+    await page.locator('#show-idle-particles').uncheck();
+    const hidden=await pixels();assert.notEqual(hidden.hash,regular.hash,'Disabling idle particles leaves the core and background');
     await page.waitForFunction(()=>document.getElementById('music').currentTime>=14&&GravityDemo.spectrum.driven>.95,null,{timeout:15000});
-    assert.notEqual((await pixels()).hash,regular.hash,'New audible content resumes rendering response');
-    results.silence={waiting,midway,idleMatchesRegular:true};results.checks.push('Real tone/silence/tone WAV: 3-second wait, 6-second blend to exact regular image, automatic audio resumption');
+    const resumed=await pixels();
+    assert.notEqual(resumed.hash,hidden.hash,'New audible content reveals particles with idle particles disabled');
+    assert.ok(resumed.litPixels>500);
+    await page.locator('#show-idle-particles').check();
+    results.silence={waiting,midway,idleMatchesRegular:true};results.checks.push('Real tone/silence/tone WAV: 3-second wait, 6-second blend to idle, optional silent core and automatic audio resumption');
     await page.locator('#music').evaluate(e=>e.pause());
     await set('particle-fade',2);assert.equal(await page.evaluate(()=>GravityDemo.fadeSeconds),2);await set('particle-fade',3);
     assert.deepEqual(errors,[]);results.passed=true;

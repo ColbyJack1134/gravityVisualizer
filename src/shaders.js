@@ -192,7 +192,7 @@ layout(location=0) in vec4 aPosition;
 layout(location=1) in vec4 aMomentum;
 layout(location=2) in vec2 aLifecycle;
 uniform float uSpin,uISCO,uMaterial,uParticleWeight,uFadeSeconds;
-uniform float uBands[24],uAudioDriven;
+uniform float uBands[24],uAudioDriven,uIdleParticles;
 uniform int uBandCount;
 uniform float uSustainStrength;
 uniform vec3 uBandColors[24];
@@ -215,15 +215,11 @@ void main(){
   int band=int(hash(float(gl_VertexID)+81.3)*float(uBandCount));
   float level=uBands[band];
   vColor=uBandColors[band]*(.28+1.9*heat)*mix(.65,1.4,kind);
-  float emission=.70;
-  if(uAudioDriven>0.){
-    float amount=clamp(level*uSustainStrength,0.,1.);
-    float rank=hash(float(gl_VertexID)+113.9);
-    float visibility=smoothstep(rank-.025,rank+.025,mix(-.025,1.025,amount));
-    vWeight*=mix(1.,visibility,uAudioDriven);
-    emission=mix(.70,1.725,uAudioDriven);
-  }
-  vColor*=emission;
+  float amount=clamp(level*uSustainStrength,0.,1.);
+  float rank=hash(float(gl_VertexID)+113.9);
+  float visibility=smoothstep(rank-.025,rank+.025,mix(-.025,1.025,amount));
+  vWeight*=mix(uIdleParticles,visibility,uAudioDriven);
+  vColor*=mix(.70,1.725,uAudioDriven);
   vWeight*=mix(.18,1.8,pow(hash(float(gl_VertexID)+51.),2.));
   vColor*=pow(heat,1.4);
   vec3 dx,dp;float dt;flow(x,aMomentum.xyz,aMomentum.w,uSpin,dx,dp,dt);

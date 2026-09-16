@@ -87,6 +87,7 @@
       if (values.quality !== undefined) settings.quality = values.quality;
       if (values.cameramotion !== undefined) settings.cameraMotion = values.cameramotion;
       if (typeof values.autosensitivity === 'boolean') settings.autoSensitivity = values.autosensitivity;
+      if (typeof values.showidleparticles === 'boolean') settings.showIdleParticles = values.showidleparticles;
       for (const [key, prefix] of [['palette', ''], ['idlePalette', 'idle']]) {
         const palette = paletteSettings(values, prefix, this.paletteStops[key]);
         if (Object.keys(palette).length) settings[key] = palette;

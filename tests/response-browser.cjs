@@ -170,6 +170,49 @@ const { chromium } = require('playwright');
       'GPU count proportions, constant audio brightness, narrow soft transition, monotonic selection and zero/full endpoints'
     );
 
+    assert.equal(await page.locator('#show-idle-particles').isChecked(), true);
+    const idleImage = await page.evaluate(() => {
+      GravityDemo.spectrum.levels.fill(0);
+      GravityDemo.spectrum.driven = 0;
+      GravityDemo.refreshPalette();
+      return responseProbe.image();
+    });
+    await page.locator('#show-idle-particles').uncheck();
+    assert.equal(await page.evaluate(() => GravityDemo.showIdleParticles), false);
+    const hidden = await page.evaluate(() => {
+      const d = GravityDemo, gl = d.gl, draw = gl.drawArraysInstanced;
+      let empty;
+      gl.drawArraysInstanced = () => {};
+      try { empty = responseProbe.image(); } finally { gl.drawArraysInstanced = draw; }
+      const images = [0, 0.25, 0.5, 0.75, 1].map(driven => {
+        d.spectrum.driven = driven; d.refreshPalette();
+        return responseProbe.image();
+      });
+      const skyVisible = responseProbe.pixels().some((v, i) => i % 4 !== 3 && v > 0);
+      d.spectrum.levels.fill(0.4);
+      responseProbe.activePixels = responseProbe.pixels();
+      return { empty, images, active: responseProbe.image(), skyVisible };
+    });
+    assert.notEqual(hidden.empty, idleImage);
+    assert.ok(hidden.images.every(image => image === hidden.empty), 'Silent particles stay absent throughout the idle transition');
+    assert.notEqual(hidden.active, hidden.empty, 'Audio reveals particles with the idle option off');
+    assert.equal(hidden.skyVisible, true);
+    await page.locator('#show-idle-particles').check();
+    const activeDifference = await page.evaluate(() => {
+      const pixels = responseProbe.pixels(); let max = 0, sum = 0;
+      pixels.forEach((value, i) => { const difference = Math.abs(value - responseProbe.activePixels[i]); max = Math.max(max, difference); sum += difference; });
+      return { max, mean: sum / pixels.length };
+    });
+    assert.ok(activeDifference.max <= 1 && activeDifference.mean < 0.01,
+      'The idle option preserves the active audio response: ' + JSON.stringify(activeDifference));
+    results.idle = { activeDifference, emptyThroughoutTransition: true };
+    await page.locator('#show-idle-particles').uncheck();
+    await page.evaluate(() => { GravityDemo.spectrum.driven = 0; responseProbe.image(); GravityDemo.toggleUI(); });
+    await page.screenshot({ path: 'test-results/silent-core.png' });
+    await page.evaluate(() => { GravityDemo.spectrum.driven = 1; GravityDemo.toggleUI(); });
+    await page.locator('#show-idle-particles').check();
+    results.checks.push('Silent particles can be disabled without removing the background or changing active audio, physics or rays');
+
     for (const mode of ['solid', 'custom', 'hsv']) {
       await page.locator('#color-mode').selectOption(mode);
       await page.evaluate(() => {
