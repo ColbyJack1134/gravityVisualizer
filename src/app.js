@@ -408,7 +408,7 @@
       gl.bindFramebuffer(gl.FRAMEBUFFER, null);
       this.lastPresentation = 0;
       this.fpsSamples = [];
-      this.onTrace?.(0, 'Preparing the view');
+      this.onTrace?.(0, 'Loading');
     }
     allocateRenderTargets() {
       const gl = this.gl;

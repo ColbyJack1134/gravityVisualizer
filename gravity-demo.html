@@ -459,7 +459,7 @@ summary {
     <p id="control-error" role="alert" hidden></p>
   </aside>
 
-  <div id="trace-status" role="status"><span id="trace-text">Tracing light paths</span><span id="trace-percent">0%</span><div class="trace-track"><span id="trace-progress"></span></div></div>
+  <div id="trace-status" role="status"><span id="trace-text">Loading</span><span id="trace-percent">0%</span><div class="trace-track"><span id="trace-progress"></span></div></div>
   <div id="quick-controls" class="quick-controls">
     <button id="show-ui" aria-controls="controls" aria-expanded="false">Controls</button>
     <button id="quick-fullscreen">Fullscreen</button>
@@ -1789,7 +1789,7 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
       gl.bindFramebuffer(gl.FRAMEBUFFER, null);
       this.lastPresentation = 0;
       this.fpsSamples = [];
-      this.onTrace?.(0, 'Preparing the view');
+      this.onTrace?.(0, 'Loading');
     }
     allocateRenderTargets() {
       const gl = this.gl;
