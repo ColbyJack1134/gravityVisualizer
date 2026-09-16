@@ -2,7 +2,7 @@
 
 A black hole audio visualizer for Wallpaper Engine and the browser.
 
-[Browser demo](#) · [Video demo](#)
+[Browser demo](#) [Video demo](#)
 
 ![White particles](assets/screenshots/white.jpg)
 
