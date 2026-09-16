@@ -147,6 +147,15 @@ h2 {
 .audio-name:empty {
   display: none;
 }
+.audio-credit {
+  margin-top: 4px;
+  font-size: 11px;
+  color: #a2a1ad;
+}
+.audio-credit a {
+  color: inherit;
+  text-underline-offset: 2px;
+}
 .spectrum-bars {
   height: 34px;
   display: flex;

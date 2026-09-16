@@ -27,9 +27,20 @@ function wav(hz,pulsed=false){
     await page.evaluate(()=>{GravityDemo.updateParticles(0,GravityDemo.fadeSeconds);GravityDemo.paused=true;GravityDemo.cameraTime=0;GravityDemo.orbitAngle=0;});
     assert.deepEqual(await page.evaluate(()=>[GravityDemo.framing,GravityDemo.framingY]),[.03,.1]);
     const builds=await page.evaluate(()=>GravityDemo.cacheBuilds);
+    assert.equal(await page.locator('#music').isVisible(),true);
+    assert.equal(await page.locator('#music').evaluate(e=>e.paused&&!e.autoplay&&e.currentTime===0),true,'Demo track starts paused');
+    assert.equal(await page.locator('#audio-name').textContent(),'Cipher');
+    assert.equal(await page.locator('#audio-credit').isVisible(),true);
+    assert.equal(await page.evaluate(()=>GravityDemo.audioContext),null,'Audio context waits for playback');
+    await page.waitForFunction(()=>Number.isFinite(document.getElementById('music').duration));
+    await page.locator('#music').evaluate(e=>e.play());
+    await page.waitForFunction(()=>GravityDemo.audioContext?.state==='running'&&GravityDemo.spectrum.driven>.5&&GravityDemo.audioEnergy>.01,null,{timeout:15000});
+    await page.locator('#music').evaluate(e=>e.pause());
+    results.checks.push('Bundled Cipher starts paused, decodes, and drives the analyzer on playback');
     const load=async(hz,pulsed=false)=>{
       await page.locator('#audio-file').setInputFiles({name:`${hz}${pulsed?'-pulses':''}.wav`,mimeType:'audio/wav',buffer:wav(hz,pulsed)});
       assert.equal(await page.locator('#music').evaluate(e=>e.paused),true,'Local files start paused');
+      assert.equal(await page.locator('#audio-credit').isVisible(),false,'Local music replaces the demo credit');
       await page.locator('#music').evaluate(e=>e.play());
       await page.waitForFunction(()=>GravityDemo.audioContext?.state==='running'&&!document.getElementById('music').paused);
     };

@@ -776,8 +776,8 @@
       if (this.audioURL) URL.revokeObjectURL(this.audioURL);
       this.audioURL = URL.createObjectURL(file);
       music.src = this.audioURL;
-      music.hidden = false;
       $('audio-name').textContent = file.name;
+      $('audio-credit').hidden = true;
     }
     bindUI() {
       for (const b of document.querySelectorAll('[data-metric]'))

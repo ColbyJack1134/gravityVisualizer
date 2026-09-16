@@ -4,9 +4,9 @@ A WebGL2 black hole visualizer with a tilted particle disk and local music playb
 
 ## Run
 
-Open **`gravity-demo.html`** in desktop Chrome or Edge with graphics acceleration enabled. No server or installation is needed. `index.html` loads the same app from separate source files.
+Open **`gravity-demo.html`** in desktop Chrome or Edge with graphics acceleration enabled. No server or installation is needed.
 
-**Controls** and **Fullscreen** sit in the lower left. **Choose music** opens a local audio file without uploading it. Playback starts paused. No demo song is bundled.
+**Controls** and **Fullscreen** sit in the lower left. **Cipher** by Kevin MacLeod is the default demo track and starts paused. Open Controls and press play, or use **Choose music** to load your own local file without uploading it. [Music credit and license](assets/CREDITS.md).
 
 ## Controls
 
@@ -50,6 +50,8 @@ npm run test:features-browser
 
 Use `npm run benchmark` for additional viewport measurements. Set `GRAVITY_CHANNEL=msedge` for Edge, or `GRAVITY_CDP=http://127.0.0.1:PORT` to attach to a test browser. `GRAVITY_URL=file:///.../gravity-demo.html` overrides the page location. Results and screenshots go to the ignored `test-results/` directory.
 
-Edit `index.html` and `src/`, then rebuild the standalone file. Runtime files have no third-party dependencies or network requests. [Research references and recovered wallpapers](research/findings.md) are kept separately.
+Edit `index.html` and `src/`, then rebuild the standalone file. The build embeds `assets/cipher.mp3` alongside the code, so the demo works offline as one HTML file. It has no runtime library dependencies. [Research references and recovered wallpapers](research/findings.md) are kept separately.
+
+For the development page with separate files, run `python3 -m http.server 8000 --bind 127.0.0.1` and open `http://localhost:8000/`. Chrome blocks audio analysis of a separate MP3 when `index.html` is opened through `file://`; the standalone build avoids this by embedding the song.
 
 For static hosting, serve the built `gravity-demo.html` as `index.html`. Only that file is required; development files, research, and Git metadata do not belong in the site output.

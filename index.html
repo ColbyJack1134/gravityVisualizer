@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#08090c">
   <title>Gravity Visualizer</title>
+  <link rel="icon" href="data:,">
   <link rel="stylesheet" href="src/style.css">
 </head>
 <body>
@@ -15,8 +16,9 @@
       <h2>Audio</h2>
       <button id="audio-file-button" class="file-button">Choose music</button>
       <input id="audio-file" type="file" accept="audio/*" hidden>
-      <audio id="music" controls preload="metadata" hidden></audio>
-      <div id="audio-name" class="audio-name" role="status"></div>
+      <audio id="music" controls preload="metadata" src="assets/cipher.mp3"></audio>
+      <div id="audio-name" class="audio-name" role="status">Cipher</div>
+      <div id="audio-credit" class="audio-credit"><a href="https://www.youtube.com/watch?v=UiHkZTeXrcA" target="_blank" rel="noopener noreferrer">Kevin MacLeod</a> · <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer">CC BY 4.0</a></div>
       <div id="spectrum-bars" class="spectrum-bars" aria-hidden="true"></div>
       <div class="spectrum-legend"><span id="spectrum-low">BASS</span><span id="spectrum-high">HIGHS</span></div>
       <label class="range-label" for="audio-gain">Sensitivity <output id="audio-gain-value">1.0×</output></label>
