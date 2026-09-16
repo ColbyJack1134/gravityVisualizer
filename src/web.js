@@ -178,6 +178,7 @@
       $('audio-gain').value = this.audioGain;
       $('audio-gain-value').textContent = this.audioGain.toFixed(1) + '×';
       $('auto-sensitivity').checked = this.spectrum.autoSensitivity;
+      $('ignore-quiet-audio').checked = this.spectrum.ignoreQuietAudio;
       $('show-idle-particles').checked = this.showIdleParticles;
       $('manual-sensitivity').hidden = this.spectrum.autoSensitivity;
       $('bass-shake').value = this.shakeStrength * 100;
@@ -243,6 +244,8 @@
     bindUI() {
       $('auto-sensitivity').addEventListener('change', (event) =>
         this.applySettings({ autoSensitivity: event.target.checked }));
+      $('ignore-quiet-audio').addEventListener('change', (event) =>
+        this.applySettings({ ignoreQuietAudio: event.target.checked }));
       $('show-idle-particles').addEventListener('change', (event) =>
         this.applySettings({ showIdleParticles: event.target.checked }));
       $('palette-target').addEventListener('change', (event) => {

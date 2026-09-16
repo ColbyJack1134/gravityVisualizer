@@ -2,14 +2,14 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('n
 const {pathToFileURL}=require('node:url');
 const {chromium}=require('playwright');
 const out=path.resolve('test-results');fs.mkdirSync(out,{recursive:true});
-function wav(hz,pulsed=false){
-  const rate=48000,n=rate*6,b=Buffer.alloc(44+n*2);
+function wav(hz,pulsed=false,amplitude=17000,seconds=6){
+  const rate=48000,n=rate*seconds,b=Buffer.alloc(44+n*2);
   b.write('RIFF');b.writeUInt32LE(36+n*2,4);b.write('WAVEfmt ',8);b.writeUInt32LE(16,16);
   b.writeUInt16LE(1,20);b.writeUInt16LE(1,22);b.writeUInt32LE(rate,24);b.writeUInt32LE(rate*2,28);
   b.writeUInt16LE(2,32);b.writeUInt16LE(16,34);b.write('data',36);b.writeUInt32LE(n*2,40);
   for(let i=0;i<n;i++){
     const t=i/rate,phase=t%.6,envelope=pulsed?Math.min(1,phase/.004)*Math.exp(-phase*10):Math.min(1,t/.01);
-    b.writeInt16LE(Math.round(17000*envelope*Math.sin(2*Math.PI*hz*t)),44+2*i);
+    b.writeInt16LE(Math.round(amplitude*envelope*Math.sin(2*Math.PI*hz*t)),44+2*i);
   }
   return b;
 }
@@ -37,8 +37,8 @@ function wav(hz,pulsed=false){
     await page.waitForFunction(()=>GravityDemo.audioContext?.state==='running'&&GravityDemo.spectrum.driven>.5&&GravityDemo.audioEnergy>.01,null,{timeout:15000});
     await page.locator('#music').evaluate(e=>e.pause());
     results.checks.push('Bundled Chill Day starts paused, decodes, and drives the analyzer on playback');
-    const load=async(hz,pulsed=false)=>{
-      await page.locator('#audio-file').setInputFiles({name:`${hz}${pulsed?'-pulses':''}.wav`,mimeType:'audio/wav',buffer:wav(hz,pulsed)});
+    const load=async(hz,pulsed=false,amplitude=17000,seconds=6)=>{
+      await page.locator('#audio-file').setInputFiles({name:`${hz}${pulsed?'-pulses':''}.wav`,mimeType:'audio/wav',buffer:wav(hz,pulsed,amplitude,seconds)});
       assert.equal(await page.locator('#music').evaluate(e=>e.paused),true,'Local files start paused');
       assert.equal(await page.locator('#audio-credit').isVisible(),false,'Local music replaces the demo credit');
       await page.locator('#music').evaluate(e=>e.play());
@@ -74,29 +74,6 @@ function wav(hz,pulsed=false){
     }
     results.checks.push('Real WAV/FFT frequency isolation and rendered violet/mid/red responses with high saturation');
     await page.evaluate(()=>{GravityDemo.paused=false;GravityDemo.speed=0;GravityDemo.cameraMotion='gentle';});
-    const heldMovement=[];
-    for(const fps of [30,60]){
-      await page.evaluate(fps=>GravityDemo.applySettings({fpsLimit:fps}),fps);
-      await load(70);
-      await page.waitForFunction(()=>GravityDemo.spectrum.kick<.005&&GravityDemo.spectrum.rumble>.08);
-      const held=await page.evaluate(async()=>{
-        const d=GravityDemo;let minShake=Infinity,maxShake=0,maxPixels=0;
-        const start=performance.now();
-        while(performance.now()-start<900){
-          await new Promise(requestAnimationFrame);
-          minShake=Math.min(minShake,d.spectrum.shake);maxShake=Math.max(maxShake,d.spectrum.shake);
-          const actual=d.gl.getUniform(d.programs.composite.p,d.gl.getUniformLocation(d.programs.composite.p,'uFraming'));
-          const x=d.framing+.028*Math.sin(d.cameraTime*.09),y=d.framingY+.012*Math.sin(d.cameraTime*.12);
-          maxPixels=Math.max(maxPixels,Math.hypot(actual[0]-x,actual[1]-y)*d.canvas.height);
-        }
-        return {minShake,maxShake,maxPixels};
-      });
-      assert.ok(held.minShake>.08&&held.maxShake<.2,'Held bass sustains gentle camera rumble');
-      assert.ok(held.maxPixels>.4&&held.maxPixels<2,'Sustained movement is visible and restrained at 1080p');
-      heldMovement.push({fps,...held});
-    }
-    results.heldMovement=heldMovement;
-    results.checks.push('Sustained bass produces restrained camera movement at 30 and 60 FPS');
     await load(70,true);
     const movement=await page.evaluate(async()=>{
       const d=GravityDemo;let peakShake=0,maxPixels=0;
@@ -126,6 +103,21 @@ function wav(hz,pulsed=false){
     assert.equal(await page.evaluate(()=>GravityDemo.cacheBuilds),builds,'Audio and shake must reuse the light cache');
     await page.evaluate(()=>document.getElementById('music').pause());
     await page.waitForFunction(()=>GravityDemo.spectrum.energy<.001&&GravityDemo.spectrum.shake<.001,null,{timeout:5000});
+    assert.equal(await page.locator('#ignore-quiet-audio').isChecked(),false);
+    await load(70,false,1,16);
+    await page.waitForFunction(()=>GravityDemo.spectrum.driven>.99);
+    assert.ok(await page.evaluate(()=>GravityDemo.spectrum.energy<.001),'Very quiet audio keeps the audio palette without inventing particle energy');
+    await page.locator('#ignore-quiet-audio').check();
+    await page.waitForFunction(()=>GravityDemo.spectrum.silenceSeconds>9.1,null,{timeout:12000});
+    assert.equal(await page.evaluate(()=>GravityDemo.spectrum.driven),0,'Enabled gate restores idle for quiet playback');
+    await page.locator('#ignore-quiet-audio').uncheck();
+    await page.waitForFunction(()=>GravityDemo.spectrum.driven>.95&&GravityDemo.spectrum.signalPresent);
+    await load(70,false,0);
+    await page.waitForFunction(()=>GravityDemo.spectrum.silenceSeconds>.5);
+    assert.equal(await page.evaluate(()=>GravityDemo.spectrum.signalPresent),false,'Digital silence is still silent with the gate disabled');
+    await page.evaluate(()=>document.getElementById('music').pause());
+    assert.equal(await page.evaluate(()=>GravityDemo.cacheBuilds),builds,'Changing the gate does not retrace light');
+    results.checks.push('Optional quiet-audio gate, live toggling, and digital silence through the real analyzer');
     assert.equal(await page.locator('#auto-sensitivity').isChecked(),true);
     assert.equal(await page.locator('#audio-gain').isVisible(),false);
     await page.locator('#auto-sensitivity').uncheck();
@@ -138,7 +130,7 @@ function wav(hz,pulsed=false){
     assert.equal(await page.locator('#audio-gain').inputValue(),'1.6');
     assert.equal(await page.evaluate(()=>GravityDemo.spectrum.autoSensitivity),false);
     results.suppressed=suppressed;
-    results.checks.push('Bass kicks and rumble, bounded displacement, mute/hold/pause/disable behavior and no retracing');
+    results.checks.push('Bass-only onset camera movement, bounded displacement, mute/hold/pause/disable behavior and no retracing');
     results.checks.push('Sensitivity and bass-shake controls');assert.deepEqual(errors,[]);results.passed=true;
     fs.writeFileSync(path.join(out,'audio-browser-results.json'),JSON.stringify(results,null,2));
     console.log('PASS',results.checks,movement,results.tones.map(t=>({hz:t.hz,frequency:t.frequency,saturation:t.saturation,rgb:t.rgb})));

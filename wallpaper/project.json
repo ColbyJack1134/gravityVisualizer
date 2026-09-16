@@ -95,13 +95,19 @@
         "type": "bool",
         "value": true
       },
+      "ignorequietaudio": {
+        "order": 10,
+        "text": "Ignore quiet audio",
+        "type": "bool",
+        "value": false
+      },
       "groupaudiocolors": {
         "type": "group",
         "text": "Audio colors",
-        "order": 10
+        "order": 11
       },
       "colormode": {
-        "order": 11,
+        "order": 12,
         "text": "Color mode",
         "type": "combo",
         "value": "hsv",
@@ -121,14 +127,14 @@
         ]
       },
       "solidcolor": {
-        "order": 12,
+        "order": 13,
         "text": "Particle color",
         "type": "color",
         "value": "0.666666667 0.266666667 1.0",
         "condition": "colormode.value == 'solid'"
       },
       "saturation": {
-        "order": 13,
+        "order": 14,
         "text": "Saturation",
         "type": "slider",
         "value": 100,
@@ -141,7 +147,7 @@
         "condition": "colormode.value == 'hsv'"
       },
       "hsvoffset": {
-        "order": 14,
+        "order": 15,
         "text": "HSV offset",
         "type": "slider",
         "value": 0,
@@ -154,14 +160,14 @@
         "condition": "colormode.value == 'hsv'"
       },
       "hsvanimate": {
-        "order": 15,
+        "order": 16,
         "text": "Animate HSV gradient",
         "type": "bool",
         "value": true,
         "condition": "colormode.value == 'hsv'"
       },
       "hsvspeed": {
-        "order": 16,
+        "order": 17,
         "text": "HSV speed (cycles/min)",
         "type": "slider",
         "value": 0.5,
@@ -174,7 +180,7 @@
         "condition": "colormode.value == 'hsv' && hsvanimate.value"
       },
       "customcount": {
-        "order": 17,
+        "order": 18,
         "text": "Gradient colors",
         "type": "slider",
         "value": 6,
@@ -187,49 +193,49 @@
         "condition": "colormode.value == 'custom'"
       },
       "customcolor1": {
-        "order": 18,
+        "order": 19,
         "text": "Gradient color 1",
         "type": "color",
         "value": "0.137254902 0.819607843 0.51372549",
         "condition": "colormode.value == 'custom' && customcount.value >= 1"
       },
       "customcolor2": {
-        "order": 19,
+        "order": 20,
         "text": "Gradient color 2",
         "type": "color",
         "value": "0.11372549 0.792156863 0.592156863",
         "condition": "colormode.value == 'custom' && customcount.value >= 2"
       },
       "customcolor3": {
-        "order": 20,
+        "order": 21,
         "text": "Gradient color 3",
         "type": "color",
         "value": "0.090196078 0.760784314 0.670588235",
         "condition": "colormode.value == 'custom' && customcount.value >= 3"
       },
       "customcolor4": {
-        "order": 21,
+        "order": 22,
         "text": "Gradient color 4",
         "type": "color",
         "value": "0.070588235 0.733333333 0.752941176",
         "condition": "colormode.value == 'custom' && customcount.value >= 4"
       },
       "customcolor5": {
-        "order": 22,
+        "order": 23,
         "text": "Gradient color 5",
         "type": "color",
         "value": "0.047058824 0.701960784 0.831372549",
         "condition": "colormode.value == 'custom' && customcount.value >= 5"
       },
       "customcolor6": {
-        "order": 23,
+        "order": 24,
         "text": "Gradient color 6",
         "type": "color",
         "value": "0.023529412 0.674509804 0.909803922",
         "condition": "colormode.value == 'custom' && customcount.value >= 6"
       },
       "customoffset": {
-        "order": 24,
+        "order": 25,
         "text": "Custom offset",
         "type": "slider",
         "value": 0,
@@ -242,14 +248,14 @@
         "condition": "colormode.value == 'custom'"
       },
       "customanimate": {
-        "order": 25,
+        "order": 26,
         "text": "Animate custom gradient",
         "type": "bool",
         "value": true,
         "condition": "colormode.value == 'custom'"
       },
       "customspeed": {
-        "order": 26,
+        "order": 27,
         "text": "Custom speed (cycles/min)",
         "type": "slider",
         "value": 0.5,
@@ -264,10 +270,10 @@
       "groupidlecolors": {
         "type": "group",
         "text": "Idle colors",
-        "order": 27
+        "order": 28
       },
       "idlecolormode": {
-        "order": 28,
+        "order": 29,
         "text": "Color mode",
         "type": "combo",
         "value": "solid",
@@ -287,14 +293,14 @@
         ]
       },
       "idlesolidcolor": {
-        "order": 29,
+        "order": 30,
         "text": "Particle color",
         "type": "color",
         "value": "1 1 1",
         "condition": "idlecolormode.value == 'solid'"
       },
       "idlesaturation": {
-        "order": 30,
+        "order": 31,
         "text": "Saturation",
         "type": "slider",
         "value": 100,
@@ -307,7 +313,7 @@
         "condition": "idlecolormode.value == 'hsv'"
       },
       "idlehsvoffset": {
-        "order": 31,
+        "order": 32,
         "text": "HSV offset",
         "type": "slider",
         "value": 0,
@@ -320,14 +326,14 @@
         "condition": "idlecolormode.value == 'hsv'"
       },
       "idlehsvanimate": {
-        "order": 32,
+        "order": 33,
         "text": "Animate HSV gradient",
         "type": "bool",
         "value": true,
         "condition": "idlecolormode.value == 'hsv'"
       },
       "idlehsvspeed": {
-        "order": 33,
+        "order": 34,
         "text": "HSV speed (cycles/min)",
         "type": "slider",
         "value": 0.5,
@@ -340,7 +346,7 @@
         "condition": "idlecolormode.value == 'hsv' && idlehsvanimate.value"
       },
       "idlecustomcount": {
-        "order": 34,
+        "order": 35,
         "text": "Gradient colors",
         "type": "slider",
         "value": 6,
@@ -353,49 +359,49 @@
         "condition": "idlecolormode.value == 'custom'"
       },
       "idlecustomcolor1": {
-        "order": 35,
+        "order": 36,
         "text": "Gradient color 1",
         "type": "color",
         "value": "0.137254902 0.819607843 0.51372549",
         "condition": "idlecolormode.value == 'custom' && idlecustomcount.value >= 1"
       },
       "idlecustomcolor2": {
-        "order": 36,
+        "order": 37,
         "text": "Gradient color 2",
         "type": "color",
         "value": "0.11372549 0.792156863 0.592156863",
         "condition": "idlecolormode.value == 'custom' && idlecustomcount.value >= 2"
       },
       "idlecustomcolor3": {
-        "order": 37,
+        "order": 38,
         "text": "Gradient color 3",
         "type": "color",
         "value": "0.090196078 0.760784314 0.670588235",
         "condition": "idlecolormode.value == 'custom' && idlecustomcount.value >= 3"
       },
       "idlecustomcolor4": {
-        "order": 38,
+        "order": 39,
         "text": "Gradient color 4",
         "type": "color",
         "value": "0.070588235 0.733333333 0.752941176",
         "condition": "idlecolormode.value == 'custom' && idlecustomcount.value >= 4"
       },
       "idlecustomcolor5": {
-        "order": 39,
+        "order": 40,
         "text": "Gradient color 5",
         "type": "color",
         "value": "0.047058824 0.701960784 0.831372549",
         "condition": "idlecolormode.value == 'custom' && idlecustomcount.value >= 5"
       },
       "idlecustomcolor6": {
-        "order": 40,
+        "order": 41,
         "text": "Gradient color 6",
         "type": "color",
         "value": "0.023529412 0.674509804 0.909803922",
         "condition": "idlecolormode.value == 'custom' && idlecustomcount.value >= 6"
       },
       "idlecustomoffset": {
-        "order": 41,
+        "order": 42,
         "text": "Custom offset",
         "type": "slider",
         "value": 0,
@@ -408,14 +414,14 @@
         "condition": "idlecolormode.value == 'custom'"
       },
       "idlecustomanimate": {
-        "order": 42,
+        "order": 43,
         "text": "Animate custom gradient",
         "type": "bool",
         "value": true,
         "condition": "idlecolormode.value == 'custom'"
       },
       "idlecustomspeed": {
-        "order": 43,
+        "order": 44,
         "text": "Custom speed (cycles/min)",
         "type": "slider",
         "value": 0.5,
@@ -430,10 +436,10 @@
       "groupbackground": {
         "type": "group",
         "text": "Background",
-        "order": 44
+        "order": 45
       },
       "stardensity": {
-        "order": 45,
+        "order": 46,
         "text": "Star density",
         "type": "slider",
         "value": 100,
@@ -445,7 +451,7 @@
         "precision": 0
       },
       "clouddensity": {
-        "order": 46,
+        "order": 47,
         "text": "Cloud density",
         "type": "slider",
         "value": 100,
@@ -459,10 +465,10 @@
       "groupcamera": {
         "type": "group",
         "text": "Camera",
-        "order": 47
+        "order": 48
       },
       "cameramotion": {
-        "order": 48,
+        "order": 49,
         "text": "Camera movement",
         "type": "combo",
         "value": "gentle",
@@ -482,7 +488,7 @@
         ]
       },
       "movement": {
-        "order": 49,
+        "order": 50,
         "text": "Movement amount",
         "type": "slider",
         "value": 55,
@@ -495,7 +501,7 @@
         "condition": "cameramotion.value != 'fixed'"
       },
       "tilt": {
-        "order": 50,
+        "order": 51,
         "text": "Tilt",
         "type": "slider",
         "value": 15,
@@ -507,7 +513,7 @@
         "precision": 0
       },
       "framing": {
-        "order": 51,
+        "order": 52,
         "text": "Horizontal position",
         "type": "slider",
         "value": 3,
@@ -519,7 +525,7 @@
         "precision": 0
       },
       "framingy": {
-        "order": 52,
+        "order": 53,
         "text": "Vertical position",
         "type": "slider",
         "value": 10,
@@ -531,7 +537,7 @@
         "precision": 1
       },
       "elevation": {
-        "order": 53,
+        "order": 54,
         "text": "Elevation",
         "type": "slider",
         "value": 18,
@@ -543,7 +549,7 @@
         "precision": 0
       },
       "distance": {
-        "order": 54,
+        "order": 55,
         "text": "Distance",
         "type": "slider",
         "value": 37,
@@ -557,16 +563,16 @@
       "groupblackhole": {
         "type": "group",
         "text": "Black hole",
-        "order": 55
+        "order": 56
       },
       "spinning": {
-        "order": 56,
+        "order": 57,
         "text": "Spinning black hole",
         "type": "bool",
         "value": true
       },
       "spin": {
-        "order": 57,
+        "order": 58,
         "text": "Spin",
         "type": "slider",
         "value": 0.5,
@@ -581,10 +587,10 @@
       "groupmaterial": {
         "type": "group",
         "text": "Material and light",
-        "order": 58
+        "order": 59
       },
       "material": {
-        "order": 59,
+        "order": 60,
         "text": "Material",
         "type": "slider",
         "value": 30,
@@ -596,7 +602,7 @@
         "precision": 0
       },
       "exposure": {
-        "order": 60,
+        "order": 61,
         "text": "Exposure",
         "type": "slider",
         "value": 1.7,
@@ -608,7 +614,7 @@
         "precision": 1
       },
       "sharpness": {
-        "order": 61,
+        "order": 62,
         "text": "Sharpness",
         "type": "slider",
         "value": 100,
@@ -620,7 +626,7 @@
         "precision": 0
       },
       "particlefade": {
-        "order": 62,
+        "order": 63,
         "text": "Particle fade (seconds)",
         "type": "slider",
         "value": 3,
@@ -632,7 +638,7 @@
         "precision": 1
       },
       "timescale": {
-        "order": 63,
+        "order": 64,
         "text": "Time scale",
         "type": "slider",
         "value": 10,
@@ -646,10 +652,10 @@
       "groupperformance": {
         "type": "group",
         "text": "Performance",
-        "order": 64
+        "order": 65
       },
       "particles": {
-        "order": 65,
+        "order": 66,
         "text": "Particles",
         "type": "combo",
         "value": "65536",
@@ -681,7 +687,7 @@
         ]
       },
       "quality": {
-        "order": 66,
+        "order": 67,
         "text": "Quality",
         "type": "combo",
         "value": "balanced",

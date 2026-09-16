@@ -15,6 +15,24 @@ for(const hz of [70,440,1200,6500]){
   if(hz===6500){assert.ok(A.hues[peak]<.035);assert.ok(s.bass<.001);assert.equal(s.shake,0);}
 }
 const quiet=drive(tone(70,-90));assert.equal(quiet.energy,0);assert.equal(quiet.shake,0);
+assert.ok(quiet.driven>.99,'Quiet audio prevents idle by default');
+for(const autoSensitivity of [false,true]){
+  for(const step of [1/30,1/60,1/144]){
+    const s=new A.Spectrum();s.autoSensitivity=autoSensitivity;
+    const advance=(seconds,fft)=>{for(let i=0;i<Math.round(seconds/step);i++)s.update(step,fft);};
+    assert.equal(s.ignoreQuietAudio,false);
+    advance(1,tone(70,-90));assert.ok(s.driven>.99&&s.signalPresent);
+    s.ignoreQuietAudio=true;advance(10,tone(70,-90));
+    assert.equal(s.driven,0,'Enabled gate lets quiet audio return to idle');
+    assert.equal(s.signalPresent,false);
+    s.ignoreQuietAudio=false;advance(.5,tone(70,-90));
+    assert.ok(s.driven>.95,'Disabling the gate resumes quiet audio without resetting playback');
+    const active=s.driven;advance(3,null);
+    assert.ok(Math.abs(s.driven-active)<1e-5,'Actual silence retains the three-second hold');
+    advance(6,null);assert.equal(s.driven,0,'Actual silence returns to idle with the gate disabled');
+    s.ignoreQuietAudio=true;s.reset();assert.equal(s.ignoreQuietAudio,true,'Reset preserves the gate setting');
+  }
+}
 const pulse=new A.Spectrum();let peakShake=0;
 for(let i=0;i<18;i++){pulse.update(dt,tone(70,-14));peakShake=Math.max(peakShake,pulse.shake);}
 assert.ok(peakShake>.6,'Strong bass onset must visibly kick the camera');
@@ -55,56 +73,23 @@ for (let i = 0; i < 600; i++) { balanced.update(dt, bassAndMelody); unbalanced.u
 const ratio = s => s.levels[bandAt(6000)] / s.levels[bandAt(70)];
 assert.ok(ratio(balanced) > ratio(unbalanced) * 1.8, 'Balancing reveals quiet highs beside sustained bass');
 assert.ok(balanced.levels[bandAt(1000)] > .6 && balanced.levels[bandAt(6000)] > .45);
-assert.ok(Math.max(...balanced.attacks) < .001 && balanced.kick < .001, 'A held tone must not keep retriggering');
-assert.ok(balanced.shake > .1 && balanced.shake < .2, 'Held bass keeps a restrained rumble');
+assert.ok(Math.max(...balanced.attacks) < .001 && balanced.shake < .001, 'A held tone must not keep retriggering');
 balanced.balance = 0;
 for (let i = 0; i < 60; i++) {
   balanced.update(dt, bassAndMelody);
   assert.ok(Math.max(...balanced.attacks) < .001, 'Changing balance must not synthesize attacks');
 }
 const afterPause = new A.Spectrum();
+afterPause.ignoreQuietAudio = true;
 for (let i = 0; i < 3600; i++) afterPause.update(dt, tone(70, -90), sampleRate, fftSize, 3);
 assert.equal(afterPause.energy, 0);assert.equal(afterPause.driven, 0);assert.equal(afterPause.shake, 0);
 for (const step of [1/30, 1/60, 1/144]) {
   const s = new A.Spectrum();
   for (let i = 0; i < Math.round(2 / step); i++) s.update(step, tone(70));
   const before = Math.max(...s.attacks);
-  const heldShake = s.shake;
   s.update(step, mix(tone(70), tone(6000, -35)));
   assert.ok(before < .001 && s.attacks[bandAt(6000)] > .4, 'Quiet treble attacks remain distinct from held bass');
-  assert.ok(s.kick < .001 && Math.abs(s.shake - heldShake) < .001, 'Treble onset must not retrigger the bass camera');
-}
-for (const autoSensitivity of [false, true]) {
-  const heldLevels = [];
-  for (const fps of [30, 60, 144]) {
-    const s = new A.Spectrum(), bands = new Float32Array(A.COUNT);
-    s.autoSensitivity = autoSensitivity;
-    const advance = (seconds, amplitude) => {
-      const shakes = [];
-      for (let frame = 0; frame < Math.round(seconds * fps); frame++) {
-        bands[bandAt(70)] = amplitude(frame / fps);
-        s.updateBands(1 / fps, bands);
-        shakes.push(s.shake);
-      }
-      return shakes;
-    };
-    const onset = Math.max(...advance(3, () => .08)), held = s.shake;
-    assert.ok(onset > .6 && onset <= .65, 'Strong kicks remain bounded');
-    assert.ok(held > onset * .2 && held < onset * .3, 'Held bass keeps about a quarter of peak shake');
-    heldLevels.push(held);
-    advance(.4, () => 0);
-    assert.ok(s.shake > held * .03 && s.shake < held * .2, 'Bass release fades smoothly over roughly 400 ms');
-    advance(2, () => 0);assert.ok(s.shake < .001, 'Silence settles both kick and rumble');
-    s.reset();advance(2, t => .08 * Math.min(1, t));
-    assert.ok(s.shake > .1 && s.kick < .005, 'A gradual bass swell sustains rumble without repeated kicks');
-    s.reset();
-    assert.ok(Math.max(...advance(.3, () => .01)) < .1, 'Quieter bass produces only faint shake');
-    s.reset();
-    const beats = advance(4, t => .05 + .03 * Math.exp(-(t % .5) * 10)).slice(fps * 2);
-    assert.ok(Math.max(...beats) - Math.min(...beats) > .025, 'Beats remain distinct over sustained bass');
-    assert.ok(Math.max(...beats) < .4, 'Sustained bass does not turn every beat into maximum shake');
-  }
-  assert.ok(Math.max(...heldLevels) - Math.min(...heldLevels) < .005, 'Rumble is consistent across frame rates');
+  assert.ok(s.shake < .001, 'Treble onset must not retrigger the bass camera');
 }
 for (const step of [.25, .5, 1]) {
   const s = new A.Spectrum();s.update(1, tone(440));
@@ -137,6 +122,7 @@ feedPeak(20, 0);
 assert.equal(normalize.gain, heldGain, 'Silence must not increase sensitivity');
 
 const automatic = new A.Spectrum(); automatic.autoSensitivity = true;
+automatic.ignoreQuietAudio = true;
 const amplitudes = new Float32Array(A.COUNT);
 const feedBands = (seconds, amplitude) => {
   amplitudes.fill(0); amplitudes[2] = amplitude;
@@ -158,12 +144,12 @@ automatic.reset();
 assert.equal(automatic.sensitivity.peak, 0); assert.equal(automatic.sensitivity.gain, 1);
 assert.equal(automatic.autoSensitivity, true);
 feedBands(1, 0.16); feedBands(3, 0.008);
-let recoveryKick = 0;
+let recoveryShake = 0;
 for (let i = 0; i < 15 * 60; i++) {
   automatic.updateBands(1 / 60, amplitudes, 2.5);
-  recoveryKick = Math.max(recoveryKick, automatic.kick);
+  recoveryShake = Math.max(recoveryShake, automatic.shake);
 }
-assert.ok(recoveryKick < 0.001, 'Gain recovery on held bass must not invent new attacks');
+assert.ok(recoveryShake < 0.001, 'Gain recovery on held bass must not invent new attacks');
 const gains = [];
 for (const fps of [20, 30, 60, 144]) {
   normalize.reset(); feedPeak(1, 0.16, fps); feedPeak(13, 0.008, fps);
