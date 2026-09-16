@@ -45,6 +45,47 @@
     }
   }
 
+  class AutoSensitivity {
+    constructor() {
+      this.peaks = new Float32Array(101);
+      this.times = new Float64Array(101);
+      this.reset();
+    }
+    reset() {
+      this.peaks.fill(0);
+      this.times.fill(-Infinity);
+      this.time = 0;
+      this.bucket = -1;
+      this.gain = 1;
+      this.peak = 0;
+    }
+    update(dt, amplitude) {
+      this.time += dt;
+      const bucket = Math.floor(this.time * 10 + 1e-9), index = bucket % this.peaks.length;
+      // Ten seconds of peaks in 100 ms buckets, without per-frame allocations.
+      if (bucket !== this.bucket) {
+        if (bucket - this.bucket >= this.peaks.length) {
+          this.peaks.fill(0);
+          this.times.fill(-Infinity);
+        }
+        this.peaks[index] = 0;
+        this.bucket = bucket;
+      }
+      if (amplitude >= this.peaks[index]) {
+        this.peaks[index] = amplitude;
+        this.times[index] = this.time;
+      }
+      this.peak = 0;
+      for (let i = 0; i < this.peaks.length; i++)
+        if (this.time - this.times[i] <= 10) this.peak = Math.max(this.peak, this.peaks[i]);
+      if (amplitude >= 0.001) {
+        const target = Math.max(0.25, Math.min(6, 0.04 / this.peak));
+        this.gain = Math.exp(follow(Math.log(this.gain), Math.log(target), dt, 2, 0.12));
+      }
+      return this.gain;
+    }
+  }
+
   class ResponseBank {
     constructor() {
       for (const name of [
@@ -96,6 +137,8 @@
   class Spectrum {
     constructor() {
       this.frequency = new ResponseBank();
+      this.sensitivity = new AutoSensitivity();
+      this.autoSensitivity = false;
       this.balance = 0.75;
       this.reset();
     }
@@ -110,6 +153,8 @@
     }
     reset() {
       this.frequency.reset();
+      this.sensitivity.reset();
+      this.effectiveGain = 1;
       this.energy = 0;
       this.bass = 0;
       this.shake = 0;
@@ -144,6 +189,16 @@
     advance(dt, gain) {
       dt = Math.max(0, dt);
       this.time += dt;
+      const amplitude = Math.max(...this.frequency.amplitudes, ...this.frequency.fastAmplitudes);
+      const automaticGain = this.sensitivity.update(dt, amplitude);
+      if (this.autoSensitivity) {
+        gain = automaticGain;
+        if (amplitude < 0.001) {
+          this.frequency.amplitudes.fill(0);
+          this.frequency.fastAmplitudes.fill(0);
+        }
+      }
+      this.effectiveGain = gain;
       this.frequency.update(dt, gain, this.balance);
       const peak = Math.max(...this.frequency.rawLevels);
       const audible = peak > (this.signalPresent ? 0.01 : 0.025);
@@ -184,7 +239,7 @@
       ];
     }
   }
-  const api = { Spectrum, COUNT, edges, centers, hues };
+  const api = { Spectrum, AutoSensitivity, COUNT, edges, centers, hues };
   root.GravityAudio = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(globalThis);

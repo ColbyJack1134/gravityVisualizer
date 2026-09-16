@@ -36,12 +36,19 @@
       this.audioEnergy = 0;
       this.audioBass = 0;
       this.spectrum = new GravityAudio.Spectrum();
+      this.spectrum.autoSensitivity = true;
       this.audioGain = 1;
       this.sustainStrength = 1;
       this.shakeStrength = 0.7;
       this.palette = new GravityPalette.Palette();
+      this.idlePalette = new GravityPalette.Palette();
+      this.idlePalette.apply({ mode: 'solid', solid: '#ffffff' });
       this.paletteColors = new Float32Array(GravityAudio.COUNT * 3);
+      this.audioColors = new Float32Array(GravityAudio.COUNT * 3);
+      this.idleColors = new Float32Array(GravityAudio.COUNT * 3);
       this.paletteRevision = -1;
+      this.idlePaletteRevision = -1;
+      this.paletteMix = -1;
       this.lastPresentation = 0;
       this.fpsSamples = [];
       this.measuredFPS = 0;
@@ -147,8 +154,10 @@
         this.camera.distance = Math.max(32, Math.min(85, settings.distance));
       if (typeof settings.balance === 'number' && Number.isFinite(settings.balance))
         this.spectrum.balance = Math.max(0, Math.min(1, settings.balance));
-      if (settings.palette) {
-        this.palette.apply(settings.palette);
+      if (typeof settings.autoSensitivity === 'boolean') this.spectrum.autoSensitivity = settings.autoSensitivity;
+      if (settings.palette || settings.idlePalette) {
+        if (settings.palette) this.palette.apply(settings.palette);
+        if (settings.idlePalette) this.idlePalette.apply(settings.idlePalette);
         this.refreshPalette(true);
       }
       if (Object.hasOwn(settings, 'fpsLimit')) this.resetClock();
@@ -578,10 +587,19 @@
       this.quad();
     }
     refreshPalette(force = false) {
-      if (force || this.paletteRevision !== this.palette.revision) {
-        this.palette.writeColors(GravityAudio.hues, this.paletteColors);
+      const audioChanged = this.paletteRevision !== this.palette.revision;
+      const idleChanged = this.idlePaletteRevision !== this.idlePalette.revision;
+      if (force || audioChanged) {
+        this.palette.writeColors(GravityAudio.hues, this.audioColors);
         this.paletteRevision = this.palette.revision;
-      } else return;
+      }
+      if (force || idleChanged) {
+        this.idlePalette.writeColors(GravityAudio.hues, this.idleColors);
+        this.idlePaletteRevision = this.idlePalette.revision;
+      }
+      if (!force && !audioChanged && !idleChanged && this.paletteMix === this.spectrum.driven) return;
+      this.paletteMix = this.spectrum.driven;
+      GravityPalette.blend(this.idleColors, this.audioColors, this.paletteMix, this.paletteColors);
       this.onPalette?.(force);
     }
     updateAudio(dt) {
@@ -630,6 +648,7 @@
         }
         this.updateAudio(frameDelta);
         this.palette.advance(dt, this.paused);
+        this.idlePalette.advance(dt, this.paused);
         this.refreshPalette();
         if (!this.paused) {
           this.simTime += dt * this.speed;
@@ -681,6 +700,8 @@
         simTime: this.simTime,
         audioEnergy: this.audioEnergy,
         audioBass: this.audioBass,
+        autoSensitivity: this.spectrum.autoSensitivity,
+        audioGain: this.spectrum.effectiveGain,
         audioBands: Array.from(this.spectrum.levels),
         audioAttacks: Array.from(this.spectrum.attacks),
         bassShake: this.spectrum.shake,

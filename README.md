@@ -14,19 +14,19 @@ Open **`gravity-demo.html`** in desktop Chrome or Edge with graphics acceleratio
 
 Run `npm run build:wallpaper`. Copy the resulting `dist/wallpaper-engine` folder to `wallpaper_engine/projects/myprojects/gravity_visualizer`, then select **Gravity Visualizer** in Wallpaper Engine. Reopen its wallpaper browser if the project list needs refreshing. Keep all three files together, including `project.json`, which defines the native settings.
 
-The wallpaper receives live system audio and uses Wallpaper Engine's settings, FPS cap, and pause/resume events. It contains no music player or on-screen controls. The build also creates `dist/gravity-wallpaper.zip`. [Integration and validation](docs/handoff.md).
+The wallpaper receives live system audio and uses Wallpaper Engine's settings, FPS cap, and pause/resume events. Settings are arranged in collapsible categories. It contains no music player or on-screen controls. The build also creates `dist/gravity-wallpaper.zip`. [Integration and validation](docs/handoff.md).
 
 ## Controls
 
-- **Audio:** 24 frequency bands control how many particles are visible. Adjust sensitivity, band balance, sustained amount, and bass shake. Three seconds of silence starts a six-second return to idle brightness.
-- **Colors:** solid color, HSV gradient, or a custom gradient with 2–6 stops. Gradients support offset and animation in either direction.
+- **Audio:** 24 frequency bands control how many particles are visible. Automatic sensitivity follows the previous ten seconds of peaks; uncheck it to use the saved manual sensitivity. Band balance, sustained amount, and bass shake are separate controls.
+- **Colors:** independent audio and idle palettes, each with solid, HSV, and 2–6-stop custom gradient options. Idle starts white; audio starts with the existing HSV gradient. Three seconds of silence begins a six-second blend into idle colors and brightness. Each gradient has its own offset and animation speed.
 - **Background:** independent star and cloud density, from 0–500%.
 - **Camera:** slow orbit, music-driven orbit, or hold; movement, tilt, framing, elevation, and distance.
 - **Black hole:** spinning or non-spinning.
 - **Material & light:** material, exposure, sharpness, particle fade, and time scale.
 - **Performance:** particle count, render quality, frame cap, and live stats.
 
-Defaults include 65,536 particles, Balanced quality, a 60 FPS cap, spin 0.25, elevation 18°, distance 37, tilt 15°, framing 3 / 10, material 30%, exposure 1.7, sharpness 100%, three-second fades, and 10× time scale. Gradient animation starts enabled.
+Defaults include 65,536 particles, Balanced quality, a 60 FPS web cap, spin 0.25, elevation 18°, distance 37, tilt 15°, framing 3 / 10, material 30%, exposure 1.7, sharpness 100%, three-second fades, and 10× time scale. Automatic sensitivity and gradient animation start enabled. Wallpaper Engine's scheme color defaults to black.
 
 Scene **Pause** freezes trajectories, camera movement, and gradient animation. Audio and its visibility response continue. Wallpaper Engine's automatic suspension stops rendering entirely. Browser settings last for the open page session; Wallpaper Engine manages its native settings.
 

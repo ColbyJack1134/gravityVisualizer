@@ -185,6 +185,9 @@ h2 {
   font-size: 10px;
   color: #a2a1ad;
 }
+#palette-target {
+  margin-bottom: 8px;
+}
 .palette-preview {
   height: 8px;
   margin: 12px 0;
@@ -354,8 +357,11 @@ summary {
       <div id="audio-credit" class="audio-credit"><a href="https://www.youtube.com/watch?v=UiHkZTeXrcA" target="_blank" rel="noopener noreferrer">Kevin MacLeod</a> · <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer">CC BY 4.0</a></div>
       <div id="spectrum-bars" class="spectrum-bars" aria-hidden="true"></div>
       <div class="spectrum-legend"><span id="spectrum-low">BASS</span><span id="spectrum-high">HIGHS</span></div>
-      <label class="range-label" for="audio-gain">Sensitivity <output id="audio-gain-value">1.0×</output></label>
-      <input id="audio-gain" type="range" min="0.3" max="3" step="0.1" value="1">
+      <label class="check-label"><input id="auto-sensitivity" type="checkbox" checked> Automatic sensitivity</label>
+      <div id="manual-sensitivity" hidden>
+        <label class="range-label" for="audio-gain">Sensitivity <output id="audio-gain-value">1.0×</output></label>
+        <input id="audio-gain" type="range" min="0.3" max="3" step="0.1" value="1">
+      </div>
       <label class="range-label" for="audio-balance">Band balance <output id="audio-balance-value">75%</output></label>
       <input id="audio-balance" type="range" min="0" max="100" value="75">
       <label class="range-label" for="sustained-light">Sustained amount <output id="sustained-light-value">100%</output></label>
@@ -366,6 +372,7 @@ summary {
 
     <section class="control-section">
       <h2>Colors</h2>
+      <select id="palette-target" aria-label="Palette"><option value="audio">Audio colors</option><option value="idle">Idle colors</option></select>
       <select id="color-mode" aria-label="Color mode"><option value="hsv">HSV gradient</option><option value="solid">Solid color</option><option value="custom">Custom gradient</option></select>
       <div id="palette-preview" class="palette-preview" aria-label="Palette from bass to high frequencies"></div>
       <div id="solid-controls" hidden><label class="color-label" for="solid-color">Particle color <input id="solid-color" type="color" value="#aa44ff"></label></div>
@@ -603,6 +610,47 @@ summary {
     }
   }
 
+  class AutoSensitivity {
+    constructor() {
+      this.peaks = new Float32Array(101);
+      this.times = new Float64Array(101);
+      this.reset();
+    }
+    reset() {
+      this.peaks.fill(0);
+      this.times.fill(-Infinity);
+      this.time = 0;
+      this.bucket = -1;
+      this.gain = 1;
+      this.peak = 0;
+    }
+    update(dt, amplitude) {
+      this.time += dt;
+      const bucket = Math.floor(this.time * 10 + 1e-9), index = bucket % this.peaks.length;
+      // Ten seconds of peaks in 100 ms buckets, without per-frame allocations.
+      if (bucket !== this.bucket) {
+        if (bucket - this.bucket >= this.peaks.length) {
+          this.peaks.fill(0);
+          this.times.fill(-Infinity);
+        }
+        this.peaks[index] = 0;
+        this.bucket = bucket;
+      }
+      if (amplitude >= this.peaks[index]) {
+        this.peaks[index] = amplitude;
+        this.times[index] = this.time;
+      }
+      this.peak = 0;
+      for (let i = 0; i < this.peaks.length; i++)
+        if (this.time - this.times[i] <= 10) this.peak = Math.max(this.peak, this.peaks[i]);
+      if (amplitude >= 0.001) {
+        const target = Math.max(0.25, Math.min(6, 0.04 / this.peak));
+        this.gain = Math.exp(follow(Math.log(this.gain), Math.log(target), dt, 2, 0.12));
+      }
+      return this.gain;
+    }
+  }
+
   class ResponseBank {
     constructor() {
       for (const name of [
@@ -654,6 +702,8 @@ summary {
   class Spectrum {
     constructor() {
       this.frequency = new ResponseBank();
+      this.sensitivity = new AutoSensitivity();
+      this.autoSensitivity = false;
       this.balance = 0.75;
       this.reset();
     }
@@ -668,6 +718,8 @@ summary {
     }
     reset() {
       this.frequency.reset();
+      this.sensitivity.reset();
+      this.effectiveGain = 1;
       this.energy = 0;
       this.bass = 0;
       this.shake = 0;
@@ -702,6 +754,16 @@ summary {
     advance(dt, gain) {
       dt = Math.max(0, dt);
       this.time += dt;
+      const amplitude = Math.max(...this.frequency.amplitudes, ...this.frequency.fastAmplitudes);
+      const automaticGain = this.sensitivity.update(dt, amplitude);
+      if (this.autoSensitivity) {
+        gain = automaticGain;
+        if (amplitude < 0.001) {
+          this.frequency.amplitudes.fill(0);
+          this.frequency.fastAmplitudes.fill(0);
+        }
+      }
+      this.effectiveGain = gain;
       this.frequency.update(dt, gain, this.balance);
       const peak = Math.max(...this.frequency.rawLevels);
       const audible = peak > (this.signalPresent ? 0.01 : 0.025);
@@ -742,7 +804,7 @@ summary {
       ];
     }
   }
-  const api = { Spectrum, COUNT, edges, centers, hues };
+  const api = { Spectrum, AutoSensitivity, COUNT, edges, centers, hues };
   root.GravityAudio = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(globalThis);
@@ -772,6 +834,11 @@ summary {
         )
         .join('')
     );
+  }
+  function blend(idle, audio, amount, out) {
+    const t = clamp(amount);
+    for (let i = 0; i < out.length; i++) out[i] = idle[i] + (audio[i] - idle[i]) * t;
+    return out;
   }
   class Palette {
     constructor() {
@@ -886,7 +953,7 @@ summary {
       return out;
     }
   }
-  const api = { Palette, wrap, hsv, hexRGB, css };
+  const api = { Palette, blend, wrap, hsv, hexRGB, css };
   root.GravityPalette = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(globalThis);
@@ -1353,12 +1420,19 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
       this.audioEnergy = 0;
       this.audioBass = 0;
       this.spectrum = new GravityAudio.Spectrum();
+      this.spectrum.autoSensitivity = true;
       this.audioGain = 1;
       this.sustainStrength = 1;
       this.shakeStrength = 0.7;
       this.palette = new GravityPalette.Palette();
+      this.idlePalette = new GravityPalette.Palette();
+      this.idlePalette.apply({ mode: 'solid', solid: '#ffffff' });
       this.paletteColors = new Float32Array(GravityAudio.COUNT * 3);
+      this.audioColors = new Float32Array(GravityAudio.COUNT * 3);
+      this.idleColors = new Float32Array(GravityAudio.COUNT * 3);
       this.paletteRevision = -1;
+      this.idlePaletteRevision = -1;
+      this.paletteMix = -1;
       this.lastPresentation = 0;
       this.fpsSamples = [];
       this.measuredFPS = 0;
@@ -1464,8 +1538,10 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
         this.camera.distance = Math.max(32, Math.min(85, settings.distance));
       if (typeof settings.balance === 'number' && Number.isFinite(settings.balance))
         this.spectrum.balance = Math.max(0, Math.min(1, settings.balance));
-      if (settings.palette) {
-        this.palette.apply(settings.palette);
+      if (typeof settings.autoSensitivity === 'boolean') this.spectrum.autoSensitivity = settings.autoSensitivity;
+      if (settings.palette || settings.idlePalette) {
+        if (settings.palette) this.palette.apply(settings.palette);
+        if (settings.idlePalette) this.idlePalette.apply(settings.idlePalette);
         this.refreshPalette(true);
       }
       if (Object.hasOwn(settings, 'fpsLimit')) this.resetClock();
@@ -1895,10 +1971,19 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
       this.quad();
     }
     refreshPalette(force = false) {
-      if (force || this.paletteRevision !== this.palette.revision) {
-        this.palette.writeColors(GravityAudio.hues, this.paletteColors);
+      const audioChanged = this.paletteRevision !== this.palette.revision;
+      const idleChanged = this.idlePaletteRevision !== this.idlePalette.revision;
+      if (force || audioChanged) {
+        this.palette.writeColors(GravityAudio.hues, this.audioColors);
         this.paletteRevision = this.palette.revision;
-      } else return;
+      }
+      if (force || idleChanged) {
+        this.idlePalette.writeColors(GravityAudio.hues, this.idleColors);
+        this.idlePaletteRevision = this.idlePalette.revision;
+      }
+      if (!force && !audioChanged && !idleChanged && this.paletteMix === this.spectrum.driven) return;
+      this.paletteMix = this.spectrum.driven;
+      GravityPalette.blend(this.idleColors, this.audioColors, this.paletteMix, this.paletteColors);
       this.onPalette?.(force);
     }
     updateAudio(dt) {
@@ -1947,6 +2032,7 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
         }
         this.updateAudio(frameDelta);
         this.palette.advance(dt, this.paused);
+        this.idlePalette.advance(dt, this.paused);
         this.refreshPalette();
         if (!this.paused) {
           this.simTime += dt * this.speed;
@@ -1998,6 +2084,8 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
         simTime: this.simTime,
         audioEnergy: this.audioEnergy,
         audioBass: this.audioBass,
+        autoSensitivity: this.spectrum.autoSensitivity,
+        audioGain: this.spectrum.effectiveGain,
         audioBands: Array.from(this.spectrum.levels),
         audioAttacks: Array.from(this.spectrum.attacks),
         bassShake: this.spectrum.shake,
@@ -2050,6 +2138,7 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
   class WebDemo extends GravityRenderer {
     constructor() {
       super($('universe'));
+      this.paletteTarget = 'audio';
       this.audioContext = null;
       this.audioURL = null;
       this.audioInput = { update: (spectrum, dt, gain) => this.readAudio(spectrum, dt, gain) };
@@ -2077,14 +2166,14 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
     }
     syncPalettePreview(force) {
       if (force || this.frames % 4 === 0) {
+        const preview = this.paletteTarget === 'idle' ? this.idleColors : this.audioColors;
         const colors = this.bandBars.map((bar, i) => {
-          const color = GravityPalette.css(Array.from(this.paletteColors.subarray(i * 3, i * 3 + 3)));
-          bar.style.background = color;
-          return color;
+          bar.style.background = GravityPalette.css(Array.from(this.audioColors.subarray(i * 3, i * 3 + 3)));
+          return GravityPalette.css(Array.from(preview.subarray(i * 3, i * 3 + 3)));
         });
         $('palette-preview').style.background = 'linear-gradient(to right,' + colors.join(',') + ')';
-        if (this.palette.gradient) {
-          const percent = this.palette.gradient.offset * 100;
+        if (this.editedPalette.gradient) {
+          const percent = this.editedPalette.gradient.offset * 100;
           $('palette-offset').value = percent;
           $('palette-offset-value').textContent = percent.toFixed(0) + '%';
         }
@@ -2123,8 +2212,11 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
         return bar;
       });
     }
+    get editedPalette() {
+      return this.paletteTarget === 'idle' ? this.idlePalette : this.palette;
+    }
     syncPaletteUI() {
-      const p = this.palette,
+      const p = this.editedPalette,
         g = p.gradient;
       $('color-mode').value = p.mode;
       $('solid-controls').hidden = p.mode !== 'solid';
@@ -2147,7 +2239,7 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
     renderColorStops() {
       const container = $('custom-colors');
       container.replaceChildren();
-      this.palette.custom.stops.forEach((color, index) => {
+      this.editedPalette.custom.stops.forEach((color, index) => {
         const row = document.createElement('div');
         row.className = 'color-stop';
         const label = document.createElement('label');
@@ -2158,7 +2250,7 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
         input.dataset.stop = index;
         input.setAttribute('aria-label', 'Gradient color ' + (index + 1));
         input.addEventListener('input', () => {
-          this.palette.setStop(index, input.value);
+          this.editedPalette.setStop(index, input.value);
           this.refreshPalette(true);
         });
         label.append(input);
@@ -2166,10 +2258,10 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
         const remove = document.createElement('button');
         remove.textContent = '×';
         remove.type = 'button';
-        remove.disabled = this.palette.custom.stops.length <= 2;
+        remove.disabled = this.editedPalette.custom.stops.length <= 2;
         remove.setAttribute('aria-label', 'Remove gradient color ' + (index + 1));
         remove.addEventListener('click', () => {
-          this.palette.removeStop(index);
+          this.editedPalette.removeStop(index);
           this.renderColorStops();
           this.syncPaletteUI();
           this.refreshPalette(true);
@@ -2219,6 +2311,8 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
       }
       $('audio-gain').value = this.audioGain;
       $('audio-gain-value').textContent = this.audioGain.toFixed(1) + '×';
+      $('auto-sensitivity').checked = this.spectrum.autoSensitivity;
+      $('manual-sensitivity').hidden = this.spectrum.autoSensitivity;
       $('bass-shake').value = this.shakeStrength * 100;
       $('bass-shake-value').textContent = Math.round(this.shakeStrength * 100) + '%';
       $('elevation').value = Math.round(90 - (this.camera.theta * 180) / Math.PI);
@@ -2280,6 +2374,14 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
       $('audio-credit').hidden = true;
     }
     bindUI() {
+      $('auto-sensitivity').addEventListener('change', (event) =>
+        this.applySettings({ autoSensitivity: event.target.checked }));
+      $('palette-target').addEventListener('change', (event) => {
+        this.paletteTarget = event.target.value;
+        this.renderColorStops();
+        this.syncPaletteUI();
+        this.refreshPalette(true);
+      });
       for (const b of document.querySelectorAll('[data-metric]'))
         b.addEventListener('click', () => this.setSpin(b.dataset.metric === 'spin'));
       let spinTimeout;
@@ -2289,34 +2391,34 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
         spinTimeout = setTimeout(() => this.setSpin(true, Number(e.target.value)), 180);
       });
       $('color-mode').addEventListener('change', (e) => {
-        this.palette.setMode(e.target.value);
+        this.editedPalette.setMode(e.target.value);
         this.syncPaletteUI();
         this.refreshPalette(true);
       });
       $('solid-color').addEventListener('input', (e) => {
-        this.palette.setSolid(e.target.value);
+        this.editedPalette.setSolid(e.target.value);
         this.refreshPalette(true);
       });
       $('palette-saturation').addEventListener('input', (e) => {
-        this.palette.setSaturation(Number(e.target.value) / 100);
+        this.editedPalette.setSaturation(Number(e.target.value) / 100);
         this.syncPaletteUI();
         this.refreshPalette(true);
       });
       $('palette-offset').addEventListener('input', (e) => {
-        this.palette.setOffset(Number(e.target.value) / 100);
+        this.editedPalette.setOffset(Number(e.target.value) / 100);
         this.syncPaletteUI();
         this.refreshPalette(true);
       });
       $('palette-animate').addEventListener('change', (e) => {
-        this.palette.setAnimated(e.target.checked);
+        this.editedPalette.setAnimated(e.target.checked);
         this.syncPaletteUI();
       });
       $('palette-speed').addEventListener('input', (e) => {
-        this.palette.setSpeed(Number(e.target.value));
+        this.editedPalette.setSpeed(Number(e.target.value));
         this.syncPaletteUI();
       });
       $('add-color').addEventListener('click', () => {
-        this.palette.addStop();
+        this.editedPalette.addStop();
         this.renderColorStops();
         this.syncPaletteUI();
         this.refreshPalette(true);

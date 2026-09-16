@@ -21,8 +21,11 @@
       <div id="audio-credit" class="audio-credit"><a href="https://www.youtube.com/watch?v=UiHkZTeXrcA" target="_blank" rel="noopener noreferrer">Kevin MacLeod</a> · <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer">CC BY 4.0</a></div>
       <div id="spectrum-bars" class="spectrum-bars" aria-hidden="true"></div>
       <div class="spectrum-legend"><span id="spectrum-low">BASS</span><span id="spectrum-high">HIGHS</span></div>
-      <label class="range-label" for="audio-gain">Sensitivity <output id="audio-gain-value">1.0×</output></label>
-      <input id="audio-gain" type="range" min="0.3" max="3" step="0.1" value="1">
+      <label class="check-label"><input id="auto-sensitivity" type="checkbox" checked> Automatic sensitivity</label>
+      <div id="manual-sensitivity" hidden>
+        <label class="range-label" for="audio-gain">Sensitivity <output id="audio-gain-value">1.0×</output></label>
+        <input id="audio-gain" type="range" min="0.3" max="3" step="0.1" value="1">
+      </div>
       <label class="range-label" for="audio-balance">Band balance <output id="audio-balance-value">75%</output></label>
       <input id="audio-balance" type="range" min="0" max="100" value="75">
       <label class="range-label" for="sustained-light">Sustained amount <output id="sustained-light-value">100%</output></label>
@@ -33,6 +36,7 @@
 
     <section class="control-section">
       <h2>Colors</h2>
+      <select id="palette-target" aria-label="Palette"><option value="audio">Audio colors</option><option value="idle">Idle colors</option></select>
       <select id="color-mode" aria-label="Color mode"><option value="hsv">HSV gradient</option><option value="solid">Solid color</option><option value="custom">Custom gradient</option></select>
       <div id="palette-preview" class="palette-preview" aria-label="Palette from bass to high frequencies"></div>
       <div id="solid-controls" hidden><label class="color-label" for="solid-color">Particle color <input id="solid-color" type="color" value="#aa44ff"></label></div>

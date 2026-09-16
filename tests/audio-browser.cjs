@@ -103,9 +103,17 @@ function wav(hz,pulsed=false){
     assert.equal(await page.evaluate(()=>GravityDemo.cacheBuilds),builds,'Audio and shake must reuse the light cache');
     await page.evaluate(()=>document.getElementById('music').pause());
     await page.waitForFunction(()=>GravityDemo.spectrum.energy<.001&&GravityDemo.spectrum.shake<.001,null,{timeout:5000});
+    assert.equal(await page.locator('#auto-sensitivity').isChecked(),true);
+    assert.equal(await page.locator('#audio-gain').isVisible(),false);
+    await page.locator('#auto-sensitivity').uncheck();
     await page.locator('#audio-gain').fill('1.6');await page.locator('#audio-gain').dispatchEvent('input');
     await page.locator('#bass-shake').fill('0');await page.locator('#bass-shake').dispatchEvent('input');
     assert.deepEqual(await page.evaluate(()=>[GravityDemo.audioGain,GravityDemo.shakeStrength]),[1.6,0]);
+    await page.locator('#auto-sensitivity').check();
+    assert.equal(await page.locator('#audio-gain').isVisible(),false);
+    await page.locator('#auto-sensitivity').uncheck();
+    assert.equal(await page.locator('#audio-gain').inputValue(),'1.6');
+    assert.equal(await page.evaluate(()=>GravityDemo.spectrum.autoSensitivity),false);
     results.suppressed=suppressed;
     results.checks.push('Bass-only onset camera movement, bounded displacement, mute/hold/pause/disable behavior and no retracing');
     results.checks.push('Sensitivity and bass-shake controls');assert.deepEqual(errors,[]);results.passed=true;

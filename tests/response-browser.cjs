@@ -83,6 +83,7 @@ const { chromium } = require('playwright');
       d.spectrum.levels.fill(0.35);
       d.spectrum.attacks.fill(0);
       d.spectrum.driven = 1;
+      d.refreshPalette(true);
     });
     const original = await page.evaluate(() => ({
       state: responseProbe.state(),

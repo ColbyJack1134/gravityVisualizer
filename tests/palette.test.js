@@ -25,3 +25,20 @@ for(const step of [1/30,1/60,1/144]){
 p.setOffset(1-1e-6);const left=colors(p);p.setOffset(1e-6);const right=colors(p);
 left.forEach((v,i)=>close(v,right[i],.00002));
 console.log('PASS: solid/HSV/custom palettes, saturation, cyclic offsets, stop limits, independent settings and timed/reversed/paused drift.');
+
+const idle = new C.Palette(), audio = new C.Palette();
+idle.apply({mode:'solid',solid:'#ffffff'});
+const idleColors=colors(idle),audioColors=colors(audio),mixed=new Float32Array(A.COUNT*3);
+assert.ok(idleColors.every(v=>v===1));
+assert.deepEqual(Array.from(C.blend(idleColors,audioColors,0,mixed)),idleColors);
+assert.deepEqual(Array.from(C.blend(idleColors,audioColors,1,mixed)),audioColors);
+C.blend(idleColors,audioColors,.5,mixed);
+mixed.forEach((v,i)=>close(v,(idleColors[i]+audioColors[i])/2));
+idle.apply({mode:'custom',custom:{stops:['#ff0000','#0000ff'],offset:.3,speed:-1,animated:true}});
+audio.apply({hsv:{offset:.6,speed:1,animated:true}});
+idle.advance(6); audio.advance(6);
+close(idle.custom.offset,.2); close(audio.hsv.offset,.7);
+idle.advance(6,true); audio.advance(6,true);
+close(idle.custom.offset,.2); close(audio.hsv.offset,.7);
+assert.deepEqual(audio.custom.stops,['#23D183','#1DCA97','#17C2AB','#12BBC0','#0CB3D4','#06ACE8']);
+console.log('PASS: independent idle/audio palettes and linear-light crossfade endpoints.');

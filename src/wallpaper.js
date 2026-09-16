@@ -16,6 +16,35 @@
     if (rgb.length !== 3 || !rgb.every(Number.isFinite)) return null;
     return '#' + rgb.map((v) => Math.round(Math.max(0, Math.min(1, v)) * 255).toString(16).padStart(2, '0')).join('');
   }
+  function paletteSettings(values, prefix, state) {
+    const palette = {};
+    if (values[prefix + 'colormode'] !== undefined) palette.mode = values[prefix + 'colormode'];
+    const solid = color(values[prefix + 'solidcolor']);
+    if (solid) palette.solid = solid;
+    if (typeof values[prefix + 'saturation'] === 'number' && Number.isFinite(values[prefix + 'saturation']))
+      palette.saturation = values[prefix + 'saturation'] / 100;
+    for (const mode of ['hsv', 'custom']) {
+      const changes = {};
+      if (typeof values[prefix + mode + 'offset'] === 'number') changes.offset = values[prefix + mode + 'offset'] / 100;
+      if (typeof values[prefix + mode + 'speed'] === 'number') changes.speed = values[prefix + mode + 'speed'];
+      if (typeof values[prefix + mode + 'animate'] === 'boolean') changes.animated = values[prefix + mode + 'animate'];
+      if (Object.keys(changes).length) palette[mode] = changes;
+    }
+    let colorsChanged = false;
+    if (Number.isFinite(values[prefix + 'customcount'])) {
+      state.count = Math.max(2, Math.min(6, Math.round(values[prefix + 'customcount'])));
+      colorsChanged = true;
+    }
+    for (let i = 0; i < 6; i++) {
+      const hex = color(values[prefix + 'customcolor' + (i + 1)]);
+      if (hex) {
+        state.stops[i] = hex;
+        colorsChanged = true;
+      }
+    }
+    if (colorsChanged) palette.custom = { ...palette.custom, stops: state.stops.slice(0, state.count) };
+    return palette;
+  }
   const host = {
     renderer: null,
     pending: {},
@@ -46,7 +75,7 @@
     flush() {
       if (!this.renderer) return;
       clearTimeout(this.settingsTimer);
-      const values = this.pending, settings = {}, palette = {};
+      const values = this.pending, settings = {};
       this.pending = {};
       for (const [key, [field, scale]] of Object.entries(numbers)) {
         const value = values[key];
@@ -57,32 +86,11 @@
         if (typeof values[key] === 'boolean') settings[key] = values[key];
       if (values.quality !== undefined) settings.quality = values.quality;
       if (values.cameramotion !== undefined) settings.cameraMotion = values.cameramotion;
-      if (values.colormode !== undefined) palette.mode = values.colormode;
-      const solid = color(values.solidcolor);
-      if (solid) palette.solid = solid;
-      if (typeof values.saturation === 'number' && Number.isFinite(values.saturation))
-        palette.saturation = values.saturation / 100;
-      for (const mode of ['hsv', 'custom']) {
-        const changes = {};
-        if (typeof values[mode + 'offset'] === 'number') changes.offset = values[mode + 'offset'] / 100;
-        if (typeof values[mode + 'speed'] === 'number') changes.speed = values[mode + 'speed'];
-        if (typeof values[mode + 'animate'] === 'boolean') changes.animated = values[mode + 'animate'];
-        if (Object.keys(changes).length) palette[mode] = changes;
+      if (typeof values.autosensitivity === 'boolean') settings.autoSensitivity = values.autosensitivity;
+      for (const [key, prefix] of [['palette', ''], ['idlePalette', 'idle']]) {
+        const palette = paletteSettings(values, prefix, this.paletteStops[key]);
+        if (Object.keys(palette).length) settings[key] = palette;
       }
-      let colorsChanged = false;
-      if (Number.isFinite(values.customcount)) {
-        this.customCount = Math.max(2, Math.min(6, Math.round(values.customcount)));
-        colorsChanged = true;
-      }
-      for (let i = 0; i < 6; i++) {
-        const hex = color(values['customcolor' + (i + 1)]);
-        if (hex) {
-          this.customStops[i] = hex;
-          colorsChanged = true;
-        }
-      }
-      if (colorsChanged) palette.custom = { ...palette.custom, stops: this.customStops.slice(0, this.customCount) };
-      if (Object.keys(palette).length) settings.palette = palette;
       try {
         this.renderer.applySettings(settings);
       } catch (error) {
@@ -102,8 +110,11 @@
         this.renderer = new GravityRenderer(document.getElementById('universe'));
         this.renderer.audioInput = this.audio;
         this.renderer.onError = showError;
-        this.customStops = this.renderer.palette.custom.stops.slice();
-        this.customCount = this.customStops.length;
+        this.paletteStops = {};
+        for (const key of ['palette', 'idlePalette']) {
+          const stops = this.renderer[key].custom.stops.slice();
+          this.paletteStops[key] = { stops, count: stops.length };
+        }
         this.flush();
         this.renderer.applySettings({ fpsLimit: this.fps });
         this.renderer.setSuspended(this.paused);

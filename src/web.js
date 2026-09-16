@@ -4,6 +4,7 @@
   class WebDemo extends GravityRenderer {
     constructor() {
       super($('universe'));
+      this.paletteTarget = 'audio';
       this.audioContext = null;
       this.audioURL = null;
       this.audioInput = { update: (spectrum, dt, gain) => this.readAudio(spectrum, dt, gain) };
@@ -31,14 +32,14 @@
     }
     syncPalettePreview(force) {
       if (force || this.frames % 4 === 0) {
+        const preview = this.paletteTarget === 'idle' ? this.idleColors : this.audioColors;
         const colors = this.bandBars.map((bar, i) => {
-          const color = GravityPalette.css(Array.from(this.paletteColors.subarray(i * 3, i * 3 + 3)));
-          bar.style.background = color;
-          return color;
+          bar.style.background = GravityPalette.css(Array.from(this.audioColors.subarray(i * 3, i * 3 + 3)));
+          return GravityPalette.css(Array.from(preview.subarray(i * 3, i * 3 + 3)));
         });
         $('palette-preview').style.background = 'linear-gradient(to right,' + colors.join(',') + ')';
-        if (this.palette.gradient) {
-          const percent = this.palette.gradient.offset * 100;
+        if (this.editedPalette.gradient) {
+          const percent = this.editedPalette.gradient.offset * 100;
           $('palette-offset').value = percent;
           $('palette-offset-value').textContent = percent.toFixed(0) + '%';
         }
@@ -77,8 +78,11 @@
         return bar;
       });
     }
+    get editedPalette() {
+      return this.paletteTarget === 'idle' ? this.idlePalette : this.palette;
+    }
     syncPaletteUI() {
-      const p = this.palette,
+      const p = this.editedPalette,
         g = p.gradient;
       $('color-mode').value = p.mode;
       $('solid-controls').hidden = p.mode !== 'solid';
@@ -101,7 +105,7 @@
     renderColorStops() {
       const container = $('custom-colors');
       container.replaceChildren();
-      this.palette.custom.stops.forEach((color, index) => {
+      this.editedPalette.custom.stops.forEach((color, index) => {
         const row = document.createElement('div');
         row.className = 'color-stop';
         const label = document.createElement('label');
@@ -112,7 +116,7 @@
         input.dataset.stop = index;
         input.setAttribute('aria-label', 'Gradient color ' + (index + 1));
         input.addEventListener('input', () => {
-          this.palette.setStop(index, input.value);
+          this.editedPalette.setStop(index, input.value);
           this.refreshPalette(true);
         });
         label.append(input);
@@ -120,10 +124,10 @@
         const remove = document.createElement('button');
         remove.textContent = '×';
         remove.type = 'button';
-        remove.disabled = this.palette.custom.stops.length <= 2;
+        remove.disabled = this.editedPalette.custom.stops.length <= 2;
         remove.setAttribute('aria-label', 'Remove gradient color ' + (index + 1));
         remove.addEventListener('click', () => {
-          this.palette.removeStop(index);
+          this.editedPalette.removeStop(index);
           this.renderColorStops();
           this.syncPaletteUI();
           this.refreshPalette(true);
@@ -173,6 +177,8 @@
       }
       $('audio-gain').value = this.audioGain;
       $('audio-gain-value').textContent = this.audioGain.toFixed(1) + '×';
+      $('auto-sensitivity').checked = this.spectrum.autoSensitivity;
+      $('manual-sensitivity').hidden = this.spectrum.autoSensitivity;
       $('bass-shake').value = this.shakeStrength * 100;
       $('bass-shake-value').textContent = Math.round(this.shakeStrength * 100) + '%';
       $('elevation').value = Math.round(90 - (this.camera.theta * 180) / Math.PI);
@@ -234,6 +240,14 @@
       $('audio-credit').hidden = true;
     }
     bindUI() {
+      $('auto-sensitivity').addEventListener('change', (event) =>
+        this.applySettings({ autoSensitivity: event.target.checked }));
+      $('palette-target').addEventListener('change', (event) => {
+        this.paletteTarget = event.target.value;
+        this.renderColorStops();
+        this.syncPaletteUI();
+        this.refreshPalette(true);
+      });
       for (const b of document.querySelectorAll('[data-metric]'))
         b.addEventListener('click', () => this.setSpin(b.dataset.metric === 'spin'));
       let spinTimeout;
@@ -243,34 +257,34 @@
         spinTimeout = setTimeout(() => this.setSpin(true, Number(e.target.value)), 180);
       });
       $('color-mode').addEventListener('change', (e) => {
-        this.palette.setMode(e.target.value);
+        this.editedPalette.setMode(e.target.value);
         this.syncPaletteUI();
         this.refreshPalette(true);
       });
       $('solid-color').addEventListener('input', (e) => {
-        this.palette.setSolid(e.target.value);
+        this.editedPalette.setSolid(e.target.value);
         this.refreshPalette(true);
       });
       $('palette-saturation').addEventListener('input', (e) => {
-        this.palette.setSaturation(Number(e.target.value) / 100);
+        this.editedPalette.setSaturation(Number(e.target.value) / 100);
         this.syncPaletteUI();
         this.refreshPalette(true);
       });
       $('palette-offset').addEventListener('input', (e) => {
-        this.palette.setOffset(Number(e.target.value) / 100);
+        this.editedPalette.setOffset(Number(e.target.value) / 100);
         this.syncPaletteUI();
         this.refreshPalette(true);
       });
       $('palette-animate').addEventListener('change', (e) => {
-        this.palette.setAnimated(e.target.checked);
+        this.editedPalette.setAnimated(e.target.checked);
         this.syncPaletteUI();
       });
       $('palette-speed').addEventListener('input', (e) => {
-        this.palette.setSpeed(Number(e.target.value));
+        this.editedPalette.setSpeed(Number(e.target.value));
         this.syncPaletteUI();
       });
       $('add-color').addEventListener('click', () => {
-        this.palette.addStop();
+        this.editedPalette.addStop();
         this.renderColorStops();
         this.syncPaletteUI();
         this.refreshPalette(true);

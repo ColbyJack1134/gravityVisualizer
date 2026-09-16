@@ -22,6 +22,11 @@
         .join('')
     );
   }
+  function blend(idle, audio, amount, out) {
+    const t = clamp(amount);
+    for (let i = 0; i < out.length; i++) out[i] = idle[i] + (audio[i] - idle[i]) * t;
+    return out;
+  }
   class Palette {
     constructor() {
       this.mode = 'hsv';
@@ -135,7 +140,7 @@
       return out;
     }
   }
-  const api = { Palette, wrap, hsv, hexRGB, css };
+  const api = { Palette, blend, wrap, hsv, hexRGB, css };
   root.GravityPalette = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(globalThis);

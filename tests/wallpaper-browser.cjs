@@ -50,7 +50,8 @@ const project = require('../wallpaper/project.json');
       const r = GravityWallpaper.renderer;
       return { stats: r.stats(), framing: [r.framing, r.framingY], fps: r.fpsLimit,
         material: r.material, exposure: r.exposure, sharpness: r.sharpness, fade: r.fadeSeconds,
-        animated: r.palette.hsv.animated, colors: r.palette.custom.stops.map(c => c.toUpperCase()), registrations: audioRegistrations };
+        animated: r.palette.hsv.animated, colors: r.palette.custom.stops.map(c => c.toUpperCase()), registrations: audioRegistrations,
+        idle: [r.idlePalette.mode, r.idlePalette.solid], rendered: Array.from(r.paletteColors), auto: r.spectrum.autoSensitivity };
     });
     assert.equal(defaults.stats.cacheBuilds, 1, 'Early settings must precede the first cache allocation');
     assert.equal(defaults.stats.particles, 65536); assert.equal(defaults.stats.spin, 0.25);
@@ -59,6 +60,17 @@ const project = require('../wallpaper/project.json');
     assert.equal(defaults.sharpness, 1); assert.equal(defaults.fade, 3); assert.equal(defaults.animated, true);
     assert.deepEqual(defaults.colors, ['#23D183', '#1DCA97', '#17C2AB', '#12BBC0', '#0CB3D4', '#06ACE8']);
     assert.equal(defaults.registrations, 1);
+    assert.deepEqual(defaults.idle, ['solid', '#ffffff']); assert.ok(defaults.rendered.every(v => v === 1));
+    assert.equal(defaults.auto, true);
+    const properties = project.general.properties;
+    assert.deepEqual(Object.values(properties).filter(p => p.type === 'group').map(p => p.text),
+      ['General', 'Audio', 'Audio colors', 'Idle colors', 'Background', 'Camera', 'Black hole', 'Material and light', 'Performance']);
+    const condition = (key, values) => Function(...Object.keys(properties), 'return ' + properties[key].condition)(
+      ...Object.entries(properties).map(([key, p]) => ({ ...p, value: Object.hasOwn(values, key) ? values[key] : p.value })));
+    assert.equal(condition('audiogain', { autosensitivity: true }), false);
+    assert.equal(condition('audiogain', { autosensitivity: false }), true);
+    assert.equal(condition('idlesolidcolor', {}), true); assert.equal(condition('idlehsvspeed', {}), false);
+    assert.equal(condition('idlecustomcolor6', { idlecolormode: 'custom', idlecustomcount: 2 }), false);
     assert.equal(await page.locator('audio, button, input, select, aside').count(), 0);
     assert.equal(await page.locator('#error').isVisible(), false);
     results.checks.push('Early native settings, exact defaults, one audio listener, and no web controls or media');
@@ -72,7 +84,7 @@ const project = require('../wallpaper/project.json');
       const gl = r.gl, p = r.programs.shade.p;
       return { values: [r.starDensity, r.cloudDensity, r.framing, r.framingY, r.sharpness, r.fadeSeconds, r.spectrum.balance, r.shakeStrength],
         stars: gl.getUniform(p, gl.getUniformLocation(p, 'uStarDensity')), clouds: gl.getUniform(p, gl.getUniformLocation(p, 'uCloudDensity')),
-        animated: r.palette.hsv.animated, paused: r.paused, colors: Array.from(r.paletteColors), builds: r.cacheBuilds };
+        animated: r.palette.hsv.animated, paused: r.paused, colors: Array.from(r.audioColors), builds: r.cacheBuilds };
     });
     assert.ok(zero.values.every(v => v === 0)); assert.equal(zero.stars, 0); assert.equal(zero.clouds, 0);
     assert.equal(zero.animated, false); assert.equal(zero.paused, true); assert.equal(zero.builds, 1);
@@ -87,6 +99,30 @@ const project = require('../wallpaper/project.json');
     assert.equal(await page.evaluate(() => GravityWallpaper.renderer.palette.hsv.offset), hsvOffset);
     assert.equal(await page.evaluate(() => GravityWallpaper.renderer.cacheBuilds), 1);
     results.checks.push('Partial and zero/false settings reach GPU uniforms; colors, retained stops and independent offsets reuse rays');
+
+    const audioPalette = await page.evaluate(() => JSON.stringify(GravityWallpaper.renderer.palette));
+    await apply({ idlecolormode: 'custom', idlecustomcount: 2, idlecustomcolor1: '0 0 1', idlecustomcolor6: '1 1 0',
+      idlecustomoffset: 25, idlecustomspeed: -2, idlecustomanimate: false });
+    assert.equal(await page.evaluate(() => JSON.stringify(GravityWallpaper.renderer.palette)), audioPalette);
+    assert.deepEqual(await page.evaluate(() => GravityWallpaper.renderer.idlePalette.custom.stops), ['#0000ff', '#1dca97']);
+    await apply({ idlecustomcount: 6 });
+    assert.equal(await page.evaluate(() => GravityWallpaper.renderer.idlePalette.custom.stops[5]), '#ffff00');
+    assert.equal(await page.evaluate(() => GravityWallpaper.renderer.idlePalette.custom.offset), 0.25);
+    await apply({ colormode: 'solid', solidcolor: '1 0 0', idlecolormode: 'solid', idlesolidcolor: '0 0 1' });
+    const blends = await page.evaluate(() => {
+      const r = GravityWallpaper.renderer, gl = r.gl;
+      const samples = [0, 0.5, 1].map(amount => {
+        r.spectrum.driven = amount; r.refreshPalette(); r.deposit();
+        return Array.from(gl.getUniform(r.programs.deposit.p, gl.getUniformLocation(r.programs.deposit.p, 'uBandColors[0]')));
+      });
+      r.spectrum.reset(); r.refreshPalette();
+      return samples;
+    });
+    blends.forEach((colors, row) => colors.forEach((value, i) =>
+      assert.ok(Math.abs(value - (i % 3 === 0 ? row / 2 : i % 3 === 2 ? 1 - row / 2 : 0)) < 1e-6)));
+    await apply({ colormode: 'hsv', idlesolidcolor: '1 1 1' });
+    assert.equal(await page.evaluate(() => GravityWallpaper.renderer.cacheBuilds), 1);
+    results.checks.push('Independent native idle/audio palettes, retained hidden stops, and linear-light blends reach GPU uniforms without retracing');
 
     await apply({ spinning: false, elevation: 25, distance: 45, particles: '16384', quality: 'draft' });
     await ready();
@@ -108,6 +144,11 @@ const project = require('../wallpaper/project.json');
     await page.waitForFunction(() => GravityWallpaper.renderer.spectrum.driven > 0.95 && GravityWallpaper.renderer.audioBass > 0.5);
     await page.waitForTimeout(2000);
     assert.ok(await page.evaluate(() => GravityWallpaper.renderer.spectrum.shake < 0.001));
+    await apply({ autosensitivity: false, audiogain: 2.3 });
+    assert.equal(await page.evaluate(() => GravityWallpaper.renderer.spectrum.effectiveGain), 2.3);
+    await apply({ autosensitivity: true });
+    assert.ok(await page.evaluate(() => GravityWallpaper.renderer.spectrum.effectiveGain < 1));
+    assert.equal(await page.evaluate(() => GravityWallpaper.renderer.audioGain), 2.3);
     assert.equal(await page.evaluate(() => GravityWallpaper.renderer.simTime), frozen.time);
     assert.equal(await page.evaluate(() => GravityWallpaper.renderer.cacheBuilds), frozen.builds);
     assert.equal(await page.evaluate(() => {
@@ -118,6 +159,11 @@ const project = require('../wallpaper/project.json');
     await page.evaluate(() => { clearInterval(hostAudioTimer); wallpaperPropertyListener.applyGeneralProperties({ fps: 10 }); });
     await page.waitForFunction(() => GravityWallpaper.renderer.spectrum.silenceSeconds > 9.1, null, { timeout: 14000 });
     assert.equal(await page.evaluate(() => GravityWallpaper.renderer.spectrum.driven), 0);
+    assert.ok(await page.evaluate(() => GravityWallpaper.renderer.paletteColors.every(v => v === 1)));
+    assert.ok(await page.evaluate(() => {
+      const r = GravityWallpaper.renderer, gl = r.gl; r.deposit();
+      return gl.getUniform(r.programs.deposit.p, gl.getUniformLocation(r.programs.deposit.p, 'uBandColors[0]')).every(v => v === 1);
+    }));
     results.checks.push('Live host audio drives visibility without changing physics; held bass settles; stale audio recovers at 10 FPS');
 
     await page.evaluate(() => wallpaperPropertyListener.setPaused(true));
@@ -153,6 +199,8 @@ const project = require('../wallpaper/project.json');
     await page.evaluate(() => loss.restoreContext()); await ready();
     assert.deepEqual(await page.evaluate(() => [GravityWallpaper.renderer.material, GravityWallpaper.renderer.exposure, GravityWallpaper.renderer.starDensity, GravityWallpaper.renderer.cloudDensity]), snapshot);
     assert.equal(await page.evaluate(() => GravityWallpaper.renderer.framingY), 0.115);
+    assert.deepEqual(await page.evaluate(() => [GravityWallpaper.renderer.palette.mode, GravityWallpaper.renderer.idlePalette.solid,
+      GravityWallpaper.renderer.spectrum.autoSensitivity, GravityWallpaper.renderer.audioGain]), ['hsv', '#ffffff', true, 2.3]);
     await page.evaluate(() => GravityWallpaper.start());
     assert.equal(await page.evaluate(() => audioRegistrations), 1);
     results.checks.push('Spanning viewport and context restoration preserve settings and the single audio subscription');
