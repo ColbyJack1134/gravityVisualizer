@@ -91,7 +91,7 @@
       },
       "showidleparticles": {
         "order": 9,
-        "text": "Show particles during silence",
+        "text": "Enable idle",
         "type": "bool",
         "value": true
       },
