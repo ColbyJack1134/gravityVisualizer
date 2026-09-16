@@ -152,7 +152,10 @@ const project = require('../wallpaper/project.json');
     });
     await page.waitForFunction(() => GravityWallpaper.renderer.spectrum.driven > 0.95 && GravityWallpaper.renderer.audioBass > 0.5);
     await page.waitForTimeout(2000);
-    assert.ok(await page.evaluate(() => GravityWallpaper.renderer.spectrum.shake < 0.001));
+    assert.ok(await page.evaluate(() => {
+      const s = GravityWallpaper.renderer.spectrum;
+      return s.kick < 0.001 && s.rumble > 0.08 && s.shake < 0.2;
+    }), 'Sustained host bass settles to rumble');
     await apply({ autosensitivity: false, audiogain: 2.3 });
     assert.equal(await page.evaluate(() => GravityWallpaper.renderer.spectrum.effectiveGain), 2.3);
     await apply({ autosensitivity: true });

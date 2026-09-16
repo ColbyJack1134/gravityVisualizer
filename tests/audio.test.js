@@ -55,7 +55,8 @@ for (let i = 0; i < 600; i++) { balanced.update(dt, bassAndMelody); unbalanced.u
 const ratio = s => s.levels[bandAt(6000)] / s.levels[bandAt(70)];
 assert.ok(ratio(balanced) > ratio(unbalanced) * 1.8, 'Balancing reveals quiet highs beside sustained bass');
 assert.ok(balanced.levels[bandAt(1000)] > .6 && balanced.levels[bandAt(6000)] > .45);
-assert.ok(Math.max(...balanced.attacks) < .001 && balanced.shake < .001, 'A held tone must not keep retriggering');
+assert.ok(Math.max(...balanced.attacks) < .001 && balanced.kick < .001, 'A held tone must not keep retriggering');
+assert.ok(balanced.shake > .1 && balanced.shake < .2, 'Held bass keeps a restrained rumble');
 balanced.balance = 0;
 for (let i = 0; i < 60; i++) {
   balanced.update(dt, bassAndMelody);
@@ -68,9 +69,42 @@ for (const step of [1/30, 1/60, 1/144]) {
   const s = new A.Spectrum();
   for (let i = 0; i < Math.round(2 / step); i++) s.update(step, tone(70));
   const before = Math.max(...s.attacks);
+  const heldShake = s.shake;
   s.update(step, mix(tone(70), tone(6000, -35)));
   assert.ok(before < .001 && s.attacks[bandAt(6000)] > .4, 'Quiet treble attacks remain distinct from held bass');
-  assert.ok(s.shake < .001, 'Treble onset must not retrigger the bass camera');
+  assert.ok(s.kick < .001 && Math.abs(s.shake - heldShake) < .001, 'Treble onset must not retrigger the bass camera');
+}
+for (const autoSensitivity of [false, true]) {
+  const heldLevels = [];
+  for (const fps of [30, 60, 144]) {
+    const s = new A.Spectrum(), bands = new Float32Array(A.COUNT);
+    s.autoSensitivity = autoSensitivity;
+    const advance = (seconds, amplitude) => {
+      const shakes = [];
+      for (let frame = 0; frame < Math.round(seconds * fps); frame++) {
+        bands[bandAt(70)] = amplitude(frame / fps);
+        s.updateBands(1 / fps, bands);
+        shakes.push(s.shake);
+      }
+      return shakes;
+    };
+    const onset = Math.max(...advance(3, () => .08)), held = s.shake;
+    assert.ok(onset > .6 && onset <= .65, 'Strong kicks remain bounded');
+    assert.ok(held > onset * .2 && held < onset * .3, 'Held bass keeps about a quarter of peak shake');
+    heldLevels.push(held);
+    advance(.4, () => 0);
+    assert.ok(s.shake > held * .03 && s.shake < held * .2, 'Bass release fades smoothly over roughly 400 ms');
+    advance(2, () => 0);assert.ok(s.shake < .001, 'Silence settles both kick and rumble');
+    s.reset();advance(2, t => .08 * Math.min(1, t));
+    assert.ok(s.shake > .1 && s.kick < .005, 'A gradual bass swell sustains rumble without repeated kicks');
+    s.reset();
+    assert.ok(Math.max(...advance(.3, () => .01)) > .15, 'Moderate bass hits cross the softened gate');
+    s.reset();
+    const beats = advance(4, t => .05 + .03 * Math.exp(-(t % .5) * 10)).slice(fps * 2);
+    assert.ok(Math.max(...beats) - Math.min(...beats) > .025, 'Beats remain distinct over sustained bass');
+    assert.ok(Math.max(...beats) < .4, 'Sustained bass does not turn every beat into maximum shake');
+  }
+  assert.ok(Math.max(...heldLevels) - Math.min(...heldLevels) < .005, 'Rumble is consistent across frame rates');
 }
 for (const step of [.25, .5, 1]) {
   const s = new A.Spectrum();s.update(1, tone(440));
@@ -124,12 +158,12 @@ automatic.reset();
 assert.equal(automatic.sensitivity.peak, 0); assert.equal(automatic.sensitivity.gain, 1);
 assert.equal(automatic.autoSensitivity, true);
 feedBands(1, 0.16); feedBands(3, 0.008);
-let recoveryShake = 0;
+let recoveryKick = 0;
 for (let i = 0; i < 15 * 60; i++) {
   automatic.updateBands(1 / 60, amplitudes, 2.5);
-  recoveryShake = Math.max(recoveryShake, automatic.shake);
+  recoveryKick = Math.max(recoveryKick, automatic.kick);
 }
-assert.ok(recoveryShake < 0.001, 'Gain recovery on held bass must not invent new attacks');
+assert.ok(recoveryKick < 0.001, 'Gain recovery on held bass must not invent new attacks');
 const gains = [];
 for (const fps of [20, 30, 60, 144]) {
   normalize.reset(); feedPeak(1, 0.16, fps); feedPeak(13, 0.008, fps);

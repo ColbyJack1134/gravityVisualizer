@@ -157,6 +157,8 @@
       this.effectiveGain = 1;
       this.energy = 0;
       this.bass = 0;
+      this.kick = 0;
+      this.rumble = 0;
       this.shake = 0;
       this.time = 0;
       this.driven = 0;
@@ -222,20 +224,23 @@
           bass = Math.max(bass, this.frequency.rawLevels[i]);
           kick = Math.max(
             kick,
-            this.frequency.attacks[i] * clamp((this.frequency.rawLevels[i] - 0.48) / 0.32)
+            this.frequency.attacks[i] * clamp((this.frequency.rawLevels[i] - 0.3) / 0.45)
           );
         }
       this.energy = Math.sqrt(energy / this.levels.length);
       this.bass = bass;
-      this.shake = Math.max(this.shake * Math.exp(-dt / 0.1), 0.65 * kick);
+      const sustained = clamp((bass - 0.35) / 0.4);
+      this.kick = Math.max(this.kick * Math.exp(-dt / 0.18), 0.65 * kick);
+      this.rumble = follow(this.rumble, 0.16 * sustained * sustained, dt, 0.06, 0.18);
+      this.shake = Math.min(0.65, this.kick + this.rumble);
     }
     offset(strength = 1) {
       const a = this.shake * strength,
         t = this.time;
       return [
-        a * 0.008 * (0.65 * Math.sin(t * 57) + 0.35 * Math.sin(t * 83 + 1.2)),
-        a * 0.006 * (0.65 * Math.sin(t * 65 + 0.7) + 0.35 * Math.sin(t * 91)),
-        a * 0.0025 * Math.sin(t * 48 + 0.3)
+        a * 0.008 * (0.65 * Math.sin(t * 29) + 0.35 * Math.sin(t * 41 + 1.2)),
+        a * 0.006 * (0.65 * Math.sin(t * 31) + 0.35 * Math.sin(t * 43)),
+        a * 0.0025 * Math.sin(t * 25 + 0.3)
       ];
     }
   }

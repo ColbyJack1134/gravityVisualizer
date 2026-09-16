@@ -74,6 +74,29 @@ function wav(hz,pulsed=false){
     }
     results.checks.push('Real WAV/FFT frequency isolation and rendered violet/mid/red responses with high saturation');
     await page.evaluate(()=>{GravityDemo.paused=false;GravityDemo.speed=0;GravityDemo.cameraMotion='gentle';});
+    const heldMovement=[];
+    for(const fps of [30,60]){
+      await page.evaluate(fps=>GravityDemo.applySettings({fpsLimit:fps}),fps);
+      await load(70);
+      await page.waitForFunction(()=>GravityDemo.spectrum.kick<.005&&GravityDemo.spectrum.rumble>.08);
+      const held=await page.evaluate(async()=>{
+        const d=GravityDemo;let minShake=Infinity,maxShake=0,maxPixels=0;
+        const start=performance.now();
+        while(performance.now()-start<900){
+          await new Promise(requestAnimationFrame);
+          minShake=Math.min(minShake,d.spectrum.shake);maxShake=Math.max(maxShake,d.spectrum.shake);
+          const actual=d.gl.getUniform(d.programs.composite.p,d.gl.getUniformLocation(d.programs.composite.p,'uFraming'));
+          const x=d.framing+.028*Math.sin(d.cameraTime*.09),y=d.framingY+.012*Math.sin(d.cameraTime*.12);
+          maxPixels=Math.max(maxPixels,Math.hypot(actual[0]-x,actual[1]-y)*d.canvas.height);
+        }
+        return {minShake,maxShake,maxPixels};
+      });
+      assert.ok(held.minShake>.08&&held.maxShake<.2,'Held bass sustains gentle camera rumble');
+      assert.ok(held.maxPixels>.4&&held.maxPixels<2,'Sustained movement is visible and restrained at 1080p');
+      heldMovement.push({fps,...held});
+    }
+    results.heldMovement=heldMovement;
+    results.checks.push('Sustained bass produces restrained camera movement at 30 and 60 FPS');
     await load(70,true);
     const movement=await page.evaluate(async()=>{
       const d=GravityDemo;let peakShake=0,maxPixels=0;
@@ -115,7 +138,7 @@ function wav(hz,pulsed=false){
     assert.equal(await page.locator('#audio-gain').inputValue(),'1.6');
     assert.equal(await page.evaluate(()=>GravityDemo.spectrum.autoSensitivity),false);
     results.suppressed=suppressed;
-    results.checks.push('Bass-only onset camera movement, bounded displacement, mute/hold/pause/disable behavior and no retracing');
+    results.checks.push('Bass kicks and rumble, bounded displacement, mute/hold/pause/disable behavior and no retracing');
     results.checks.push('Sensitivity and bass-shake controls');assert.deepEqual(errors,[]);results.passed=true;
     fs.writeFileSync(path.join(out,'audio-browser-results.json'),JSON.stringify(results,null,2));
     console.log('PASS',results.checks,movement,results.tones.map(t=>({hz:t.hz,frequency:t.frequency,saturation:t.saturation,rgb:t.rgb})));
