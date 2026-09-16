@@ -14,4 +14,4 @@ Built with JavaScript and WebGL2. Particle orbits and gravitational lensing use 
 
 ## Credits
 
-Demo music: [Cipher by Kevin MacLeod](assets/CREDITS.md), licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
+Demo music: [Chill Day by LAKEY INSPIRED](assets/CREDITS.md), licensed under [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/).
