@@ -1,6 +1,6 @@
 {
   "title": "Gravity Visualizer",
-  "description": "A rotating black hole and orbiting particles that respond to live audio.",
+  "description": "A rotating black hole and orbiting particles that respond to live audio.\n\nVideo demo: https://youtu.be/2KeiIyUf-os",
   "type": "web",
   "file": "index.html",
   "preview": "preview.jpg",
