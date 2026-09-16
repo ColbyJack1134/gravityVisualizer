@@ -125,8 +125,6 @@
         this.frequency.targets[i] = levelOf(this.frequency.amplitudes[i] * gain);
     }
     update(dt, db, sampleRate = 48000, fftSize = 4096, gain = 1, analysis = {}) {
-      dt = Math.max(0, dt);
-      this.time += dt;
       this.readFFT(db, sampleRate, fftSize, gain);
       readBands(
         analysis.attacks === undefined ? db : analysis.attacks,
@@ -134,6 +132,18 @@
         analysis.attackSize || fftSize,
         this.frequency.fastAmplitudes
       );
+      this.advance(dt, gain);
+    }
+    updateBands(dt, amplitudes, gain = 1, attacks = amplitudes) {
+      for (let i = 0; i < COUNT; i++) {
+        this.frequency.amplitudes[i] = Number.isFinite(amplitudes?.[i]) ? clamp(amplitudes[i]) : 0;
+        this.frequency.fastAmplitudes[i] = Number.isFinite(attacks?.[i]) ? clamp(attacks[i]) : 0;
+      }
+      this.advance(dt, gain);
+    }
+    advance(dt, gain) {
+      dt = Math.max(0, dt);
+      this.time += dt;
       this.frequency.update(dt, gain, this.balance);
       const peak = Math.max(...this.frequency.rawLevels);
       const audible = peak > (this.signalPresent ? 0.01 : 0.025);

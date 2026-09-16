@@ -1,13 +1,11 @@
 (function () {
   'use strict';
-  const $ = (id) => document.getElementById(id),
-    P = GravityPhysics,
-    S = GravityShaders;
+  const P = GravityPhysics, S = GravityShaders;
   const defaultCamera = { theta: (72 * Math.PI) / 180, phi: -Math.PI / 2, distance: 37 };
   const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
-  class Demo {
-    constructor() {
-      this.canvas = $('universe');
+  class Renderer {
+    constructor(canvas) {
+      this.canvas = canvas;
       this.spinning = true;
       this.spin = 0.25;
       this.material = 0.3;
@@ -37,8 +35,6 @@
       this.simTime = 0;
       this.audioEnergy = 0;
       this.audioBass = 0;
-      this.audioContext = null;
-      this.audioURL = null;
       this.spectrum = new GravityAudio.Spectrum();
       this.audioGain = 1;
       this.sustainStrength = 1;
@@ -65,14 +61,103 @@
         powerPreference: 'high-performance'
       });
       if (!this.gl) throw new Error('WebGL2 is unavailable.');
-      this.bindUI();
-      this.createSpectrumUI();
-      this.refreshPalette(true);
-      this.renderColorStops();
-      this.readParameters();
+      this.suspended = false;
+      this.started = false;
+      this.lastFrame = null;
+      this.frameBudget = 0;
+    }
+    start() {
+      if (this.started) return;
+      this.bindLifecycle();
       this.initializeGL();
-      this.syncUI();
-      this.raf = requestAnimationFrame((t) => this.frame(t));
+      this.refreshPalette(true);
+      this.started = true;
+      if (!this.suspended) this.raf = requestAnimationFrame((t) => this.frame(t));
+    }
+    resetClock() {
+      this.lastPresentation = 0;
+      this.lastFrame = null;
+      this.frameBudget = 0;
+      this.fpsSamples = [];
+    }
+    setSuspended(value) {
+      if (this.suspended === value) return;
+      this.suspended = value;
+      cancelAnimationFrame(this.raf);
+      this.raf = null;
+      this.resetClock();
+      this.audioInput?.reset?.();
+      this.spectrum.reset();
+      this.audioEnergy = this.audioBass = 0;
+      if (!value && this.started && !this.failed && !this.lost)
+        this.raf = requestAnimationFrame((t) => this.frame(t));
+    }
+    bindLifecycle() {
+      let resizeTimeout;
+      window.addEventListener('resize', () => {
+        clearTimeout(resizeTimeout);
+        resizeTimeout = setTimeout(() => this.resize(), 150);
+      });
+      document.addEventListener('visibilitychange', () => this.resetClock());
+      this.canvas.addEventListener('webglcontextlost', (event) => {
+        event.preventDefault();
+        this.lost = true;
+        this.job = null;
+        this.cacheReady = false;
+        cancelAnimationFrame(this.raf);
+        this.raf = null;
+        this.onTrace?.(0, 'Graphics context suspended');
+      });
+      this.canvas.addEventListener('webglcontextrestored', () => {
+        this.lost = false;
+        try {
+          this.initializeGL();
+          this.resetClock();
+          if (!this.suspended) this.raf = requestAnimationFrame((t) => this.frame(t));
+        } catch (error) {
+          this.fail(error);
+        }
+      });
+    }
+    applySettings(settings) {
+      const oldSpin = this.a(), oldCount = this.count, oldQuality = this.quality;
+      const oldTheta = this.camera.theta, oldDistance = this.camera.distance;
+      const ranges = {
+        spin: [0.05, 0.95], material: [0.1, 1], exposure: [0.3, 3], sharpness: [0, 1],
+        starDensity: [0, 5], cloudDensity: [0, 5], speed: [1, 24], fadeSeconds: [0, 6],
+        motionStrength: [0, 1], roll: [-Math.PI / 6, Math.PI / 6],
+        framing: [-0.35, 0.35], framingY: [-0.2, 0.2], audioGain: [0.3, 3],
+        sustainStrength: [0, 1], shakeStrength: [0, 1], fpsLimit: [0, 360]
+      };
+      for (const [key, [min, max]] of Object.entries(ranges)) {
+        if (typeof settings[key] === 'number' && Number.isFinite(settings[key]))
+          this[key] = Math.max(min, Math.min(max, settings[key]));
+      }
+      for (const key of ['spinning', 'paused'])
+        if (typeof settings[key] === 'boolean') this[key] = settings[key];
+      if ([16384, 32768, 65536, 131072, 262144, 524288].includes(settings.count))
+        this.count = settings.count;
+      if (['draft', 'balanced', 'high', 'native'].includes(settings.quality))
+        this.quality = settings.quality;
+      if (['gentle', 'music', 'fixed'].includes(settings.cameraMotion))
+        this.cameraMotion = settings.cameraMotion;
+      if (typeof settings.elevation === 'number' && Number.isFinite(settings.elevation))
+        this.camera.theta = ((90 - Math.max(5, Math.min(80, settings.elevation))) * Math.PI) / 180;
+      if (typeof settings.distance === 'number' && Number.isFinite(settings.distance))
+        this.camera.distance = Math.max(32, Math.min(85, settings.distance));
+      if (typeof settings.balance === 'number' && Number.isFinite(settings.balance))
+        this.spectrum.balance = Math.max(0, Math.min(1, settings.balance));
+      if (settings.palette) {
+        this.palette.apply(settings.palette);
+        this.refreshPalette(true);
+      }
+      if (Object.hasOwn(settings, 'fpsLimit')) this.resetClock();
+      if (this.started && !this.lost && !this.failed) {
+        if (oldSpin !== this.a() || oldCount !== this.count) this.allocateParticles();
+        if (oldSpin !== this.a() || oldQuality !== this.quality ||
+            oldTheta !== this.camera.theta || oldDistance !== this.camera.distance) this.prepareCache();
+      }
+      this.onSettings?.();
     }
     initializeGL() {
       const gl = this.gl;
@@ -313,10 +398,7 @@
       gl.bindFramebuffer(gl.FRAMEBUFFER, null);
       this.lastPresentation = 0;
       this.fpsSamples = [];
-      $('resolution').textContent = rw + ' × ' + rh;
-      $('trace-status').hidden = false;
-      $('trace-text').textContent = 'Preparing the view';
-      this.traceProgress(0);
+      this.onTrace?.(0, 'Preparing the view');
     }
     allocateRenderTargets() {
       const gl = this.gl;
@@ -337,10 +419,6 @@
         gl.clearColor(0, 0, 0, 1);
         gl.clear(gl.COLOR_BUFFER_BIT);
       }
-    }
-    traceProgress(progress) {
-      $('trace-progress').style.width = Math.round(progress * 100) + '%';
-      $('trace-percent').textContent = Math.round(progress * 100) + '%';
     }
     advanceTrace() {
       const gl = this.gl,
@@ -376,11 +454,10 @@
         this.quad();
       }
       job.next++;
-      this.traceProgress(job.next / job.total);
+      this.onTrace?.(job.next / job.total);
       if (job.next >= job.total) {
         this.job = null;
         this.cacheReady = true;
-        $('trace-status').hidden = true;
         this.fpsSamples = [];
       }
     }
@@ -500,112 +577,19 @@
       this.f('uSharpness', this.sharpness);
       this.quad();
     }
-    createSpectrumUI() {
-      const labels = Array.from(GravityAudio.centers, (hz) => Math.round(hz) + ' Hz');
-      $('spectrum-bars').replaceChildren();
-      this.bandBars = labels.map((label) => {
-        const bar = document.createElement('span');
-        bar.title = label;
-        $('spectrum-bars').append(bar);
-        return bar;
-      });
-    }
     refreshPalette(force = false) {
       if (force || this.paletteRevision !== this.palette.revision) {
         this.palette.writeColors(GravityAudio.hues, this.paletteColors);
         this.paletteRevision = this.palette.revision;
       } else return;
-      if (force || this.frames % 4 === 0) {
-        const colors = this.bandBars.map((bar, i) => {
-          const color = GravityPalette.css(Array.from(this.paletteColors.subarray(i * 3, i * 3 + 3)));
-          bar.style.background = color;
-          return color;
-        });
-        $('palette-preview').style.background = 'linear-gradient(to right,' + colors.join(',') + ')';
-        if (this.palette.gradient) {
-          const percent = this.palette.gradient.offset * 100;
-          $('palette-offset').value = percent;
-          $('palette-offset-value').textContent = percent.toFixed(0) + '%';
-        }
-      }
-    }
-    syncPaletteUI() {
-      const p = this.palette,
-        g = p.gradient;
-      $('color-mode').value = p.mode;
-      $('solid-controls').hidden = p.mode !== 'solid';
-      $('hsv-controls').hidden = p.mode !== 'hsv';
-      $('custom-controls').hidden = p.mode !== 'custom';
-      $('gradient-controls').hidden = !g;
-      $('solid-color').value = p.solid;
-      $('palette-saturation').value = p.saturation * 100;
-      $('palette-saturation-value').textContent = Math.round(p.saturation * 100) + '%';
-      if (g) {
-        $('palette-offset').value = g.offset * 100;
-        $('palette-offset-value').textContent = Math.round(g.offset * 100) + '%';
-        $('palette-animate').checked = g.animated;
-        $('palette-speed').value = g.speed;
-        $('palette-speed').disabled = !g.animated;
-        $('palette-speed-value').textContent = g.speed.toFixed(2) + ' cycles/min';
-      }
-      $('add-color').disabled = p.custom.stops.length >= 6;
-    }
-    renderColorStops() {
-      const container = $('custom-colors');
-      container.replaceChildren();
-      this.palette.custom.stops.forEach((color, index) => {
-        const row = document.createElement('div');
-        row.className = 'color-stop';
-        const label = document.createElement('label');
-        label.textContent = 'Color ' + (index + 1);
-        const input = document.createElement('input');
-        input.type = 'color';
-        input.value = color;
-        input.dataset.stop = index;
-        input.setAttribute('aria-label', 'Gradient color ' + (index + 1));
-        input.addEventListener('input', () => {
-          this.palette.setStop(index, input.value);
-          this.refreshPalette(true);
-        });
-        label.append(input);
-        row.append(label);
-        const remove = document.createElement('button');
-        remove.textContent = '×';
-        remove.type = 'button';
-        remove.disabled = this.palette.custom.stops.length <= 2;
-        remove.setAttribute('aria-label', 'Remove gradient color ' + (index + 1));
-        remove.addEventListener('click', () => {
-          this.palette.removeStop(index);
-          this.renderColorStops();
-          this.syncPaletteUI();
-          this.refreshPalette(true);
-        });
-        row.append(remove);
-        container.append(row);
-      });
+      this.onPalette?.(force);
     }
     updateAudio(dt) {
-      let bins = null,
-        attacks = null;
-      if (this.analyser && !$('music').paused && !$('music').ended) {
-        this.analyser.getFloatFrequencyData(this.audioBins);
-        this.attackAnalyser.getFloatFrequencyData(this.attackBins);
-        bins = this.audioBins;
-        attacks = this.attackBins;
-      }
-      this.spectrum.update(dt, bins, this.audioContext?.sampleRate, 4096, this.audioGain, {
-        attacks,
-        attackSize: 1024
-      });
+      if (this.audioInput) this.audioInput.update(this.spectrum, dt, this.audioGain);
+      else this.spectrum.update(dt, null);
       this.audioEnergy = this.spectrum.energy;
       this.audioBass = this.spectrum.bass;
-      if (this.frames % 4 === 0) {
-        const height = $('spectrum-bars').clientHeight;
-        this.bandBars.forEach((bar, i) => {
-          bar.style.height = Math.max(1, Math.round(height * (0.04 + 0.96 * this.spectrum.levels[i]))) + 'px';
-          bar.style.opacity = 0.65 + 0.35 * this.spectrum.attacks[i];
-        });
-      }
+      this.onAudio?.();
     }
     pollTimer() {
       if (!this.pendingQuery || !this.timerExtension) return;
@@ -618,9 +602,14 @@
       }
     }
     frame(now) {
+      this.raf = null;
+      if (this.failed || this.lost || this.suspended) return;
       this.raf = requestAnimationFrame((t) => this.frame(t));
-      if (this.failed || this.lost) return;
-      if (this.fpsLimit && now - this.lastPresentation < 1000 / this.fpsLimit - 0.7) return;
+      const interval = this.fpsLimit > 0 ? 1000 / this.fpsLimit : 0;
+      this.frameBudget += this.lastFrame === null ? interval : now - this.lastFrame;
+      this.lastFrame = now;
+      if (interval && this.frameBudget < interval - 0.1) return;
+      this.frameBudget = interval ? Math.max(0, this.frameBudget - interval) % interval : 0;
       const frameDelta = this.lastPresentation ? (now - this.lastPresentation) / 1000 : 1 / 60;
       this.lastPresentation = now;
       const dt = Math.min(frameDelta, 0.0667);
@@ -660,19 +649,14 @@
         if (this.fpsSamples.length > 45) this.fpsSamples.shift();
         if (this.frames % 10 === 0) {
           this.measuredFPS = this.fpsSamples.length / this.fpsSamples.reduce((a, b) => a + b, 0);
-          $('fps').textContent = Math.round(this.measuredFPS);
-          $('gpu-time').textContent = this.gpuMs === null ? 'Unavailable' : this.gpuMs.toFixed(1) + ' ms';
+          this.onStats?.();
         }
       } catch (error) {
         this.fail(error);
       }
     }
     setSpin(on, value = this.spin) {
-      this.spinning = on;
-      this.spin = Math.max(0.05, Math.min(0.95, value));
-      this.allocateParticles();
-      this.prepareCache();
-      this.syncUI();
+      this.applySettings({ spinning: on, spin: value });
     }
     reset() {
       this.camera = { ...defaultCamera };
@@ -680,287 +664,7 @@
       this.orbitAngle = 0;
       this.allocateParticles();
       this.prepareCache();
-      this.syncUI();
-    }
-    syncUI() {
-      for (const b of document.querySelectorAll('[data-metric]')) {
-        const on = (b.dataset.metric === 'spin') === this.spinning;
-        b.classList.toggle('selected', on);
-        b.setAttribute('aria-pressed', on);
-      }
-      $('spin').disabled = !this.spinning;
-      $('spin').value = this.spin;
-      $('spin-value').textContent = this.a().toFixed(2);
-      $('quality').value = this.quality;
-      $('particles').value = this.count;
-      $('material').value = Math.round(this.material * 100);
-      $('material-value').textContent = Math.round(this.material * 100) + '%';
-      $('exposure').value = this.exposure;
-      $('exposure-value').textContent = this.exposure.toFixed(1) + '×';
-      $('sharpness').value = Math.round(this.sharpness * 100);
-      $('sharpness-value').textContent = Math.round(this.sharpness * 100) + '%';
-      $('particle-fade').value = this.fadeSeconds;
-      $('particle-fade-value').textContent = this.fadeSeconds.toFixed(1) + ' s';
-      this.syncPaletteUI();
-      $('speed').value = this.speed;
-      $('speed-value').textContent = this.speed + '×';
-      $('camera-motion').value = this.cameraMotion;
-      $('framing').value = this.framing * 100;
-      $('framing-y').value = this.framingY * 100;
-      for (const [id, value] of [
-        ['audio-balance', this.spectrum.balance],
-        ['sustained-light', this.sustainStrength],
-        ['star-density', this.starDensity],
-        ['cloud-density', this.cloudDensity]
-      ]) {
-        $(id).value = Math.round(value * 100);
-        $(id + '-value').textContent = Math.round(value * 100) + '%';
-      }
-      $('audio-gain').value = this.audioGain;
-      $('audio-gain-value').textContent = this.audioGain.toFixed(1) + '×';
-      $('bass-shake').value = this.shakeStrength * 100;
-      $('bass-shake-value').textContent = Math.round(this.shakeStrength * 100) + '%';
-      $('elevation').value = Math.round(90 - (this.camera.theta * 180) / Math.PI);
-      $('elevation-value').textContent = $('elevation').value + '°';
-      $('distance').value = this.camera.distance;
-      $('distance-value').textContent = Math.round(this.camera.distance);
-    }
-    togglePause() {
-      this.paused = !this.paused;
-      $('pause').textContent = this.paused ? 'Resume' : 'Pause';
-    }
-    toggleUI() {
-      const hidden = !$('controls').hidden;
-      $('controls').hidden = hidden;
-      $('quick-controls').hidden = !hidden;
-      $('show-ui').setAttribute('aria-expanded', !hidden);
-      $(hidden ? 'show-ui' : 'hide-ui').focus();
-    }
-    async fullscreen() {
-      try {
-        if (document.fullscreenElement) await document.exitFullscreen();
-        else await document.documentElement.requestFullscreen();
-      } catch (error) {
-        if ($('controls').hidden) this.toggleUI();
-        this.controlError('Fullscreen is unavailable in this browser window.');
-      }
-    }
-    controlError(message) {
-      $('control-error').textContent = message;
-      $('control-error').hidden = false;
-    }
-    async initializeAudio() {
-      if (!this.audioContext) {
-        const AudioContext = window.AudioContext || window.webkitAudioContext;
-        this.audioContext = new AudioContext();
-        this.analyser = this.audioContext.createAnalyser();
-        this.analyser.fftSize = 4096;
-        this.analyser.smoothingTimeConstant = 0;
-        this.audioBins = new Float32Array(this.analyser.frequencyBinCount);
-        this.mediaSource = this.audioContext.createMediaElementSource($('music'));
-        this.mediaSource.connect(this.analyser);
-        this.analyser.connect(this.audioContext.destination);
-        this.attackAnalyser = this.audioContext.createAnalyser();
-        this.attackAnalyser.fftSize = 1024;
-        this.attackAnalyser.smoothingTimeConstant = 0;
-        this.attackBins = new Float32Array(this.attackAnalyser.frequencyBinCount);
-        this.mediaSource.connect(this.attackAnalyser);
-      }
-      await this.audioContext.resume();
-    }
-    loadAudio(file) {
-      if (!file) return;
-      const music = $('music');
-      music.pause();
-      this.spectrum.reset();
-      if (this.audioURL) URL.revokeObjectURL(this.audioURL);
-      this.audioURL = URL.createObjectURL(file);
-      music.src = this.audioURL;
-      $('audio-name').textContent = file.name;
-      $('audio-credit').hidden = true;
-    }
-    bindUI() {
-      for (const b of document.querySelectorAll('[data-metric]'))
-        b.addEventListener('click', () => this.setSpin(b.dataset.metric === 'spin'));
-      let spinTimeout;
-      $('spin').addEventListener('input', (e) => {
-        $('spin-value').textContent = Number(e.target.value).toFixed(2);
-        clearTimeout(spinTimeout);
-        spinTimeout = setTimeout(() => this.setSpin(true, Number(e.target.value)), 180);
-      });
-      $('material').addEventListener('input', (e) => {
-        this.material = Number(e.target.value) / 100;
-        $('material-value').textContent = e.target.value + '%';
-      });
-      $('exposure').addEventListener('input', (e) => {
-        this.exposure = Number(e.target.value);
-        $('exposure-value').textContent = this.exposure.toFixed(1) + '×';
-      });
-      $('sharpness').addEventListener('input', (e) => {
-        this.sharpness = Number(e.target.value) / 100;
-        $('sharpness-value').textContent = e.target.value + '%';
-      });
-      $('particle-fade').addEventListener('input', (e) => {
-        this.fadeSeconds = Number(e.target.value);
-        $('particle-fade-value').textContent = this.fadeSeconds.toFixed(1) + ' s';
-      });
-      $('color-mode').addEventListener('change', (e) => {
-        this.palette.setMode(e.target.value);
-        this.syncPaletteUI();
-        this.refreshPalette(true);
-      });
-      $('solid-color').addEventListener('input', (e) => {
-        this.palette.setSolid(e.target.value);
-        this.refreshPalette(true);
-      });
-      $('palette-saturation').addEventListener('input', (e) => {
-        this.palette.setSaturation(Number(e.target.value) / 100);
-        this.syncPaletteUI();
-        this.refreshPalette(true);
-      });
-      $('palette-offset').addEventListener('input', (e) => {
-        this.palette.setOffset(Number(e.target.value) / 100);
-        this.syncPaletteUI();
-        this.refreshPalette(true);
-      });
-      $('palette-animate').addEventListener('change', (e) => {
-        this.palette.setAnimated(e.target.checked);
-        this.syncPaletteUI();
-      });
-      $('palette-speed').addEventListener('input', (e) => {
-        this.palette.setSpeed(Number(e.target.value));
-        this.syncPaletteUI();
-      });
-      $('add-color').addEventListener('click', () => {
-        this.palette.addStop();
-        this.renderColorStops();
-        this.syncPaletteUI();
-        this.refreshPalette(true);
-      });
-      $('speed').addEventListener('input', (e) => {
-        this.speed = Number(e.target.value);
-        $('speed-value').textContent = this.speed + '×';
-      });
-      $('camera-motion').addEventListener('change', (e) => {
-        this.cameraMotion = e.target.value;
-      });
-      $('camera-amount').addEventListener('input', (e) => {
-        this.motionStrength = Number(e.target.value) / 100;
-      });
-      $('camera-roll').addEventListener('input', (e) => {
-        this.roll = (Number(e.target.value) * Math.PI) / 180;
-        $('roll-value').textContent = e.target.value + '°';
-      });
-      $('framing').addEventListener('input', (e) => {
-        this.framing = Number(e.target.value) / 100;
-      });
-      $('framing-y').addEventListener('input', (e) => {
-        this.framingY = Number(e.target.value) / 100;
-      });
-      const percentageControls = {
-        'audio-balance': (value) => {
-          this.spectrum.balance = value;
-        },
-        'sustained-light': (value) => {
-          this.sustainStrength = value;
-        },
-        'star-density': (value) => {
-          this.starDensity = value;
-        },
-        'cloud-density': (value) => {
-          this.cloudDensity = value;
-        }
-      };
-      for (const [id, set] of Object.entries(percentageControls))
-        $(id).addEventListener('input', (e) => {
-          set(Number(e.target.value) / 100);
-          $(id + '-value').textContent = e.target.value + '%';
-        });
-      $('audio-gain').addEventListener('input', (e) => {
-        this.audioGain = Number(e.target.value);
-        $('audio-gain-value').textContent = this.audioGain.toFixed(1) + '×';
-      });
-      $('bass-shake').addEventListener('input', (e) => {
-        this.shakeStrength = Number(e.target.value) / 100;
-        $('bass-shake-value').textContent = e.target.value + '%';
-      });
-      let cameraTimeout;
-      for (const name of ['elevation', 'distance'])
-        $(name).addEventListener('input', (e) => {
-          if (name === 'elevation') this.camera.theta = ((90 - Number(e.target.value)) * Math.PI) / 180;
-          else this.camera.distance = Number(e.target.value);
-          $(name + '-value').textContent = e.target.value + (name === 'elevation' ? '°' : '');
-          clearTimeout(cameraTimeout);
-          cameraTimeout = setTimeout(() => this.prepareCache(), 250);
-        });
-      $('particles').addEventListener('change', (e) => {
-        this.count = Number(e.target.value);
-        this.allocateParticles();
-      });
-      $('quality').addEventListener('change', (e) => {
-        this.quality = e.target.value;
-        this.prepareCache();
-      });
-      $('fps-limit').addEventListener('change', (e) => {
-        this.fpsLimit = Number(e.target.value);
-        this.fpsSamples = [];
-      });
-      $('pause').addEventListener('click', () => this.togglePause());
-      $('reset').addEventListener('click', () => this.reset());
-      $('hide-ui').addEventListener('click', () => this.toggleUI());
-      $('show-ui').addEventListener('click', () => this.toggleUI());
-      $('fullscreen').addEventListener('click', () => this.fullscreen());
-      $('quick-fullscreen').addEventListener('click', () => this.fullscreen());
-      document.addEventListener('fullscreenchange', () => {
-        const label = document.fullscreenElement ? 'Exit fullscreen' : 'Fullscreen';
-        $('fullscreen').textContent = label;
-        $('quick-fullscreen').textContent = label;
-      });
-      $('audio-file-button').addEventListener('click', () => $('audio-file').click());
-      $('audio-file').addEventListener('change', (e) => {
-        this.loadAudio(e.target.files[0]);
-        e.target.value = '';
-      });
-      $('music').addEventListener('seeking', () => this.spectrum.reset());
-      $('music').addEventListener('error', () => {
-        $('audio-name').textContent = 'This audio file could not be decoded. Try MP3, WAV, or Ogg.';
-      });
-      $('music').addEventListener('play', () => {
-        this.initializeAudio().catch((error) =>
-          this.controlError('Audio analysis unavailable: ' + error.message)
-        );
-      });
-      let resizeTimeout;
-      window.addEventListener('resize', () => {
-        clearTimeout(resizeTimeout);
-        resizeTimeout = setTimeout(() => this.resize(), 150);
-      });
-      document.addEventListener('visibilitychange', () => {
-        this.lastPresentation = 0;
-        this.fpsSamples = [];
-      });
-      this.canvas.addEventListener('webglcontextlost', (e) => {
-        e.preventDefault();
-        this.lost = true;
-        this.job = null;
-        $('trace-status').hidden = false;
-        $('trace-text').textContent = 'Graphics context suspended';
-      });
-      this.canvas.addEventListener('webglcontextrestored', () => {
-        this.lost = false;
-        try {
-          this.initializeGL();
-        } catch (error) {
-          this.fail(error);
-        }
-      });
-    }
-    readParameters() {
-      const q = new URLSearchParams(location.search);
-      if (q.get('spin') === '0') this.spinning = false;
-      if (['draft', 'balanced', 'high', 'native'].includes(q.get('quality'))) this.quality = q.get('quality');
-      if (q.get('motion') === 'fixed') this.cameraMotion = 'fixed';
-      if (q.get('ui') === '1') this.toggleUI();
+      this.onSettings?.();
     }
     stats() {
       return {
@@ -1012,20 +716,11 @@
     }
     fail(error) {
       this.failed = true;
+      cancelAnimationFrame(this.raf);
+      this.raf = null;
       console.error(error);
-      $('error').hidden = false;
-      $('error-text').textContent = error.message;
-      $('trace-status').hidden = true;
+      this.onError?.(error);
     }
   }
-  setTimeout(() => {
-    try {
-      window.GravityDemo = new Demo();
-    } catch (error) {
-      console.error(error);
-      $('error').hidden = false;
-      $('error-text').textContent = error.message;
-      $('trace-status').hidden = true;
-    }
-  }, 30);
+  window.GravityRenderer = Renderer;
 })();

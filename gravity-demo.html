@@ -683,8 +683,6 @@ summary {
         this.frequency.targets[i] = levelOf(this.frequency.amplitudes[i] * gain);
     }
     update(dt, db, sampleRate = 48000, fftSize = 4096, gain = 1, analysis = {}) {
-      dt = Math.max(0, dt);
-      this.time += dt;
       this.readFFT(db, sampleRate, fftSize, gain);
       readBands(
         analysis.attacks === undefined ? db : analysis.attacks,
@@ -692,6 +690,18 @@ summary {
         analysis.attackSize || fftSize,
         this.frequency.fastAmplitudes
       );
+      this.advance(dt, gain);
+    }
+    updateBands(dt, amplitudes, gain = 1, attacks = amplitudes) {
+      for (let i = 0; i < COUNT; i++) {
+        this.frequency.amplitudes[i] = Number.isFinite(amplitudes?.[i]) ? clamp(amplitudes[i]) : 0;
+        this.frequency.fastAmplitudes[i] = Number.isFinite(attacks?.[i]) ? clamp(attacks[i]) : 0;
+      }
+      this.advance(dt, gain);
+    }
+    advance(dt, gain) {
+      dt = Math.max(0, dt);
+      this.time += dt;
       this.frequency.update(dt, gain, this.balance);
       const peak = Math.max(...this.frequency.rawLevels);
       const audible = peak > (this.signalPresent ? 0.01 : 0.025);
@@ -779,6 +789,24 @@ summary {
     }
     get gradient() {
       return this.mode === 'solid' ? null : this[this.mode];
+    }
+    apply(settings) {
+      if (settings.mode !== undefined) this.setMode(settings.mode);
+      if (typeof settings.solid === 'string') this.setSolid(settings.solid);
+      if (Number.isFinite(settings.saturation)) this.setSaturation(settings.saturation);
+      for (const mode of ['hsv', 'custom']) {
+        const changes = settings[mode];
+        if (!changes || typeof changes !== 'object') continue;
+        const gradient = this[mode];
+        if (Number.isFinite(changes.offset)) gradient.offset = wrap(changes.offset);
+        if (Number.isFinite(changes.speed)) gradient.speed = Math.max(-3, Math.min(3, changes.speed));
+        if (typeof changes.animated === 'boolean') gradient.animated = changes.animated;
+        if (mode === 'custom' && Array.isArray(changes.stops) &&
+            changes.stops.length >= 2 && changes.stops.length <= 6 &&
+            changes.stops.every((color) => typeof color === 'string' && validHex(color)))
+          gradient.stops = changes.stops.slice();
+        this.revision++;
+      }
     }
     setMode(mode) {
       if (['solid', 'hsv', 'custom'].includes(mode)) {
@@ -1289,14 +1317,12 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
   <script>
 (function () {
   'use strict';
-  const $ = (id) => document.getElementById(id),
-    P = GravityPhysics,
-    S = GravityShaders;
+  const P = GravityPhysics, S = GravityShaders;
   const defaultCamera = { theta: (72 * Math.PI) / 180, phi: -Math.PI / 2, distance: 37 };
   const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
-  class Demo {
-    constructor() {
-      this.canvas = $('universe');
+  class Renderer {
+    constructor(canvas) {
+      this.canvas = canvas;
       this.spinning = true;
       this.spin = 0.25;
       this.material = 0.3;
@@ -1326,8 +1352,6 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
       this.simTime = 0;
       this.audioEnergy = 0;
       this.audioBass = 0;
-      this.audioContext = null;
-      this.audioURL = null;
       this.spectrum = new GravityAudio.Spectrum();
       this.audioGain = 1;
       this.sustainStrength = 1;
@@ -1354,14 +1378,103 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
         powerPreference: 'high-performance'
       });
       if (!this.gl) throw new Error('WebGL2 is unavailable.');
-      this.bindUI();
-      this.createSpectrumUI();
-      this.refreshPalette(true);
-      this.renderColorStops();
-      this.readParameters();
+      this.suspended = false;
+      this.started = false;
+      this.lastFrame = null;
+      this.frameBudget = 0;
+    }
+    start() {
+      if (this.started) return;
+      this.bindLifecycle();
       this.initializeGL();
-      this.syncUI();
-      this.raf = requestAnimationFrame((t) => this.frame(t));
+      this.refreshPalette(true);
+      this.started = true;
+      if (!this.suspended) this.raf = requestAnimationFrame((t) => this.frame(t));
+    }
+    resetClock() {
+      this.lastPresentation = 0;
+      this.lastFrame = null;
+      this.frameBudget = 0;
+      this.fpsSamples = [];
+    }
+    setSuspended(value) {
+      if (this.suspended === value) return;
+      this.suspended = value;
+      cancelAnimationFrame(this.raf);
+      this.raf = null;
+      this.resetClock();
+      this.audioInput?.reset?.();
+      this.spectrum.reset();
+      this.audioEnergy = this.audioBass = 0;
+      if (!value && this.started && !this.failed && !this.lost)
+        this.raf = requestAnimationFrame((t) => this.frame(t));
+    }
+    bindLifecycle() {
+      let resizeTimeout;
+      window.addEventListener('resize', () => {
+        clearTimeout(resizeTimeout);
+        resizeTimeout = setTimeout(() => this.resize(), 150);
+      });
+      document.addEventListener('visibilitychange', () => this.resetClock());
+      this.canvas.addEventListener('webglcontextlost', (event) => {
+        event.preventDefault();
+        this.lost = true;
+        this.job = null;
+        this.cacheReady = false;
+        cancelAnimationFrame(this.raf);
+        this.raf = null;
+        this.onTrace?.(0, 'Graphics context suspended');
+      });
+      this.canvas.addEventListener('webglcontextrestored', () => {
+        this.lost = false;
+        try {
+          this.initializeGL();
+          this.resetClock();
+          if (!this.suspended) this.raf = requestAnimationFrame((t) => this.frame(t));
+        } catch (error) {
+          this.fail(error);
+        }
+      });
+    }
+    applySettings(settings) {
+      const oldSpin = this.a(), oldCount = this.count, oldQuality = this.quality;
+      const oldTheta = this.camera.theta, oldDistance = this.camera.distance;
+      const ranges = {
+        spin: [0.05, 0.95], material: [0.1, 1], exposure: [0.3, 3], sharpness: [0, 1],
+        starDensity: [0, 5], cloudDensity: [0, 5], speed: [1, 24], fadeSeconds: [0, 6],
+        motionStrength: [0, 1], roll: [-Math.PI / 6, Math.PI / 6],
+        framing: [-0.35, 0.35], framingY: [-0.2, 0.2], audioGain: [0.3, 3],
+        sustainStrength: [0, 1], shakeStrength: [0, 1], fpsLimit: [0, 360]
+      };
+      for (const [key, [min, max]] of Object.entries(ranges)) {
+        if (typeof settings[key] === 'number' && Number.isFinite(settings[key]))
+          this[key] = Math.max(min, Math.min(max, settings[key]));
+      }
+      for (const key of ['spinning', 'paused'])
+        if (typeof settings[key] === 'boolean') this[key] = settings[key];
+      if ([16384, 32768, 65536, 131072, 262144, 524288].includes(settings.count))
+        this.count = settings.count;
+      if (['draft', 'balanced', 'high', 'native'].includes(settings.quality))
+        this.quality = settings.quality;
+      if (['gentle', 'music', 'fixed'].includes(settings.cameraMotion))
+        this.cameraMotion = settings.cameraMotion;
+      if (typeof settings.elevation === 'number' && Number.isFinite(settings.elevation))
+        this.camera.theta = ((90 - Math.max(5, Math.min(80, settings.elevation))) * Math.PI) / 180;
+      if (typeof settings.distance === 'number' && Number.isFinite(settings.distance))
+        this.camera.distance = Math.max(32, Math.min(85, settings.distance));
+      if (typeof settings.balance === 'number' && Number.isFinite(settings.balance))
+        this.spectrum.balance = Math.max(0, Math.min(1, settings.balance));
+      if (settings.palette) {
+        this.palette.apply(settings.palette);
+        this.refreshPalette(true);
+      }
+      if (Object.hasOwn(settings, 'fpsLimit')) this.resetClock();
+      if (this.started && !this.lost && !this.failed) {
+        if (oldSpin !== this.a() || oldCount !== this.count) this.allocateParticles();
+        if (oldSpin !== this.a() || oldQuality !== this.quality ||
+            oldTheta !== this.camera.theta || oldDistance !== this.camera.distance) this.prepareCache();
+      }
+      this.onSettings?.();
     }
     initializeGL() {
       const gl = this.gl;
@@ -1602,10 +1715,7 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
       gl.bindFramebuffer(gl.FRAMEBUFFER, null);
       this.lastPresentation = 0;
       this.fpsSamples = [];
-      $('resolution').textContent = rw + ' × ' + rh;
-      $('trace-status').hidden = false;
-      $('trace-text').textContent = 'Preparing the view';
-      this.traceProgress(0);
+      this.onTrace?.(0, 'Preparing the view');
     }
     allocateRenderTargets() {
       const gl = this.gl;
@@ -1626,10 +1736,6 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
         gl.clearColor(0, 0, 0, 1);
         gl.clear(gl.COLOR_BUFFER_BIT);
       }
-    }
-    traceProgress(progress) {
-      $('trace-progress').style.width = Math.round(progress * 100) + '%';
-      $('trace-percent').textContent = Math.round(progress * 100) + '%';
     }
     advanceTrace() {
       const gl = this.gl,
@@ -1665,11 +1771,10 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
         this.quad();
       }
       job.next++;
-      this.traceProgress(job.next / job.total);
+      this.onTrace?.(job.next / job.total);
       if (job.next >= job.total) {
         this.job = null;
         this.cacheReady = true;
-        $('trace-status').hidden = true;
         this.fpsSamples = [];
       }
     }
@@ -1789,21 +1894,188 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
       this.f('uSharpness', this.sharpness);
       this.quad();
     }
-    createSpectrumUI() {
-      const labels = Array.from(GravityAudio.centers, (hz) => Math.round(hz) + ' Hz');
-      $('spectrum-bars').replaceChildren();
-      this.bandBars = labels.map((label) => {
-        const bar = document.createElement('span');
-        bar.title = label;
-        $('spectrum-bars').append(bar);
-        return bar;
-      });
-    }
     refreshPalette(force = false) {
       if (force || this.paletteRevision !== this.palette.revision) {
         this.palette.writeColors(GravityAudio.hues, this.paletteColors);
         this.paletteRevision = this.palette.revision;
       } else return;
+      this.onPalette?.(force);
+    }
+    updateAudio(dt) {
+      if (this.audioInput) this.audioInput.update(this.spectrum, dt, this.audioGain);
+      else this.spectrum.update(dt, null);
+      this.audioEnergy = this.spectrum.energy;
+      this.audioBass = this.spectrum.bass;
+      this.onAudio?.();
+    }
+    pollTimer() {
+      if (!this.pendingQuery || !this.timerExtension) return;
+      const gl = this.gl;
+      if (gl.getQueryParameter(this.pendingQuery, gl.QUERY_RESULT_AVAILABLE)) {
+        if (!gl.getParameter(this.timerExtension.GPU_DISJOINT_EXT))
+          this.gpuMs = gl.getQueryParameter(this.pendingQuery, gl.QUERY_RESULT) / 1e6;
+        gl.deleteQuery(this.pendingQuery);
+        this.pendingQuery = null;
+      }
+    }
+    frame(now) {
+      this.raf = null;
+      if (this.failed || this.lost || this.suspended) return;
+      this.raf = requestAnimationFrame((t) => this.frame(t));
+      const interval = this.fpsLimit > 0 ? 1000 / this.fpsLimit : 0;
+      this.frameBudget += this.lastFrame === null ? interval : now - this.lastFrame;
+      this.lastFrame = now;
+      if (interval && this.frameBudget < interval - 0.1) return;
+      this.frameBudget = interval ? Math.max(0, this.frameBudget - interval) % interval : 0;
+      const frameDelta = this.lastPresentation ? (now - this.lastPresentation) / 1000 : 1 / 60;
+      this.lastPresentation = now;
+      const dt = Math.min(frameDelta, 0.0667);
+      this.frames++;
+      try {
+        this.pollTimer();
+        if (this.job) {
+          this.advanceTrace();
+          this.present();
+          return;
+        }
+        if (!this.cacheReady) return;
+        let timing = false;
+        if (this.timerExtension && !this.pendingQuery && this.frames % 30 === 0) {
+          this.pendingQuery = this.gl.createQuery();
+          this.gl.beginQuery(this.timerExtension.TIME_ELAPSED_EXT, this.pendingQuery);
+          timing = true;
+        }
+        this.updateAudio(frameDelta);
+        this.palette.advance(dt, this.paused);
+        this.refreshPalette();
+        if (!this.paused) {
+          this.simTime += dt * this.speed;
+          this.updateParticles(dt * this.speed, dt);
+          if (this.cameraMotion !== 'fixed') {
+            const response = this.cameraMotion === 'music' ? 1 + this.audioBass * 1.5 : 1;
+            this.cameraTime += dt * response;
+            this.orbitAngle =
+              (this.orbitAngle + dt * (0.012 + 0.032 * this.motionStrength) * response) % (Math.PI * 2);
+          }
+        }
+        this.deposit();
+        this.shade();
+        this.present();
+        if (timing) this.gl.endQuery(this.timerExtension.TIME_ELAPSED_EXT);
+        this.fpsSamples.push(frameDelta);
+        if (this.fpsSamples.length > 45) this.fpsSamples.shift();
+        if (this.frames % 10 === 0) {
+          this.measuredFPS = this.fpsSamples.length / this.fpsSamples.reduce((a, b) => a + b, 0);
+          this.onStats?.();
+        }
+      } catch (error) {
+        this.fail(error);
+      }
+    }
+    setSpin(on, value = this.spin) {
+      this.applySettings({ spinning: on, spin: value });
+    }
+    reset() {
+      this.camera = { ...defaultCamera };
+      this.cameraTime = 0;
+      this.orbitAngle = 0;
+      this.allocateParticles();
+      this.prepareCache();
+      this.onSettings?.();
+    }
+    stats() {
+      return {
+        ready: this.cacheReady,
+        spin: this.a(),
+        particles: this.count,
+        quality: this.quality,
+        width: this.rw,
+        height: this.rh,
+        fps: this.measuredFPS,
+        gpuMs: this.gpuMs,
+        renderer: this.rendererName,
+        paused: this.paused,
+        simTime: this.simTime,
+        audioEnergy: this.audioEnergy,
+        audioBass: this.audioBass,
+        audioBands: Array.from(this.spectrum.levels),
+        audioAttacks: Array.from(this.spectrum.attacks),
+        bassShake: this.spectrum.shake,
+        cameraMotion: this.cameraMotion,
+        cameraDistance: this.camera.distance,
+        framing: [this.framing, this.framingY],
+        overscan: this.overscan,
+        starDensity: this.starDensity,
+        cloudDensity: this.cloudDensity,
+        orbitAngle: this.orbitAngle,
+        cacheBuilds: this.cacheBuilds,
+        failed: this.failed,
+        lost: this.lost,
+        traceProgress: this.job ? this.job.next / this.job.total : 1
+      };
+    }
+    diagnostics() {
+      const gl = this.gl,
+        fb = this.finishFbo;
+      gl.bindFramebuffer(gl.READ_FRAMEBUFFER, fb);
+      gl.readBuffer(gl.COLOR_ATTACHMENT0);
+      const data = new Float32Array(this.rw * this.rh * 4);
+      gl.readPixels(0, 0, this.rw, this.rh, gl.RGBA, gl.FLOAT, data);
+      const result = { captured: 0, escaped: 0, budget: 0, invalid: 0, other: 0 };
+      for (let i = 3; i < data.length; i += 4) {
+        const v = Math.round(data[i]);
+        result[
+          v === 1 ? 'captured' : v === 2 ? 'escaped' : v === 3 ? 'budget' : v === 4 ? 'invalid' : 'other'
+        ]++;
+      }
+      gl.bindFramebuffer(gl.READ_FRAMEBUFFER, null);
+      return result;
+    }
+    fail(error) {
+      this.failed = true;
+      cancelAnimationFrame(this.raf);
+      this.raf = null;
+      console.error(error);
+      this.onError?.(error);
+    }
+  }
+  window.GravityRenderer = Renderer;
+})();
+
+</script>
+  <script>
+(function () {
+  'use strict';
+  const $ = (id) => document.getElementById(id);
+  class WebDemo extends GravityRenderer {
+    constructor() {
+      super($('universe'));
+      this.audioContext = null;
+      this.audioURL = null;
+      this.audioInput = { update: (spectrum, dt, gain) => this.readAudio(spectrum, dt, gain) };
+      this.onPalette = (force) => this.syncPalettePreview(force);
+      this.onAudio = () => this.syncSpectrum();
+      this.onSettings = () => this.syncUI();
+      this.onStats = () => {
+        $('fps').textContent = Math.round(this.measuredFPS);
+        $('gpu-time').textContent = this.gpuMs === null ? 'Unavailable' : this.gpuMs.toFixed(1) + ' ms';
+      };
+      this.onTrace = (progress, message) => {
+        $('trace-status').hidden = progress >= 1;
+        if (message) $('trace-text').textContent = message;
+        $('trace-progress').style.width = Math.round(progress * 100) + '%';
+        $('trace-percent').textContent = Math.round(progress * 100) + '%';
+        $('resolution').textContent = this.rw + ' × ' + this.rh;
+      };
+      this.onError = showError;
+      this.bindUI();
+      this.createSpectrumUI();
+      this.renderColorStops();
+      this.readParameters();
+      this.start();
+      this.syncUI();
+    }
+    syncPalettePreview(force) {
       if (force || this.frames % 4 === 0) {
         const colors = this.bandBars.map((bar, i) => {
           const color = GravityPalette.css(Array.from(this.paletteColors.subarray(i * 3, i * 3 + 3)));
@@ -1817,6 +2089,39 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
           $('palette-offset-value').textContent = percent.toFixed(0) + '%';
         }
       }
+    }
+    readAudio(spectrum, dt, gain) {
+      let bins = null,
+        attacks = null;
+      if (this.analyser && !$('music').paused && !$('music').ended) {
+        this.analyser.getFloatFrequencyData(this.audioBins);
+        this.attackAnalyser.getFloatFrequencyData(this.attackBins);
+        bins = this.audioBins;
+        attacks = this.attackBins;
+      }
+      spectrum.update(dt, bins, this.audioContext?.sampleRate, 4096, gain, {
+        attacks,
+        attackSize: 1024
+      });
+    }
+    syncSpectrum() {
+      if (this.frames % 4 === 0) {
+        const height = $('spectrum-bars').clientHeight;
+        this.bandBars.forEach((bar, i) => {
+          bar.style.height = Math.max(1, Math.round(height * (0.04 + 0.96 * this.spectrum.levels[i]))) + 'px';
+          bar.style.opacity = 0.65 + 0.35 * this.spectrum.attacks[i];
+        });
+      }
+    }
+    createSpectrumUI() {
+      const labels = Array.from(GravityAudio.centers, (hz) => Math.round(hz) + ' Hz');
+      $('spectrum-bars').replaceChildren();
+      this.bandBars = labels.map((label) => {
+        const bar = document.createElement('span');
+        bar.title = label;
+        $('spectrum-bars').append(bar);
+        return bar;
+      });
     }
     syncPaletteUI() {
       const p = this.palette,
@@ -1873,104 +2178,6 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
         container.append(row);
       });
     }
-    updateAudio(dt) {
-      let bins = null,
-        attacks = null;
-      if (this.analyser && !$('music').paused && !$('music').ended) {
-        this.analyser.getFloatFrequencyData(this.audioBins);
-        this.attackAnalyser.getFloatFrequencyData(this.attackBins);
-        bins = this.audioBins;
-        attacks = this.attackBins;
-      }
-      this.spectrum.update(dt, bins, this.audioContext?.sampleRate, 4096, this.audioGain, {
-        attacks,
-        attackSize: 1024
-      });
-      this.audioEnergy = this.spectrum.energy;
-      this.audioBass = this.spectrum.bass;
-      if (this.frames % 4 === 0) {
-        const height = $('spectrum-bars').clientHeight;
-        this.bandBars.forEach((bar, i) => {
-          bar.style.height = Math.max(1, Math.round(height * (0.04 + 0.96 * this.spectrum.levels[i]))) + 'px';
-          bar.style.opacity = 0.65 + 0.35 * this.spectrum.attacks[i];
-        });
-      }
-    }
-    pollTimer() {
-      if (!this.pendingQuery || !this.timerExtension) return;
-      const gl = this.gl;
-      if (gl.getQueryParameter(this.pendingQuery, gl.QUERY_RESULT_AVAILABLE)) {
-        if (!gl.getParameter(this.timerExtension.GPU_DISJOINT_EXT))
-          this.gpuMs = gl.getQueryParameter(this.pendingQuery, gl.QUERY_RESULT) / 1e6;
-        gl.deleteQuery(this.pendingQuery);
-        this.pendingQuery = null;
-      }
-    }
-    frame(now) {
-      this.raf = requestAnimationFrame((t) => this.frame(t));
-      if (this.failed || this.lost) return;
-      if (this.fpsLimit && now - this.lastPresentation < 1000 / this.fpsLimit - 0.7) return;
-      const frameDelta = this.lastPresentation ? (now - this.lastPresentation) / 1000 : 1 / 60;
-      this.lastPresentation = now;
-      const dt = Math.min(frameDelta, 0.0667);
-      this.frames++;
-      try {
-        this.pollTimer();
-        if (this.job) {
-          this.advanceTrace();
-          this.present();
-          return;
-        }
-        if (!this.cacheReady) return;
-        let timing = false;
-        if (this.timerExtension && !this.pendingQuery && this.frames % 30 === 0) {
-          this.pendingQuery = this.gl.createQuery();
-          this.gl.beginQuery(this.timerExtension.TIME_ELAPSED_EXT, this.pendingQuery);
-          timing = true;
-        }
-        this.updateAudio(frameDelta);
-        this.palette.advance(dt, this.paused);
-        this.refreshPalette();
-        if (!this.paused) {
-          this.simTime += dt * this.speed;
-          this.updateParticles(dt * this.speed, dt);
-          if (this.cameraMotion !== 'fixed') {
-            const response = this.cameraMotion === 'music' ? 1 + this.audioBass * 1.5 : 1;
-            this.cameraTime += dt * response;
-            this.orbitAngle =
-              (this.orbitAngle + dt * (0.012 + 0.032 * this.motionStrength) * response) % (Math.PI * 2);
-          }
-        }
-        this.deposit();
-        this.shade();
-        this.present();
-        if (timing) this.gl.endQuery(this.timerExtension.TIME_ELAPSED_EXT);
-        this.fpsSamples.push(frameDelta);
-        if (this.fpsSamples.length > 45) this.fpsSamples.shift();
-        if (this.frames % 10 === 0) {
-          this.measuredFPS = this.fpsSamples.length / this.fpsSamples.reduce((a, b) => a + b, 0);
-          $('fps').textContent = Math.round(this.measuredFPS);
-          $('gpu-time').textContent = this.gpuMs === null ? 'Unavailable' : this.gpuMs.toFixed(1) + ' ms';
-        }
-      } catch (error) {
-        this.fail(error);
-      }
-    }
-    setSpin(on, value = this.spin) {
-      this.spinning = on;
-      this.spin = Math.max(0.05, Math.min(0.95, value));
-      this.allocateParticles();
-      this.prepareCache();
-      this.syncUI();
-    }
-    reset() {
-      this.camera = { ...defaultCamera };
-      this.cameraTime = 0;
-      this.orbitAngle = 0;
-      this.allocateParticles();
-      this.prepareCache();
-      this.syncUI();
-    }
     syncUI() {
       for (const b of document.querySelectorAll('[data-metric]')) {
         const on = (b.dataset.metric === 'spin') === this.spinning;
@@ -1980,6 +2187,11 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
       $('spin').disabled = !this.spinning;
       $('spin').value = this.spin;
       $('spin-value').textContent = this.a().toFixed(2);
+      $('pause').textContent = this.paused ? 'Resume' : 'Pause';
+      $('camera-amount').value = this.motionStrength * 100;
+      $('camera-roll').value = this.roll * 180 / Math.PI;
+      $('roll-value').textContent = Math.round(this.roll * 180 / Math.PI) + '°';
+      $('fps-limit').value = this.fpsLimit;
       $('quality').value = this.quality;
       $('particles').value = this.count;
       $('material').value = Math.round(this.material * 100);
@@ -2015,8 +2227,7 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
       $('distance-value').textContent = Math.round(this.camera.distance);
     }
     togglePause() {
-      this.paused = !this.paused;
-      $('pause').textContent = this.paused ? 'Resume' : 'Pause';
+      this.applySettings({ paused: !this.paused });
     }
     toggleUI() {
       const hidden = !$('controls').hidden;
@@ -2077,22 +2288,6 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
         clearTimeout(spinTimeout);
         spinTimeout = setTimeout(() => this.setSpin(true, Number(e.target.value)), 180);
       });
-      $('material').addEventListener('input', (e) => {
-        this.material = Number(e.target.value) / 100;
-        $('material-value').textContent = e.target.value + '%';
-      });
-      $('exposure').addEventListener('input', (e) => {
-        this.exposure = Number(e.target.value);
-        $('exposure-value').textContent = this.exposure.toFixed(1) + '×';
-      });
-      $('sharpness').addEventListener('input', (e) => {
-        this.sharpness = Number(e.target.value) / 100;
-        $('sharpness-value').textContent = e.target.value + '%';
-      });
-      $('particle-fade').addEventListener('input', (e) => {
-        this.fadeSeconds = Number(e.target.value);
-        $('particle-fade-value').textContent = this.fadeSeconds.toFixed(1) + ' s';
-      });
       $('color-mode').addEventListener('change', (e) => {
         this.palette.setMode(e.target.value);
         this.syncPaletteUI();
@@ -2126,74 +2321,37 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
         this.syncPaletteUI();
         this.refreshPalette(true);
       });
-      $('speed').addEventListener('input', (e) => {
-        this.speed = Number(e.target.value);
-        $('speed-value').textContent = this.speed + '×';
-      });
-      $('camera-motion').addEventListener('change', (e) => {
-        this.cameraMotion = e.target.value;
-      });
-      $('camera-amount').addEventListener('input', (e) => {
-        this.motionStrength = Number(e.target.value) / 100;
-      });
-      $('camera-roll').addEventListener('input', (e) => {
-        this.roll = (Number(e.target.value) * Math.PI) / 180;
-        $('roll-value').textContent = e.target.value + '°';
-      });
-      $('framing').addEventListener('input', (e) => {
-        this.framing = Number(e.target.value) / 100;
-      });
-      $('framing-y').addEventListener('input', (e) => {
-        this.framingY = Number(e.target.value) / 100;
-      });
-      const percentageControls = {
-        'audio-balance': (value) => {
-          this.spectrum.balance = value;
-        },
-        'sustained-light': (value) => {
-          this.sustainStrength = value;
-        },
-        'star-density': (value) => {
-          this.starDensity = value;
-        },
-        'cloud-density': (value) => {
-          this.cloudDensity = value;
-        }
+      const controls = {
+        material: ['material', 0.01], exposure: ['exposure', 1], sharpness: ['sharpness', 0.01],
+        'particle-fade': ['fadeSeconds', 1], speed: ['speed', 1],
+        'camera-amount': ['motionStrength', 0.01], 'camera-roll': ['roll', Math.PI / 180],
+        framing: ['framing', 0.01], 'framing-y': ['framingY', 0.01],
+        'audio-balance': ['balance', 0.01], 'sustained-light': ['sustainStrength', 0.01],
+        'star-density': ['starDensity', 0.01], 'cloud-density': ['cloudDensity', 0.01],
+        'audio-gain': ['audioGain', 1], 'bass-shake': ['shakeStrength', 0.01]
       };
-      for (const [id, set] of Object.entries(percentageControls))
-        $(id).addEventListener('input', (e) => {
-          set(Number(e.target.value) / 100);
-          $(id + '-value').textContent = e.target.value + '%';
-        });
-      $('audio-gain').addEventListener('input', (e) => {
-        this.audioGain = Number(e.target.value);
-        $('audio-gain-value').textContent = this.audioGain.toFixed(1) + '×';
-      });
-      $('bass-shake').addEventListener('input', (e) => {
-        this.shakeStrength = Number(e.target.value) / 100;
-        $('bass-shake-value').textContent = e.target.value + '%';
-      });
+      for (const [id, [key, scale]] of Object.entries(controls))
+        $(id).addEventListener('input', (event) => this.applySettings({ [key]: Number(event.target.value) * scale }));
+      $('camera-motion').addEventListener('change', (event) =>
+        this.applySettings({ cameraMotion: event.target.value }));
       let cameraTimeout;
+      let cameraChanges = {};
       for (const name of ['elevation', 'distance'])
-        $(name).addEventListener('input', (e) => {
-          if (name === 'elevation') this.camera.theta = ((90 - Number(e.target.value)) * Math.PI) / 180;
-          else this.camera.distance = Number(e.target.value);
-          $(name + '-value').textContent = e.target.value + (name === 'elevation' ? '°' : '');
+        $(name).addEventListener('input', (event) => {
+          cameraChanges[name] = Number(event.target.value);
+          $(name + '-value').textContent = event.target.value + (name === 'elevation' ? '°' : '');
           clearTimeout(cameraTimeout);
-          cameraTimeout = setTimeout(() => this.prepareCache(), 250);
+          cameraTimeout = setTimeout(() => {
+            this.applySettings(cameraChanges);
+            cameraChanges = {};
+          }, 250);
         });
-      $('particles').addEventListener('change', (e) => {
-        this.count = Number(e.target.value);
-        this.allocateParticles();
-      });
-      $('quality').addEventListener('change', (e) => {
-        this.quality = e.target.value;
-        this.prepareCache();
-      });
-      $('fps-limit').addEventListener('change', (e) => {
-        this.fpsLimit = Number(e.target.value);
-        this.fpsSamples = [];
-      });
+      $('particles').addEventListener('change', (event) =>
+        this.applySettings({ count: Number(event.target.value) }));
+      $('quality').addEventListener('change', (event) =>
+        this.applySettings({ quality: event.target.value }));
+      $('fps-limit').addEventListener('change', (event) =>
+        this.applySettings({ fpsLimit: Number(event.target.value) }));
       $('pause').addEventListener('click', () => this.togglePause());
       $('reset').addEventListener('click', () => this.reset());
       $('hide-ui').addEventListener('click', () => this.toggleUI());
@@ -2219,30 +2377,6 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
           this.controlError('Audio analysis unavailable: ' + error.message)
         );
       });
-      let resizeTimeout;
-      window.addEventListener('resize', () => {
-        clearTimeout(resizeTimeout);
-        resizeTimeout = setTimeout(() => this.resize(), 150);
-      });
-      document.addEventListener('visibilitychange', () => {
-        this.lastPresentation = 0;
-        this.fpsSamples = [];
-      });
-      this.canvas.addEventListener('webglcontextlost', (e) => {
-        e.preventDefault();
-        this.lost = true;
-        this.job = null;
-        $('trace-status').hidden = false;
-        $('trace-text').textContent = 'Graphics context suspended';
-      });
-      this.canvas.addEventListener('webglcontextrestored', () => {
-        this.lost = false;
-        try {
-          this.initializeGL();
-        } catch (error) {
-          this.fail(error);
-        }
-      });
     }
     readParameters() {
       const q = new URLSearchParams(location.search);
@@ -2251,70 +2385,18 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
       if (q.get('motion') === 'fixed') this.cameraMotion = 'fixed';
       if (q.get('ui') === '1') this.toggleUI();
     }
-    stats() {
-      return {
-        ready: this.cacheReady,
-        spin: this.a(),
-        particles: this.count,
-        quality: this.quality,
-        width: this.rw,
-        height: this.rh,
-        fps: this.measuredFPS,
-        gpuMs: this.gpuMs,
-        renderer: this.rendererName,
-        paused: this.paused,
-        simTime: this.simTime,
-        audioEnergy: this.audioEnergy,
-        audioBass: this.audioBass,
-        audioBands: Array.from(this.spectrum.levels),
-        audioAttacks: Array.from(this.spectrum.attacks),
-        bassShake: this.spectrum.shake,
-        cameraMotion: this.cameraMotion,
-        cameraDistance: this.camera.distance,
-        framing: [this.framing, this.framingY],
-        overscan: this.overscan,
-        starDensity: this.starDensity,
-        cloudDensity: this.cloudDensity,
-        orbitAngle: this.orbitAngle,
-        cacheBuilds: this.cacheBuilds,
-        failed: this.failed,
-        lost: this.lost,
-        traceProgress: this.job ? this.job.next / this.job.total : 1
-      };
-    }
-    diagnostics() {
-      const gl = this.gl,
-        fb = this.finishFbo;
-      gl.bindFramebuffer(gl.READ_FRAMEBUFFER, fb);
-      gl.readBuffer(gl.COLOR_ATTACHMENT0);
-      const data = new Float32Array(this.rw * this.rh * 4);
-      gl.readPixels(0, 0, this.rw, this.rh, gl.RGBA, gl.FLOAT, data);
-      const result = { captured: 0, escaped: 0, budget: 0, invalid: 0, other: 0 };
-      for (let i = 3; i < data.length; i += 4) {
-        const v = Math.round(data[i]);
-        result[
-          v === 1 ? 'captured' : v === 2 ? 'escaped' : v === 3 ? 'budget' : v === 4 ? 'invalid' : 'other'
-        ]++;
-      }
-      gl.bindFramebuffer(gl.READ_FRAMEBUFFER, null);
-      return result;
-    }
-    fail(error) {
-      this.failed = true;
-      console.error(error);
-      $('error').hidden = false;
-      $('error-text').textContent = error.message;
-      $('trace-status').hidden = true;
-    }
+  }
+  function showError(error) {
+    $('error').hidden = false;
+    $('error-text').textContent = error.message;
+    $('trace-status').hidden = true;
   }
   setTimeout(() => {
     try {
-      window.GravityDemo = new Demo();
+      window.GravityDemo = new WebDemo();
     } catch (error) {
       console.error(error);
-      $('error').hidden = false;
-      $('error-text').textContent = error.message;
-      $('trace-status').hidden = true;
+      showError(error);
     }
   }, 30);
 })();

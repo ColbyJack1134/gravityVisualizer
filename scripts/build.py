@@ -6,7 +6,7 @@ page = (root / 'index.html').read_text()
 page = page.replace('<link rel="stylesheet" href="src/style.css">', '<style>\n' + (root / 'src/style.css').read_text() + '\n</style>')
 audio = b64encode((root / 'assets/cipher.mp3').read_bytes()).decode('ascii')
 page = page.replace('src="assets/cipher.mp3"', f'src="data:audio/mpeg;base64,{audio}"')
-for name in ['physics', 'audio', 'palette', 'shaders', 'app']:
+for name in ['physics', 'audio', 'palette', 'shaders', 'app', 'web']:
     script = (root / f'src/{name}.js').read_text().replace('</script', '<\\/script')
     page = page.replace(f'<script src="src/{name}.js"></script>', '<script>\n' + script + '\n</script>')
 target = root / 'gravity-demo.html'

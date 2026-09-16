@@ -1,12 +1,20 @@
 # Gravity Visualizer
 
-A WebGL2 black hole visualizer with a tilted particle disk and local music playback.
+A WebGL2 black hole visualizer for the browser and Wallpaper Engine, with a shared renderer.
 
 ## Run
+
+### Browser
 
 Open **`gravity-demo.html`** in desktop Chrome or Edge with graphics acceleration enabled. No server or installation is needed.
 
 **Controls** and **Fullscreen** sit in the lower left. **Cipher** by Kevin MacLeod is the default demo track and starts paused. Open Controls and press play, or use **Choose music** to load your own local file without uploading it. [Music credit and license](assets/CREDITS.md).
+
+### Wallpaper Engine
+
+Run `npm run build:wallpaper`. Copy the resulting `dist/wallpaper-engine` folder to `wallpaper_engine/projects/myprojects/gravity_visualizer`, then select **Gravity Visualizer** in Wallpaper Engine. Reopen its wallpaper browser if the project list needs refreshing. Keep all three files together, including `project.json`, which defines the native settings.
+
+The wallpaper receives live system audio and uses Wallpaper Engine's settings, FPS cap, and pause/resume events. It contains no music player or on-screen controls. The build also creates `dist/gravity-wallpaper.zip`. [Integration and validation](docs/handoff.md).
 
 ## Controls
 
@@ -20,7 +28,7 @@ Open **`gravity-demo.html`** in desktop Chrome or Edge with graphics acceleratio
 
 Defaults include 65,536 particles, Balanced quality, a 60 FPS cap, spin 0.25, elevation 18°, distance 37, tilt 15°, framing 3 / 10, material 30%, exposure 1.7, sharpness 100%, three-second fades, and 10× time scale. Gradient animation starts enabled.
 
-Scene **Pause** freezes trajectories, camera movement, and gradient animation. Music and its visibility response continue; pause the player to stop the music. Settings last for the open page session.
+Scene **Pause** freezes trajectories, camera movement, and gradient animation. Audio and its visibility response continue. Wallpaper Engine's automatic suspension stops rendering entirely. Browser settings last for the open page session; Wallpaper Engine manages its native settings.
 
 ## Rendering
 
@@ -28,12 +36,13 @@ Light and independent particles follow numerical geodesics in fixed Kerr spaceti
 
 The renderer caches light paths and reuses them during camera orbit. Its floating-point volume and path textures need substantial GPU memory. All quality levels cap internal resolution, including Native / maximum.
 
-[Physics](docs/physics.md) · [Audio](docs/audio.md) · [Performance](docs/performance.md) · [Wallpaper Engine handoff](docs/handoff.md)
+[Physics](docs/physics.md) · [Audio](docs/audio.md) · [Performance](docs/performance.md) · [Wallpaper Engine](docs/handoff.md)
 
 ## Development
 
 ```sh
 python3 scripts/build.py
+npm run build:wallpaper
 npm test
 ```
 
@@ -46,11 +55,12 @@ npm run test:response-browser
 npm run test:background-browser
 npm run test:material-browser
 npm run test:features-browser
+npm run test:wallpaper-browser
 ```
 
-Use `npm run benchmark` for additional viewport measurements. Set `GRAVITY_CHANNEL=msedge` for Edge, or `GRAVITY_CDP=http://127.0.0.1:PORT` to attach to a test browser. `GRAVITY_URL=file:///.../gravity-demo.html` overrides the page location. Results and screenshots go to the ignored `test-results/` directory.
+Use `npm run benchmark` for additional viewport measurements. Set `GRAVITY_CHANNEL=msedge` for Edge, or `GRAVITY_CDP=http://127.0.0.1:PORT` to attach to a test browser. `GRAVITY_URL=file:///.../gravity-demo.html` overrides the web page location; `GRAVITY_WALLPAPER_URL` overrides the packaged wallpaper location. Results and screenshots go to the ignored `test-results/` directory.
 
-Edit `index.html` and `src/`, then rebuild the standalone file. The build embeds `assets/cipher.mp3` alongside the code, so the demo works offline as one HTML file. It has no runtime library dependencies. [Research references and recovered wallpapers](research/findings.md) are kept separately.
+Edit `src/` and the entry pages, then rebuild. `src/web.js` owns browser controls and playback; `src/wallpaper.js` owns host bindings. Both use the renderer in `src/app.js`. The web build embeds `assets/cipher.mp3`; the wallpaper build includes only its HTML, metadata, and preview. Neither has runtime library dependencies. [Research references and recovered wallpapers](research/findings.md) are kept separately.
 
 For the development page with separate files, run `python3 -m http.server 8000 --bind 127.0.0.1` and open `http://localhost:8000/`. Chrome blocks audio analysis of a separate MP3 when `index.html` is opened through `file://`; the standalone build avoids this by embedding the song.
 

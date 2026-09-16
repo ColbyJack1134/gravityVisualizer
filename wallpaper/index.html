@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Gravity Visualizer</title>
+  <link rel="icon" href="data:,">
+  <style>
+    html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: #08090c; }
+    canvas { display: block; width: 100%; height: 100%; }
+    #error { position: fixed; inset: auto 20px 20px; color: #f3a7a7; font: 14px system-ui, sans-serif; }
+  </style>
+  <script src="../src/wallpaper.js"></script>
+</head>
+<body>
+  <canvas id="universe" aria-label="Black hole audio visualizer"></canvas>
+  <p id="error" role="alert" hidden></p>
+  <script src="../src/physics.js"></script>
+  <script src="../src/audio.js"></script>
+  <script src="../src/palette.js"></script>
+  <script src="../src/shaders.js"></script>
+  <script src="../src/app.js"></script>
+  <script src="../src/wallpaper-audio.js"></script>
+  <script>GravityWallpaper.start();</script>
+</body>
+</html>

@@ -39,6 +39,24 @@
     get gradient() {
       return this.mode === 'solid' ? null : this[this.mode];
     }
+    apply(settings) {
+      if (settings.mode !== undefined) this.setMode(settings.mode);
+      if (typeof settings.solid === 'string') this.setSolid(settings.solid);
+      if (Number.isFinite(settings.saturation)) this.setSaturation(settings.saturation);
+      for (const mode of ['hsv', 'custom']) {
+        const changes = settings[mode];
+        if (!changes || typeof changes !== 'object') continue;
+        const gradient = this[mode];
+        if (Number.isFinite(changes.offset)) gradient.offset = wrap(changes.offset);
+        if (Number.isFinite(changes.speed)) gradient.speed = Math.max(-3, Math.min(3, changes.speed));
+        if (typeof changes.animated === 'boolean') gradient.animated = changes.animated;
+        if (mode === 'custom' && Array.isArray(changes.stops) &&
+            changes.stops.length >= 2 && changes.stops.length <= 6 &&
+            changes.stops.every((color) => typeof color === 'string' && validHex(color)))
+          gradient.stops = changes.stops.slice();
+        this.revision++;
+      }
+    }
     setMode(mode) {
       if (['solid', 'hsv', 'custom'].includes(mode)) {
         this.mode = mode;
