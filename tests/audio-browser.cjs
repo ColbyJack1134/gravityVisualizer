@@ -103,14 +103,14 @@ function wav(hz,pulsed=false,amplitude=17000,seconds=6){
     assert.equal(await page.evaluate(()=>GravityDemo.cacheBuilds),builds,'Audio and shake must reuse the light cache');
     await page.evaluate(()=>document.getElementById('music').pause());
     await page.waitForFunction(()=>GravityDemo.spectrum.energy<.001&&GravityDemo.spectrum.shake<.001,null,{timeout:5000});
-    assert.equal(await page.locator('#ignore-quiet-audio').isChecked(),false);
+    assert.equal(await page.locator('#silence-cutoff').inputValue(),'0');
     await load(70,false,1,16);
     await page.waitForFunction(()=>GravityDemo.spectrum.driven>.99);
     assert.ok(await page.evaluate(()=>GravityDemo.spectrum.energy<.001),'Very quiet audio keeps the audio palette without inventing particle energy');
-    await page.locator('#ignore-quiet-audio').check();
+    await page.locator('#silence-cutoff').fill('0.1');await page.locator('#silence-cutoff').dispatchEvent('input');
     await page.waitForFunction(()=>GravityDemo.spectrum.silenceSeconds>9.1,null,{timeout:12000});
     assert.equal(await page.evaluate(()=>GravityDemo.spectrum.driven),0,'Enabled gate restores idle for quiet playback');
-    await page.locator('#ignore-quiet-audio').uncheck();
+    await page.locator('#silence-cutoff').fill('0');await page.locator('#silence-cutoff').dispatchEvent('input');
     await page.waitForFunction(()=>GravityDemo.spectrum.driven>.95&&GravityDemo.spectrum.signalPresent);
     await load(70,false,0);
     await page.waitForFunction(()=>GravityDemo.spectrum.silenceSeconds>.5);

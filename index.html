@@ -14,11 +14,18 @@
     <div class="controls-heading"><h1>Controls</h1><button id="hide-ui" class="icon-button" aria-label="Close controls">×</button></div>
     <section class="control-section">
       <h2>Audio</h2>
-      <button id="audio-file-button" class="file-button">Choose music</button>
+      <div class="audio-actions">
+        <button id="audio-file-button">Choose music</button>
+        <button id="computer-audio" aria-pressed="false" title="Choose a screen or tab and enable audio sharing">Computer audio</button>
+      </div>
       <input id="audio-file" type="file" accept="audio/*" hidden>
-      <audio id="music" controls preload="metadata" src="assets/chill-day.mp3"></audio>
-      <div id="audio-name" class="audio-name" role="status">Chill Day</div>
-      <div id="audio-credit" class="audio-credit"><a href="https://www.youtube.com/watch?v=3HjG1Y4QpVA" target="_blank" rel="noopener noreferrer">LAKEY INSPIRED</a> <a href="https://creativecommons.org/licenses/by-sa/3.0/" target="_blank" rel="noopener noreferrer">CC BY-SA 3.0</a></div>
+      <div id="file-audio">
+        <audio id="music" controls preload="metadata" src="assets/chill-day.mp3"></audio>
+        <div id="audio-name" class="audio-name" role="status">Chill Day</div>
+        <div id="audio-credit" class="audio-credit"><a href="https://www.youtube.com/watch?v=3HjG1Y4QpVA" target="_blank" rel="noopener noreferrer">LAKEY INSPIRED</a> <a href="https://creativecommons.org/licenses/by-sa/3.0/" target="_blank" rel="noopener noreferrer">CC BY-SA 3.0</a></div>
+      </div>
+      <div id="capture-status" class="audio-name" role="status" hidden>Computer audio</div>
+      <div id="audio-error" class="audio-name" role="status" hidden></div>
       <div id="spectrum-bars" class="spectrum-bars" aria-hidden="true"></div>
       <div class="spectrum-legend"><span id="spectrum-low">BASS</span><span id="spectrum-high">HIGHS</span></div>
       <label class="check-label"><input id="auto-sensitivity" type="checkbox" checked> Automatic sensitivity</label>
@@ -33,7 +40,8 @@
       <label class="range-label" for="bass-shake">Bass shake <output id="bass-shake-value">70%</output></label>
       <input id="bass-shake" type="range" min="0" max="100" value="70">
       <label class="check-label"><input id="show-idle-particles" type="checkbox" checked> Enable idle</label>
-      <label class="check-label"><input id="ignore-quiet-audio" type="checkbox"> Ignore quiet audio</label>
+      <label class="range-label" for="silence-cutoff">Silence cutoff <output id="silence-cutoff-value">Off</output></label>
+      <input id="silence-cutoff" type="range" min="0" max="10" step="0.1" value="0">
     </section>
 
     <section class="control-section">

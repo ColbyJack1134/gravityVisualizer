@@ -156,7 +156,8 @@
       if (typeof settings.balance === 'number' && Number.isFinite(settings.balance))
         this.spectrum.balance = Math.max(0, Math.min(1, settings.balance));
       if (typeof settings.autoSensitivity === 'boolean') this.spectrum.autoSensitivity = settings.autoSensitivity;
-      if (typeof settings.ignoreQuietAudio === 'boolean') this.spectrum.ignoreQuietAudio = settings.ignoreQuietAudio;
+      if (typeof settings.silenceThreshold === 'number' && Number.isFinite(settings.silenceThreshold))
+        this.spectrum.silenceThreshold = Math.max(0, Math.min(0.1, settings.silenceThreshold));
       if (settings.palette || settings.idlePalette) {
         if (settings.palette) this.palette.apply(settings.palette);
         if (settings.idlePalette) this.idlePalette.apply(settings.idlePalette);

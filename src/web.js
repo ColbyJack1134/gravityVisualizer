@@ -7,6 +7,10 @@
       this.paletteTarget = 'audio';
       this.audioContext = null;
       this.audioURL = null;
+      this.captureStream = null;
+      this.captureSource = null;
+      this.capturePending = false;
+      this.captureEpoch = 0;
       this.audioInput = { update: (spectrum, dt, gain) => this.readAudio(spectrum, dt, gain) };
       this.onPalette = (force) => this.syncPalettePreview(force);
       this.onAudio = () => this.syncSpectrum();
@@ -48,7 +52,10 @@
     readAudio(spectrum, dt, gain) {
       let bins = null,
         attacks = null;
-      if (this.analyser && !$('music').paused && !$('music').ended) {
+      const active = this.captureStream
+        ? this.captureStream.getAudioTracks().some(track => track.readyState === 'live' && track.enabled && !track.muted)
+        : !$('music').paused && !$('music').ended;
+      if (this.analyser && active) {
         this.analyser.getFloatFrequencyData(this.audioBins);
         this.attackAnalyser.getFloatFrequencyData(this.attackBins);
         bins = this.audioBins;
@@ -178,7 +185,9 @@
       $('audio-gain').value = this.audioGain;
       $('audio-gain-value').textContent = this.audioGain.toFixed(1) + '×';
       $('auto-sensitivity').checked = this.spectrum.autoSensitivity;
-      $('ignore-quiet-audio').checked = this.spectrum.ignoreQuietAudio;
+      $('silence-cutoff').value = this.spectrum.silenceThreshold * 100;
+      $('silence-cutoff-value').textContent = this.spectrum.silenceThreshold > 0
+        ? (this.spectrum.silenceThreshold * 100).toFixed(1) + '%' : 'Off';
       $('show-idle-particles').checked = this.showIdleParticles;
       $('manual-sensitivity').hidden = this.spectrum.autoSensitivity;
       $('bass-shake').value = this.shakeStrength * 100;
@@ -221,7 +230,7 @@
         this.audioBins = new Float32Array(this.analyser.frequencyBinCount);
         this.mediaSource = this.audioContext.createMediaElementSource($('music'));
         this.mediaSource.connect(this.analyser);
-        this.analyser.connect(this.audioContext.destination);
+        this.mediaSource.connect(this.audioContext.destination);
         this.attackAnalyser = this.audioContext.createAnalyser();
         this.attackAnalyser.fftSize = 1024;
         this.attackAnalyser.smoothingTimeConstant = 0;
@@ -230,8 +239,84 @@
       }
       await this.audioContext.resume();
     }
+    syncCaptureUI() {
+      const capturing = !!this.captureStream;
+      $('computer-audio').textContent = this.capturePending ? 'Connecting…' : capturing ? 'Stop capture' : 'Computer audio';
+      $('computer-audio').setAttribute('aria-pressed', capturing);
+      $('computer-audio').disabled = this.capturePending;
+      $('audio-file-button').disabled = this.capturePending;
+      $('file-audio').hidden = capturing;
+      $('capture-status').hidden = !capturing;
+    }
+    audioError(message = '') {
+      $('audio-error').textContent = message;
+      $('audio-error').hidden = !message;
+    }
+    async startComputerAudio() {
+      if (this.capturePending || this.captureStream) return;
+      this.audioError();
+      if (!navigator.mediaDevices?.getDisplayMedia) {
+        this.audioError('Computer audio needs a supported browser such as Chrome or Edge over HTTPS or localhost.');
+        return;
+      }
+      const epoch = ++this.captureEpoch;
+      this.capturePending = true;
+      this.syncCaptureUI();
+      let stream, source;
+      try {
+        const capture = navigator.mediaDevices.getDisplayMedia({
+          video: { displaySurface: 'monitor', frameRate: 1 },
+          audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, suppressLocalAudioPlayback: false },
+          systemAudio: 'include', selfBrowserSurface: 'exclude', surfaceSwitching: 'include'
+        });
+        const [shared, initialized] = await Promise.allSettled([capture, this.initializeAudio()]);
+        if (shared.status === 'fulfilled') stream = shared.value;
+        if (epoch !== this.captureEpoch) {
+          stream?.getTracks().forEach(track => track.stop());
+          return;
+        }
+        if (shared.status === 'rejected') throw shared.reason;
+        if (initialized.status === 'rejected') throw initialized.reason;
+        if (!stream.getAudioTracks().some(track => track.readyState === 'live'))
+          throw new Error('No audio was shared. Try again and enable audio sharing for a screen or tab.');
+        source = this.audioContext.createMediaStreamSource(stream);
+        // Analyze captured audio without playing it a second time.
+        source.connect(this.analyser);
+        source.connect(this.attackAnalyser);
+        this.captureStream = stream;
+        this.captureSource = source;
+        $('music').pause();
+        this.spectrum.reset();
+        for (const track of stream.getTracks()) track.addEventListener('ended', () => {
+          if (this.captureStream === stream) this.stopComputerAudio();
+        });
+      } catch (error) {
+        source?.disconnect();
+        stream?.getTracks().forEach(track => track.stop());
+        if (epoch === this.captureEpoch) this.audioError(error.name === 'NotAllowedError'
+          ? 'Audio sharing was canceled or blocked. Choose Computer audio to try again.'
+          : error.message || 'Computer audio is unavailable in this browser.');
+      } finally {
+        if (epoch === this.captureEpoch) {
+          this.capturePending = false;
+          this.syncCaptureUI();
+        }
+      }
+    }
+    stopComputerAudio() {
+      this.captureEpoch++;
+      this.capturePending = false;
+      const stream = this.captureStream;
+      this.captureStream = null;
+      this.captureSource?.disconnect();
+      this.captureSource = null;
+      stream?.getTracks().forEach(track => track.stop());
+      this.syncCaptureUI();
+    }
     loadAudio(file) {
       if (!file) return;
+      this.stopComputerAudio();
+      this.audioError();
       const music = $('music');
       music.pause();
       this.spectrum.reset();
@@ -244,8 +329,6 @@
     bindUI() {
       $('auto-sensitivity').addEventListener('change', (event) =>
         this.applySettings({ autoSensitivity: event.target.checked }));
-      $('ignore-quiet-audio').addEventListener('change', (event) =>
-        this.applySettings({ ignoreQuietAudio: event.target.checked }));
       $('show-idle-particles').addEventListener('change', (event) =>
         this.applySettings({ showIdleParticles: event.target.checked }));
       $('palette-target').addEventListener('change', (event) => {
@@ -302,7 +385,8 @@
         framing: ['framing', 0.01], 'framing-y': ['framingY', 0.01],
         'audio-balance': ['balance', 0.01], 'sustained-light': ['sustainStrength', 0.01],
         'star-density': ['starDensity', 0.01], 'cloud-density': ['cloudDensity', 0.01],
-        'audio-gain': ['audioGain', 1], 'bass-shake': ['shakeStrength', 0.01]
+        'audio-gain': ['audioGain', 1], 'bass-shake': ['shakeStrength', 0.01],
+        'silence-cutoff': ['silenceThreshold', 0.01]
       };
       for (const [id, [key, scale]] of Object.entries(controls))
         $(id).addEventListener('input', (event) => this.applySettings({ [key]: Number(event.target.value) * scale }));
@@ -338,6 +422,11 @@
         $('quick-fullscreen').textContent = label;
       });
       $('audio-file-button').addEventListener('click', () => $('audio-file').click());
+      $('computer-audio').addEventListener('click', () => {
+        if (this.captureStream) this.stopComputerAudio();
+        else this.startComputerAudio();
+      });
+      window.addEventListener('pagehide', () => this.stopComputerAudio());
       $('audio-file').addEventListener('change', (e) => {
         this.loadAudio(e.target.files[0]);
         e.target.value = '';
@@ -347,6 +436,8 @@
         $('audio-name').textContent = 'This audio file could not be decoded. Try MP3, WAV, or Ogg.';
       });
       $('music').addEventListener('play', () => {
+        this.stopComputerAudio();
+        this.audioError();
         this.initializeAudio().catch((error) =>
           this.controlError('Audio analysis unavailable: ' + error.message)
         );

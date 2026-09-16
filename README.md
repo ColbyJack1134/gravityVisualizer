@@ -10,7 +10,7 @@ A black hole audio visualizer for Wallpaper Engine and the browser.
 
 ## Details
 
-Built with JavaScript and WebGL2. Particle orbits and gravitational lensing use the Kerr metric, with approximate volume rendering for the glowing disk. Supports live system audio in Wallpaper Engine and local music in the browser.
+Built with JavaScript and WebGL2. Particle orbits and gravitational lensing use the Kerr metric, with approximate volume rendering for the glowing disk. Supports live system audio in Wallpaper Engine, plus local music and browser-supported audio sharing on the web.
 
 ## Credits
 

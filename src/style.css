@@ -130,8 +130,16 @@ h2 {
 .range-label {
   margin-top: 12px;
 }
-.file-button {
-  width: 100%;
+.audio-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+.audio-actions button {
+  padding-inline: 6px;
+}
+#audio-error {
+  color: #f3a7a7;
 }
 #music {
   width: 100%;

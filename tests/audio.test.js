@@ -20,18 +20,38 @@ for(const autoSensitivity of [false,true]){
   for(const step of [1/30,1/60,1/144]){
     const s=new A.Spectrum();s.autoSensitivity=autoSensitivity;
     const advance=(seconds,fft)=>{for(let i=0;i<Math.round(seconds/step);i++)s.update(step,fft);};
-    assert.equal(s.ignoreQuietAudio,false);
+    assert.equal(s.silenceThreshold,0);
     advance(1,tone(70,-90));assert.ok(s.driven>.99&&s.signalPresent);
-    s.ignoreQuietAudio=true;advance(10,tone(70,-90));
+    s.silenceThreshold=.001;advance(10,tone(70,-90));
     assert.equal(s.driven,0,'Enabled gate lets quiet audio return to idle');
     assert.equal(s.signalPresent,false);
-    s.ignoreQuietAudio=false;advance(.5,tone(70,-90));
+    s.silenceThreshold=0;advance(.5,tone(70,-90));
     assert.ok(s.driven>.95,'Disabling the gate resumes quiet audio without resetting playback');
     const active=s.driven;advance(3,null);
     assert.ok(Math.abs(s.driven-active)<1e-5,'Actual silence retains the three-second hold');
     advance(6,null);assert.equal(s.driven,0,'Actual silence returns to idle with the gate disabled');
-    s.ignoreQuietAudio=true;s.reset();assert.equal(s.ignoreQuietAudio,true,'Reset preserves the gate setting');
+    s.silenceThreshold=.001;s.reset();assert.equal(s.silenceThreshold,.001,'Reset preserves the gate setting');
   }
+}
+for (const autoSensitivity of [false, true]) {
+  const s = new A.Spectrum(); s.autoSensitivity = autoSensitivity;
+  const bands = new Float32Array(A.COUNT), fast = new Float32Array(A.COUNT);
+  const run = (seconds, amplitude, transient = amplitude) => {
+    bands.fill(amplitude); fast.fill(transient);
+    for (let i = 0; i < seconds * 60; i++) s.updateBands(dt, bands, 3, fast);
+  };
+  s.silenceThreshold = .001;
+  run(20, .0015); assert.ok(s.signalPresent && s.driven > .99);
+  const gain = s.sensitivity.gain;
+  s.silenceThreshold = .002;
+  run(10, .0015);
+  assert.equal(s.driven, 0, 'Raising the cutoff above residual input restores idle at any sensitivity');
+  assert.ok(s.energy < 1e-10 && s.shake < 1e-10);
+  assert.equal(s.sensitivity.gain, gain, 'Gated noise cannot increase automatic sensitivity');
+  run(.5, .0015, .003);
+  assert.ok(s.signalPresent && s.driven > .95, 'Above-cutoff transients still wake the visualizer');
+  s.silenceThreshold = 0;
+  run(.5, .00001); assert.ok(s.signalPresent);
 }
 const pulse=new A.Spectrum();let peakShake=0;
 for(let i=0;i<18;i++){pulse.update(dt,tone(70,-14));peakShake=Math.max(peakShake,pulse.shake);}
@@ -80,7 +100,7 @@ for (let i = 0; i < 60; i++) {
   assert.ok(Math.max(...balanced.attacks) < .001, 'Changing balance must not synthesize attacks');
 }
 const afterPause = new A.Spectrum();
-afterPause.ignoreQuietAudio = true;
+afterPause.silenceThreshold = .001;
 for (let i = 0; i < 3600; i++) afterPause.update(dt, tone(70, -90), sampleRate, fftSize, 3);
 assert.equal(afterPause.energy, 0);assert.equal(afterPause.driven, 0);assert.equal(afterPause.shake, 0);
 for (const step of [1/30, 1/60, 1/144]) {
@@ -122,7 +142,7 @@ feedPeak(20, 0);
 assert.equal(normalize.gain, heldGain, 'Silence must not increase sensitivity');
 
 const automatic = new A.Spectrum(); automatic.autoSensitivity = true;
-automatic.ignoreQuietAudio = true;
+automatic.silenceThreshold = .001;
 const amplitudes = new Float32Array(A.COUNT);
 const feedBands = (seconds, amplitude) => {
   amplitudes.fill(0); amplitudes[2] = amplitude;

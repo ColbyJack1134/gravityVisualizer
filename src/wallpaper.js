@@ -1,7 +1,7 @@
 (function () {
   'use strict';
   const numbers = {
-    audiogain: ['audioGain', 1], audiobalance: ['balance', 0.01],
+    audiogain: ['audioGain', 1], audiobalance: ['balance', 0.01], silencecutoff: ['silenceThreshold', 0.01],
     sustainedamount: ['sustainStrength', 0.01], bassshake: ['shakeStrength', 0.01],
     stardensity: ['starDensity', 0.01], clouddensity: ['cloudDensity', 0.01],
     movement: ['motionStrength', 0.01], tilt: ['roll', Math.PI / 180],
@@ -87,7 +87,6 @@
       if (values.quality !== undefined) settings.quality = values.quality;
       if (values.cameramotion !== undefined) settings.cameraMotion = values.cameramotion;
       if (typeof values.autosensitivity === 'boolean') settings.autoSensitivity = values.autosensitivity;
-      if (typeof values.ignorequietaudio === 'boolean') settings.ignoreQuietAudio = values.ignorequietaudio;
       if (typeof values.showidleparticles === 'boolean') settings.showIdleParticles = values.showidleparticles;
       for (const [key, prefix] of [['palette', ''], ['idlePalette', 'idle']]) {
         const palette = paletteSettings(values, prefix, this.paletteStops[key]);

@@ -139,7 +139,7 @@
       this.frequency = new ResponseBank();
       this.sensitivity = new AutoSensitivity();
       this.autoSensitivity = false;
-      this.ignoreQuietAudio = false;
+      this.silenceThreshold = 0;
       this.balance = 0.75;
       this.reset();
     }
@@ -191,18 +191,16 @@
       dt = Math.max(0, dt);
       this.time += dt;
       const amplitude = Math.max(...this.frequency.amplitudes, ...this.frequency.fastAmplitudes);
-      const automaticGain = this.sensitivity.update(dt, amplitude);
-      if (this.autoSensitivity) {
-        gain = automaticGain;
-        if (this.ignoreQuietAudio && amplitude < 0.001) {
-          this.frequency.amplitudes.fill(0);
-          this.frequency.fastAmplitudes.fill(0);
-        }
+      // Gate the input before sensitivity can amplify background noise.
+      const audible = amplitude > this.silenceThreshold;
+      if (!audible) {
+        this.frequency.amplitudes.fill(0);
+        this.frequency.fastAmplitudes.fill(0);
       }
+      const automaticGain = this.sensitivity.update(dt, audible ? amplitude : 0);
+      if (this.autoSensitivity) gain = automaticGain;
       this.effectiveGain = gain;
       this.frequency.update(dt, gain, this.balance);
-      const peak = Math.max(...this.frequency.rawLevels);
-      const audible = this.ignoreQuietAudio ? peak > (this.signalPresent ? 0.01 : 0.025) : amplitude > 0;
       if (audible) {
         this.driven = follow(this.driven, 1, dt, 0.15, 0.25);
         this.silenceSeconds = 0;

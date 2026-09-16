@@ -52,7 +52,7 @@ const project = require('../wallpaper/project.json');
         material: r.material, exposure: r.exposure, sharpness: r.sharpness, fade: r.fadeSeconds,
         animated: r.palette.hsv.animated, colors: r.palette.custom.stops.map(c => c.toUpperCase()), registrations: audioRegistrations,
         idle: [r.idlePalette.mode, r.idlePalette.solid], rendered: Array.from(r.paletteColors), auto: r.spectrum.autoSensitivity,
-        showIdleParticles: r.showIdleParticles, ignoreQuietAudio: r.spectrum.ignoreQuietAudio };
+        showIdleParticles: r.showIdleParticles, silenceThreshold: r.spectrum.silenceThreshold };
     });
     assert.equal(defaults.stats.cacheBuilds, 1, 'Early settings must precede the first cache allocation');
     assert.equal(defaults.stats.particles, 65536); assert.equal(defaults.stats.spin, 0.5);
@@ -64,11 +64,11 @@ const project = require('../wallpaper/project.json');
     assert.deepEqual(defaults.idle, ['solid', '#ffffff']); assert.ok(defaults.rendered.every(v => v === 1));
     assert.equal(defaults.auto, true);
     assert.equal(defaults.showIdleParticles, true);
-    assert.equal(defaults.ignoreQuietAudio, false);
-    await apply({ ignorequietaudio: true });
-    assert.equal(await page.evaluate(() => GravityWallpaper.renderer.spectrum.ignoreQuietAudio), true);
-    await apply({ ignorequietaudio: false });
-    assert.equal(await page.evaluate(() => GravityWallpaper.renderer.spectrum.ignoreQuietAudio), false);
+    assert.equal(defaults.silenceThreshold, 0);
+    await apply({ silencecutoff: 0.2 });
+    assert.equal(await page.evaluate(() => GravityWallpaper.renderer.spectrum.silenceThreshold), 0.002);
+    await apply({ silencecutoff: 0 });
+    assert.equal(await page.evaluate(() => GravityWallpaper.renderer.spectrum.silenceThreshold), 0);
     await apply({ showidleparticles: false });
     assert.equal(await page.evaluate(() => {
       const r = GravityWallpaper.renderer, gl = r.gl; r.deposit();

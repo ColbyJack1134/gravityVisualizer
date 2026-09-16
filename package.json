@@ -9,6 +9,7 @@
     "test": "node tests/physics.test.js && node tests/audio.test.js && node tests/palette.test.js && node tests/wallpaper-audio.test.js",
     "test:browser": "node tests/browser.cjs",
     "test:audio-browser": "node tests/audio-browser.cjs",
+    "test:capture-browser": "node tests/capture-browser.cjs",
     "test:response-browser": "node tests/response-browser.cjs",
     "test:background-browser": "node tests/background-browser.cjs",
     "test:material-browser": "node tests/material-browser.cjs",
