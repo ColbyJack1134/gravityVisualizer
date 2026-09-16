@@ -2,7 +2,7 @@
 
 A black hole audio visualizer for Wallpaper Engine and the browser.
 
-[Browser demo](#) [Video demo](#)
+[Browser demo](https://colbyjack1134.github.io/gravityVisualizer/) [Video demo](#)
 
 ![White particles](assets/screenshots/white.jpg)
 
