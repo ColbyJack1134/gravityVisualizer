@@ -12,8 +12,14 @@
   "general": {
     "supportsaudioprocessing": true,
     "properties": {
-      "audiogain": {
+      "schemecolor": {
         "order": 0,
+        "text": "ui_browse_properties_scheme_color",
+        "type": "color",
+        "value": "0 0 0"
+      },
+      "audiogain": {
+        "order": 1,
         "text": "Audio sensitivity",
         "type": "slider",
         "value": 1,
@@ -25,7 +31,7 @@
         "precision": 1
       },
       "audiobalance": {
-        "order": 1,
+        "order": 2,
         "text": "Band balance",
         "type": "slider",
         "value": 75,
@@ -37,7 +43,7 @@
         "precision": 0
       },
       "sustainedamount": {
-        "order": 2,
+        "order": 3,
         "text": "Sustained amount",
         "type": "slider",
         "value": 100,
@@ -49,7 +55,7 @@
         "precision": 0
       },
       "bassshake": {
-        "order": 3,
+        "order": 4,
         "text": "Bass shake",
         "type": "slider",
         "value": 70,
@@ -61,7 +67,7 @@
         "precision": 0
       },
       "colormode": {
-        "order": 4,
+        "order": 5,
         "text": "Colors",
         "type": "combo",
         "value": "hsv",
@@ -81,14 +87,14 @@
         ]
       },
       "solidcolor": {
-        "order": 5,
+        "order": 6,
         "text": "Particle color",
         "type": "color",
         "value": "0.666666667 0.266666667 1.0",
         "condition": "colormode.value == 'solid'"
       },
       "saturation": {
-        "order": 6,
+        "order": 7,
         "text": "Saturation",
         "type": "slider",
         "value": 100,
@@ -101,7 +107,7 @@
         "condition": "colormode.value == 'hsv'"
       },
       "hsvoffset": {
-        "order": 7,
+        "order": 8,
         "text": "HSV offset",
         "type": "slider",
         "value": 0,
@@ -114,14 +120,14 @@
         "condition": "colormode.value == 'hsv'"
       },
       "hsvanimate": {
-        "order": 8,
+        "order": 9,
         "text": "Animate HSV gradient",
         "type": "bool",
         "value": true,
         "condition": "colormode.value == 'hsv'"
       },
       "hsvspeed": {
-        "order": 9,
+        "order": 10,
         "text": "HSV speed (cycles/min)",
         "type": "slider",
         "value": 0.5,
@@ -134,7 +140,7 @@
         "condition": "colormode.value == 'hsv' && hsvanimate.value"
       },
       "customcount": {
-        "order": 10,
+        "order": 11,
         "text": "Gradient colors",
         "type": "slider",
         "value": 6,
@@ -147,49 +153,49 @@
         "condition": "colormode.value == 'custom'"
       },
       "customcolor1": {
-        "order": 11,
+        "order": 12,
         "text": "Gradient color 1",
         "type": "color",
         "value": "0.137254902 0.819607843 0.51372549",
         "condition": "colormode.value == 'custom' && customcount.value >= 1"
       },
       "customcolor2": {
-        "order": 12,
+        "order": 13,
         "text": "Gradient color 2",
         "type": "color",
         "value": "0.11372549 0.792156863 0.592156863",
         "condition": "colormode.value == 'custom' && customcount.value >= 2"
       },
       "customcolor3": {
-        "order": 13,
+        "order": 14,
         "text": "Gradient color 3",
         "type": "color",
         "value": "0.090196078 0.760784314 0.670588235",
         "condition": "colormode.value == 'custom' && customcount.value >= 3"
       },
       "customcolor4": {
-        "order": 14,
+        "order": 15,
         "text": "Gradient color 4",
         "type": "color",
         "value": "0.070588235 0.733333333 0.752941176",
         "condition": "colormode.value == 'custom' && customcount.value >= 4"
       },
       "customcolor5": {
-        "order": 15,
+        "order": 16,
         "text": "Gradient color 5",
         "type": "color",
         "value": "0.047058824 0.701960784 0.831372549",
         "condition": "colormode.value == 'custom' && customcount.value >= 5"
       },
       "customcolor6": {
-        "order": 16,
+        "order": 17,
         "text": "Gradient color 6",
         "type": "color",
         "value": "0.023529412 0.674509804 0.909803922",
         "condition": "colormode.value == 'custom' && customcount.value >= 6"
       },
       "customoffset": {
-        "order": 17,
+        "order": 18,
         "text": "Custom offset",
         "type": "slider",
         "value": 0,
@@ -202,14 +208,14 @@
         "condition": "colormode.value == 'custom'"
       },
       "customanimate": {
-        "order": 18,
+        "order": 19,
         "text": "Animate custom gradient",
         "type": "bool",
         "value": true,
         "condition": "colormode.value == 'custom'"
       },
       "customspeed": {
-        "order": 19,
+        "order": 20,
         "text": "Custom speed (cycles/min)",
         "type": "slider",
         "value": 0.5,
@@ -222,7 +228,7 @@
         "condition": "colormode.value == 'custom' && customanimate.value"
       },
       "stardensity": {
-        "order": 20,
+        "order": 21,
         "text": "Star density",
         "type": "slider",
         "value": 100,
@@ -234,7 +240,7 @@
         "precision": 0
       },
       "clouddensity": {
-        "order": 21,
+        "order": 22,
         "text": "Cloud density",
         "type": "slider",
         "value": 100,
@@ -246,7 +252,7 @@
         "precision": 0
       },
       "cameramotion": {
-        "order": 22,
+        "order": 23,
         "text": "Camera movement",
         "type": "combo",
         "value": "gentle",
@@ -266,7 +272,7 @@
         ]
       },
       "movement": {
-        "order": 23,
+        "order": 24,
         "text": "Movement amount",
         "type": "slider",
         "value": 55,
@@ -279,7 +285,7 @@
         "condition": "cameramotion.value != 'fixed'"
       },
       "tilt": {
-        "order": 24,
+        "order": 25,
         "text": "Tilt",
         "type": "slider",
         "value": 15,
@@ -291,7 +297,7 @@
         "precision": 0
       },
       "framing": {
-        "order": 25,
+        "order": 26,
         "text": "Horizontal position",
         "type": "slider",
         "value": 3,
@@ -303,7 +309,7 @@
         "precision": 0
       },
       "framingy": {
-        "order": 26,
+        "order": 27,
         "text": "Vertical position",
         "type": "slider",
         "value": 10,
@@ -315,7 +321,7 @@
         "precision": 1
       },
       "elevation": {
-        "order": 27,
+        "order": 28,
         "text": "Elevation",
         "type": "slider",
         "value": 18,
@@ -327,7 +333,7 @@
         "precision": 0
       },
       "distance": {
-        "order": 28,
+        "order": 29,
         "text": "Distance",
         "type": "slider",
         "value": 37,
@@ -339,13 +345,13 @@
         "precision": 0
       },
       "spinning": {
-        "order": 29,
+        "order": 30,
         "text": "Spinning black hole",
         "type": "bool",
         "value": true
       },
       "spin": {
-        "order": 30,
+        "order": 31,
         "text": "Spin",
         "type": "slider",
         "value": 0.25,
@@ -358,7 +364,7 @@
         "condition": "spinning.value"
       },
       "material": {
-        "order": 31,
+        "order": 32,
         "text": "Material",
         "type": "slider",
         "value": 30,
@@ -370,7 +376,7 @@
         "precision": 0
       },
       "exposure": {
-        "order": 32,
+        "order": 33,
         "text": "Exposure",
         "type": "slider",
         "value": 1.7,
@@ -382,7 +388,7 @@
         "precision": 1
       },
       "sharpness": {
-        "order": 33,
+        "order": 34,
         "text": "Sharpness",
         "type": "slider",
         "value": 100,
@@ -394,7 +400,7 @@
         "precision": 0
       },
       "particlefade": {
-        "order": 34,
+        "order": 35,
         "text": "Particle fade (seconds)",
         "type": "slider",
         "value": 3,
@@ -406,7 +412,7 @@
         "precision": 1
       },
       "timescale": {
-        "order": 35,
+        "order": 36,
         "text": "Time scale",
         "type": "slider",
         "value": 10,
@@ -418,7 +424,7 @@
         "precision": 0
       },
       "particles": {
-        "order": 36,
+        "order": 37,
         "text": "Particles",
         "type": "combo",
         "value": "65536",
@@ -450,7 +456,7 @@
         ]
       },
       "quality": {
-        "order": 37,
+        "order": 38,
         "text": "Quality",
         "type": "combo",
         "value": "balanced",
@@ -474,7 +480,7 @@
         ]
       },
       "paused": {
-        "order": 38,
+        "order": 39,
         "text": "Pause animation",
         "type": "bool",
         "value": false
