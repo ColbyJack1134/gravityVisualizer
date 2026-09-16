@@ -1,0 +1,27 @@
+const assert=require('node:assert/strict'),A=require('../src/audio.js'),C=require('../src/palette.js');
+const colors=p=>Array.from(p.writeColors(A.hues,new Float32Array(A.COUNT*3)));
+const close=(a,b,t=1e-6)=>assert.ok(Math.abs(a-b)<t,`${a} vs ${b}`);
+const p=new C.Palette(),baseline=colors(p);
+assert.ok(baseline[2]>baseline[1]&&baseline.at(-3)>baseline.at(-1),'Default violet bass/red highs');
+p.setOffset(1);colors(p).forEach((v,i)=>close(v,baseline[i]));
+p.setOffset(.5);const shifted=colors(p);assert.ok(shifted[1]>shifted[0]&&shifted[1]>shifted[2],'Half-turn shifts bass into green');
+p.setSaturation(0);colors(p).forEach(v=>close(v,1));
+p.setMode('solid');p.setSolid('#12abef');const solid=colors(p);
+for(let i=3;i<solid.length;i++)close(solid[i],solid[i%3]);
+p.setMode('custom');p.custom.stops=['#ff0000','#0000ff'];
+let custom=colors(p);close(custom[0],1);close(custom[2],0);close(custom.at(-3),0);close(custom.at(-1),1);
+p.setOffset(.5);custom=colors(p);close(custom[0],0);close(custom[2],1);close(custom.at(-3),1);
+p.setOffset(0);p.setAnimated(true);p.setSpeed(1);p.advance(30);close(p.custom.offset,.5);
+p.advance(30);close(p.custom.offset,0);p.setSpeed(-1);p.advance(15);close(p.custom.offset,.75);
+p.advance(30,true);close(p.custom.offset,.75);
+p.setAnimated(false);p.advance(30);close(p.custom.offset,.75);
+p.setMode('hsv');close(p.hsv.offset,.5);p.setMode('custom');close(p.custom.offset,.75);
+for(let i=0;i<10;i++)p.addStop();assert.equal(p.custom.stops.length,6);
+for(let i=0;i<10;i++)p.removeStop(0);assert.equal(p.custom.stops.length,2);
+for(const step of [1/30,1/60,1/144]){
+  const q=new C.Palette();q.setAnimated(true);q.setSpeed(-.5);
+  for(let i=0;i<Math.round(12/step);i++)q.advance(step);close(q.hsv.offset,.9,1e-9);
+}
+p.setOffset(1-1e-6);const left=colors(p);p.setOffset(1e-6);const right=colors(p);
+left.forEach((v,i)=>close(v,right[i],.00002));
+console.log('PASS: solid/HSV/custom palettes, saturation, cyclic offsets, stop limits, independent settings and timed/reversed/paused drift.');

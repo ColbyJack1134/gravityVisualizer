@@ -1,0 +1,2313 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#08090c">
+  <title>Gravity Visualizer</title>
+  <style>
+:root {
+  color-scheme: dark;
+  font-family: system-ui, sans-serif;
+  font-size: 13px;
+  color: #dddde3;
+  background: #08090c;
+  accent-color: #aaa4cb;
+}
+
+* {
+  box-sizing: border-box;
+}
+[hidden] {
+  display: none !important;
+}
+body {
+  margin: 0;
+  overflow: hidden;
+}
+button,
+input,
+select {
+  font: inherit;
+}
+button,
+select,
+input[type='color'] {
+  color: inherit;
+  background: #212127;
+  border: 1px solid #3a3a43;
+  border-radius: 5px;
+}
+button {
+  cursor: pointer;
+  padding: 8px 12px;
+}
+button:hover,
+select:hover {
+  background: #2d2d35;
+}
+button:disabled,
+input:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+:focus-visible {
+  outline: 2px solid #c7bcf0;
+  outline-offset: 3px;
+}
+select {
+  width: 100%;
+  padding: 8px;
+}
+input[type='range'] {
+  width: 100%;
+  margin: 8px 0 12px;
+  cursor: pointer;
+}
+input[type='color'] {
+  width: 42px;
+  height: 30px;
+  padding: 3px;
+  cursor: pointer;
+}
+input[type='checkbox'] {
+  margin: 0;
+}
+output {
+  color: #b5b4c0;
+  font-variant-numeric: tabular-nums;
+}
+h1,
+h2 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+h2 {
+  margin-bottom: 12px;
+}
+
+#universe {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.controls {
+  position: fixed;
+  left: 24px;
+  bottom: 24px;
+  width: 300px;
+  max-height: calc(100dvh - 48px);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  background: #111116f5;
+  border: 1px solid #38383f;
+  border-radius: 8px;
+  box-shadow: 0 8px 32px #0006;
+}
+.controls-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 12px 16px;
+  background: #16161c;
+  border-bottom: 1px solid #303038;
+}
+.icon-button {
+  padding: 2px 8px;
+  font-size: 21px;
+  background: transparent;
+  border: 0;
+}
+.control-section,
+.performance-settings {
+  padding: 18px 16px;
+  border-bottom: 1px solid #303038;
+}
+.range-label,
+.color-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+.range-label {
+  margin-top: 12px;
+}
+.file-button {
+  width: 100%;
+}
+#music {
+  width: 100%;
+  height: 34px;
+  margin-top: 12px;
+}
+.audio-name {
+  margin-top: 8px;
+  color: #b5b4c0;
+  overflow-wrap: anywhere;
+  font-size: 12px;
+}
+.audio-name:empty {
+  display: none;
+}
+.spectrum-bars {
+  height: 34px;
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  margin-top: 14px;
+  overflow: hidden;
+}
+.spectrum-bars span {
+  flex: 1;
+  min-width: 0;
+  height: 1px;
+}
+.spectrum-legend {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 6px;
+  font-size: 10px;
+  color: #a2a1ad;
+}
+.palette-preview {
+  height: 8px;
+  margin: 12px 0;
+  border-radius: 3px;
+}
+.check-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+.color-stop {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0;
+}
+.color-stop label {
+  flex: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.color-stop button {
+  padding: 4px 8px;
+}
+.text-button {
+  margin-top: 4px;
+}
+.segments {
+  display: flex;
+  gap: 6px;
+}
+.segments button {
+  flex: 1;
+  padding: 8px 6px;
+}
+.segments .selected {
+  border-color: #b2a5de;
+  background: #383043;
+}
+summary {
+  cursor: pointer;
+}
+.camera-advanced {
+  margin-top: 8px;
+}
+.performance-settings > label {
+  display: block;
+  margin-top: 14px;
+}
+.performance-settings select {
+  margin-top: 6px;
+}
+.stats {
+  margin: 16px 0 0;
+  font-size: 12px;
+  color: #b5b4c0;
+}
+.stats div {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 6px;
+}
+.stats dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+.transport {
+  display: flex;
+  gap: 6px;
+  padding: 16px;
+}
+.transport button {
+  flex: 1;
+  padding: 8px 4px;
+}
+#control-error {
+  margin: 0 16px 16px;
+  color: #f3a7a7;
+}
+.quick-controls {
+  position: fixed;
+  left: 24px;
+  bottom: 24px;
+  display: flex;
+  gap: 6px;
+}
+.quick-controls button {
+  background: #15151be6;
+}
+.quick-controls button:hover {
+  background: #2d2d35;
+}
+
+#trace-status {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 10px;
+  width: 240px;
+  padding: 14px;
+  background: #111116ed;
+  border: 1px solid #38383f;
+  border-radius: 6px;
+}
+.trace-track {
+  width: 100%;
+  height: 2px;
+  background: #34313d;
+}
+#trace-progress {
+  display: block;
+  width: 0;
+  height: 100%;
+  background: #b2a5de;
+}
+#error {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(460px, calc(100% - 32px));
+  padding: 24px;
+  border: 1px solid #775258;
+  border-radius: 8px;
+  background: #181317;
+  line-height: 1.6;
+}
+#error p:last-child {
+  margin-bottom: 0;
+}
+
+@media (max-width: 500px) {
+  .controls {
+    left: 12px;
+    bottom: 12px;
+    width: min(300px, calc(100% - 24px));
+    max-height: calc(100dvh - 24px);
+  }
+  .quick-controls {
+    left: 12px;
+    bottom: 12px;
+  }
+  #trace-status {
+    top: 12px;
+    bottom: auto;
+  }
+}
+
+</style>
+</head>
+<body>
+  <canvas id="universe" aria-label="Interactive black hole and particle simulation"></canvas>
+  <aside id="controls" class="controls" aria-label="Controls" hidden>
+    <div class="controls-heading"><h1>Controls</h1><button id="hide-ui" class="icon-button" aria-label="Close controls">×</button></div>
+    <section class="control-section">
+      <h2>Audio</h2>
+      <button id="audio-file-button" class="file-button">Choose music</button>
+      <input id="audio-file" type="file" accept="audio/*" hidden>
+      <audio id="music" controls preload="metadata" hidden></audio>
+      <div id="audio-name" class="audio-name" role="status"></div>
+      <div id="spectrum-bars" class="spectrum-bars" aria-hidden="true"></div>
+      <div class="spectrum-legend"><span id="spectrum-low">BASS</span><span id="spectrum-high">HIGHS</span></div>
+      <label class="range-label" for="audio-gain">Sensitivity <output id="audio-gain-value">1.0×</output></label>
+      <input id="audio-gain" type="range" min="0.3" max="3" step="0.1" value="1">
+      <label class="range-label" for="audio-balance">Band balance <output id="audio-balance-value">75%</output></label>
+      <input id="audio-balance" type="range" min="0" max="100" value="75">
+      <label class="range-label" for="sustained-light">Sustained amount <output id="sustained-light-value">100%</output></label>
+      <input id="sustained-light" type="range" min="0" max="100" value="100">
+      <label class="range-label" for="bass-shake">Bass shake <output id="bass-shake-value">70%</output></label>
+      <input id="bass-shake" type="range" min="0" max="100" value="70">
+    </section>
+
+    <section class="control-section">
+      <h2>Colors</h2>
+      <select id="color-mode" aria-label="Color mode"><option value="hsv">HSV gradient</option><option value="solid">Solid color</option><option value="custom">Custom gradient</option></select>
+      <div id="palette-preview" class="palette-preview" aria-label="Palette from bass to high frequencies"></div>
+      <div id="solid-controls" hidden><label class="color-label" for="solid-color">Particle color <input id="solid-color" type="color" value="#aa44ff"></label></div>
+      <div id="hsv-controls">
+        <label class="range-label" for="palette-saturation">Saturation <output id="palette-saturation-value">100%</output></label>
+        <input id="palette-saturation" type="range" min="0" max="100" value="100">
+      </div>
+      <div id="custom-controls" hidden>
+        <div id="custom-colors"></div><button id="add-color" class="text-button" type="button">+ Add color</button>
+      </div>
+      <div id="gradient-controls">
+        <label class="range-label" for="palette-offset">Offset <output id="palette-offset-value">0%</output></label>
+        <input id="palette-offset" type="range" min="0" max="100" step="0.1" value="0">
+        <label class="check-label"><input id="palette-animate" type="checkbox" checked> Animate gradient</label>
+        <label class="range-label" for="palette-speed">Speed <output id="palette-speed-value">0.50 cycles/min</output></label>
+        <input id="palette-speed" type="range" min="-3" max="3" step="0.05" value="0.5">
+      </div>
+    </section>
+
+    <section class="control-section">
+      <h2>Background</h2>
+      <label class="range-label" for="star-density">Star density <output id="star-density-value">100%</output></label>
+      <input id="star-density" type="range" min="0" max="500" step="5" value="100">
+      <label class="range-label" for="cloud-density">Cloud density <output id="cloud-density-value">100%</output></label>
+      <input id="cloud-density" type="range" min="0" max="500" step="5" value="100">
+    </section>
+
+    <section class="control-section">
+      <h2>Camera</h2>
+      <select id="camera-motion" aria-label="Camera movement"><option value="gentle">Slow orbit</option><option value="music">Music-driven orbit</option><option value="fixed">Hold this view</option></select>
+      <label class="range-label" for="camera-amount">Movement</label>
+      <input id="camera-amount" type="range" min="0" max="100" value="55">
+      <label class="range-label" for="camera-roll">Tilt <output id="roll-value">15°</output></label>
+      <input id="camera-roll" type="range" min="-30" max="30" value="15">
+      <label class="range-label" for="framing">Horizontal position</label>
+      <input id="framing" type="range" min="-35" max="35" value="3">
+      <label class="range-label" for="framing-y">Vertical position</label>
+      <input id="framing-y" type="range" min="-20" max="20" step="0.5" value="10">
+      <details class="camera-advanced"><summary>View angle & distance</summary>
+        <label class="range-label" for="elevation">Elevation <output id="elevation-value">18°</output></label>
+        <input id="elevation" type="range" min="5" max="80" value="18">
+        <label class="range-label" for="distance">Distance <output id="distance-value">37</output></label>
+        <input id="distance" type="range" min="32" max="85" value="37">
+      </details>
+    </section>
+
+    <section class="control-section">
+      <h2>Black hole</h2>
+      <div class="segments" role="group" aria-label="Black hole rotation">
+        <button data-metric="static" aria-pressed="false">Non-spinning</button>
+        <button data-metric="spin" class="selected" aria-pressed="true">Spinning</button>
+      </div>
+      <label class="range-label" for="spin">Spin <output id="spin-value">0.25</output></label>
+      <input id="spin" type="range" min="0.05" max="0.95" step="0.05" value="0.25">
+    </section>
+
+    <section class="control-section">
+      <h2>Material & light</h2>
+      <label class="range-label" for="material">Material <output id="material-value">30%</output></label>
+      <input id="material" type="range" min="10" max="100" value="30">
+      <label class="range-label" for="exposure">Exposure <output id="exposure-value">1.7×</output></label>
+      <input id="exposure" type="range" min="0.3" max="3" step="0.1" value="1.7">
+      <label class="range-label" for="sharpness">Sharpness <output id="sharpness-value">100%</output></label>
+      <input id="sharpness" type="range" min="0" max="100" value="100">
+      <label class="range-label" for="particle-fade">Particle fade <output id="particle-fade-value">3.0 s</output></label>
+      <input id="particle-fade" type="range" min="0" max="6" step="0.5" value="3">
+      <label class="range-label" for="speed">Time scale <output id="speed-value">10×</output></label>
+      <input id="speed" type="range" min="1" max="24" step="1" value="10">
+    </section>
+
+    <details class="performance-settings">
+      <summary>Performance</summary>
+      <label for="particles">Particles<select id="particles"><option value="16384">16,384</option><option value="32768">32,768</option><option value="65536" selected>65,536</option><option value="131072">131,072</option><option value="262144">262,144</option><option value="524288">524,288</option></select></label>
+      <label for="quality">Quality<select id="quality"><option value="draft">Draft</option><option value="balanced" selected>Balanced</option><option value="high">High</option><option value="native">Native / maximum</option></select></label>
+      <label for="fps-limit">Frame cap<select id="fps-limit"><option value="0">Uncapped</option><option value="60" selected>60 FPS</option><option value="30">30 FPS</option></select></label>
+      <dl class="stats">
+        <div><dt>FPS</dt><dd id="fps">—</dd></div>
+        <div><dt>GPU frame</dt><dd id="gpu-time">—</dd></div>
+        <div><dt>Render size</dt><dd id="resolution">—</dd></div>
+      </dl>
+    </details>
+    <div class="transport"><button id="pause">Pause</button><button id="reset" title="Reset particles and camera">Reset</button><button id="fullscreen">Fullscreen</button></div>
+    <p id="control-error" role="alert" hidden></p>
+  </aside>
+
+  <div id="trace-status" role="status"><span id="trace-text">Tracing light paths</span><span id="trace-percent">0%</span><div class="trace-track"><span id="trace-progress"></span></div></div>
+  <div id="quick-controls" class="quick-controls">
+    <button id="show-ui" aria-controls="controls" aria-expanded="false">Controls</button>
+    <button id="quick-fullscreen">Fullscreen</button>
+  </div>
+  <div id="error" role="alert" hidden><h2>Unable to start the renderer</h2><p id="error-text"></p><p>Try opening this file in a current desktop Chrome or Edge browser with graphics acceleration enabled.</p></div>
+  <script>
+/* Dimensionless Kerr–Schild coordinates: G = M = c = 1, signature -+++. */
+(function (root) {
+  'use strict';
+  const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+  const length = (a) => Math.sqrt(dot(a, a));
+  const scale = (a, s) => a.map((v) => v * s);
+  const add = (a, b) => a.map((v, i) => v + b[i]);
+  const normalize = (a) => scale(a, 1 / length(a));
+  function metric(x, a) {
+    const aa = a * a,
+      u = dot(x, x) - aa,
+      d = Math.sqrt(u * u + 4 * aa * x[2] * x[2]);
+    const r = Math.sqrt(Math.max((u + d) * 0.5, 1e-12));
+    const r2 = r * r,
+      den = r2 + aa,
+      w = r2 * r2 + aa * x[2] * x[2];
+    const l = [(r * x[0] + a * x[1]) / den, (r * x[1] - a * x[0]) / den, x[2] / r];
+    const f = (2 * r * r2) / w;
+    const dr = x.map((v, i) => (v * (1 + u / d) + (i === 2 ? (2 * aa * x[2]) / d : 0)) / (2 * r));
+    const df = dr.map((v, i) => f * ((3 * v) / r - (4 * r * r2 * v + (i === 2 ? 2 * aa * x[2] : 0)) / w));
+    return { r, l, f, dr, df };
+  }
+  function flow(x, p, pt, a) {
+    const { r, l, f, dr, df } = metric(x, a),
+      den = r * r + a * a;
+    const s = x[0] * p[0] + x[1] * p[1],
+      num = r * s + a * (x[1] * p[0] - x[0] * p[1]);
+    const coeff = s / den - (2 * r * num) / (den * den) - (x[2] * p[2]) / (r * r);
+    const grad = dr.map(
+      (v, i) => coeff * v + [(r * p[0] - a * p[1]) / den, (a * p[0] + r * p[1]) / den, p[2] / r][i]
+    );
+    const q = -pt + dot(l, p);
+    return {
+      x: p.map((v, i) => v - f * q * l[i]),
+      p: df.map((v, i) => 0.5 * v * q * q + f * q * grad[i]),
+      t: -pt + f * q
+    };
+  }
+  function hamiltonian(x, p, pt, a) {
+    const { l, f } = metric(x, a),
+      q = -pt + dot(l, p);
+    return 0.5 * (dot(p, p) - pt * pt - f * q * q);
+  }
+  function photon(x, n, a) {
+    const { l, f } = metric(x, a),
+      s = Math.sqrt(1 - f),
+      nl = dot(n, l);
+    return n.map((v, i) => v / s + ((1 / (s * s) - 1 / s) * nl - f / (s * s)) * l[i]);
+  }
+  function massiveMomentum(x, v, a) {
+    const { l, f } = metric(x, a),
+      lv = 1 + dot(l, v);
+    const inv = 1 / Math.sqrt(1 - dot(v, v) - f * lv * lv);
+    return { p: v.map((q, i) => (q + f * l[i] * lv) * inv), pt: (-1 + f * lv) * inv };
+  }
+  function step(x, p, pt, a, h, coordinateTime = false) {
+    const rhs = (x, p) => {
+      const f = flow(x, p, pt, a);
+      if (coordinateTime) {
+        f.x = scale(f.x, 1 / f.t);
+        f.p = scale(f.p, 1 / f.t);
+      }
+      return f;
+    };
+    const k1 = rhs(x, p),
+      k2 = rhs(add(x, scale(k1.x, h / 2)), add(p, scale(k1.p, h / 2)));
+    const k3 = rhs(add(x, scale(k2.x, h / 2)), add(p, scale(k2.p, h / 2)));
+    const k4 = rhs(add(x, scale(k3.x, h)), add(p, scale(k3.p, h)));
+    return {
+      x: x.map((v, i) => v + (h * (k1.x[i] + 2 * k2.x[i] + 2 * k3.x[i] + k4.x[i])) / 6),
+      p: p.map((v, i) => v + (h * (k1.p[i] + 2 * k2.p[i] + 2 * k3.p[i] + k4.p[i])) / 6)
+    };
+  }
+  function isco(a) {
+    const z1 = 1 + Math.cbrt(1 - a * a) * (Math.cbrt(1 + a) + Math.cbrt(1 - a));
+    const z2 = Math.sqrt(3 * a * a + z1 * z1);
+    return 3 + z2 - Math.sign(a) * Math.sqrt((3 - z1) * (3 + z1 + 2 * z2));
+  }
+  root.GravityPhysics = {
+    dot,
+    length,
+    scale,
+    add,
+    normalize,
+    metric,
+    flow,
+    hamiltonian,
+    photon,
+    massiveMomentum,
+    step,
+    isco,
+    horizon: (a) => 1 + Math.sqrt(1 - a * a)
+  };
+  if (typeof module !== 'undefined') module.exports = root.GravityPhysics;
+})(globalThis);
+
+</script>
+  <script>
+(function (root) {
+  'use strict';
+  const COUNT = 24,
+    MIN_HZ = 30,
+    MAX_HZ = 16000;
+  const clamp = (x) => Math.max(0, Math.min(1, x));
+  const follow = (from, to, dt, attack, release) =>
+    from + (to - from) * (1 - Math.exp(-dt / (to > from ? attack : release)));
+  const levelOf = (amplitude) => Math.pow(clamp((20 * Math.log10(Math.max(1e-9, amplitude)) + 62) / 44), 1.1);
+  const edges = Float64Array.from(
+    { length: COUNT + 1 },
+    (_, i) => MIN_HZ * Math.pow(MAX_HZ / MIN_HZ, i / COUNT)
+  );
+  const centers = Float64Array.from({ length: COUNT }, (_, i) => Math.sqrt(edges[i] * edges[i + 1]));
+  const hues = Float32Array.from(centers, (hz) =>
+    hz < 160
+      ? 0.78 - (0.08 * Math.log(hz / MIN_HZ)) / Math.log(160 / MIN_HZ)
+      : hz < 4000
+        ? 0.7 - (0.665 * Math.log(hz / 160)) / Math.log(4000 / 160)
+        : 0.035 * (1 - Math.log(hz / 4000) / Math.log(MAX_HZ / 4000))
+  );
+  function readBands(db, sampleRate, fftSize, out) {
+    out.fill(0);
+    if (!db) return;
+    const binHz = sampleRate / fftSize;
+    for (let band = 0; band < COUNT; band++) {
+      let power = 0,
+        weight = 0,
+        peak = 0;
+      const lo = edges[band] / binHz,
+        hi = Math.min(edges[band + 1] / binHz, db.length - 0.5);
+      // Fractional coverage includes bass bands narrower than one FFT bin.
+      for (
+        let bin = Math.max(1, Math.ceil(lo - 0.5));
+        bin <= Math.min(db.length - 1, Math.floor(hi + 0.5));
+        bin++
+      ) {
+        const w = Math.max(0, Math.min(hi, bin + 0.5) - Math.max(lo, bin - 0.5));
+        const p = Number.isFinite(db[bin]) ? Math.pow(10, db[bin] / 10) : 0;
+        power += w * p;
+        weight += w;
+        peak = Math.max(peak, p * w);
+      }
+      out[band] = weight > 0 ? 0.65 * Math.sqrt(peak) + 0.35 * Math.sqrt(power / weight) : 0;
+    }
+  }
+
+  class ResponseBank {
+    constructor() {
+      for (const name of [
+        'amplitudes',
+        'fastAmplitudes',
+        'rawLevels',
+        'targets',
+        'levels',
+        'average',
+        'attackBase',
+        'attacks'
+      ])
+        this[name] = new Float32Array(COUNT);
+      this.reset();
+    }
+    reset() {
+      for (const name of [
+        'amplitudes',
+        'fastAmplitudes',
+        'rawLevels',
+        'targets',
+        'levels',
+        'attackBase',
+        'attacks'
+      ])
+        this[name].fill(0);
+      this.average.fill(0.025);
+    }
+    update(dt, gain, balance) {
+      for (let i = 0; i < this.levels.length; i++) {
+        const amplitude = this.amplitudes[i],
+          raw = levelOf(amplitude * gain);
+        this.rawLevels[i] = raw;
+        // Freeze the reference below the noise gate; never normalize silence upward.
+        if (raw > 0.025) this.average[i] = follow(this.average[i], amplitude, dt, 2, 5);
+        const adaptive = Math.max(0.4, Math.min(4, 0.04 / Math.max(this.average[i], 0.004)));
+        const tilt = Math.max(0.85, Math.min(1.6, Math.pow(centers[i] / 250, 0.1)));
+        const adjusted = levelOf(amplitude * gain * Math.pow(adaptive * tilt, balance));
+        this.targets[i] = adjusted * clamp(raw / 0.1);
+        this.levels[i] = follow(this.levels[i], this.targets[i], dt, 0.028, 0.2);
+        const fast = levelOf(this.fastAmplitudes[i] * gain);
+        const onset = clamp((fast - this.attackBase[i] - 0.055) * 3);
+        this.attackBase[i] = follow(this.attackBase[i], fast, dt, 0.075, 0.16);
+        this.attacks[i] = Math.max(this.attacks[i] * Math.exp(-dt / 0.16), onset);
+      }
+    }
+  }
+
+  class Spectrum {
+    constructor() {
+      this.frequency = new ResponseBank();
+      this.balance = 0.75;
+      this.reset();
+    }
+    get levels() {
+      return this.frequency.levels;
+    }
+    get targets() {
+      return this.frequency.targets;
+    }
+    get attacks() {
+      return this.frequency.attacks;
+    }
+    reset() {
+      this.frequency.reset();
+      this.energy = 0;
+      this.bass = 0;
+      this.shake = 0;
+      this.time = 0;
+      this.driven = 0;
+      this.silenceSeconds = 0;
+      this.silenceFrom = 0;
+      this.signalPresent = false;
+    }
+    readFFT(db, sampleRate, fftSize, gain = 1) {
+      readBands(db, sampleRate, fftSize, this.frequency.amplitudes);
+      for (let i = 0; i < COUNT; i++)
+        this.frequency.targets[i] = levelOf(this.frequency.amplitudes[i] * gain);
+    }
+    update(dt, db, sampleRate = 48000, fftSize = 4096, gain = 1, analysis = {}) {
+      dt = Math.max(0, dt);
+      this.time += dt;
+      this.readFFT(db, sampleRate, fftSize, gain);
+      readBands(
+        analysis.attacks === undefined ? db : analysis.attacks,
+        sampleRate,
+        analysis.attackSize || fftSize,
+        this.frequency.fastAmplitudes
+      );
+      this.frequency.update(dt, gain, this.balance);
+      const peak = Math.max(...this.frequency.rawLevels);
+      const audible = peak > (this.signalPresent ? 0.01 : 0.025);
+      if (audible) {
+        this.driven = follow(this.driven, 1, dt, 0.15, 0.25);
+        this.silenceSeconds = 0;
+        this.signalPresent = true;
+      } else {
+        if (this.silenceSeconds === 0) this.silenceFrom = this.driven;
+        this.signalPresent = false;
+        this.silenceSeconds += dt;
+        const t = clamp((this.silenceSeconds - 3) / 6);
+        this.driven = this.silenceFrom * (1 - t * t * (3 - 2 * t));
+      }
+      let energy = 0,
+        bass = 0,
+        kick = 0;
+      for (const level of this.levels) energy += level * level;
+      for (let i = 0; i < COUNT; i++)
+        if (centers[i] < 160) {
+          bass = Math.max(bass, this.frequency.rawLevels[i]);
+          kick = Math.max(
+            kick,
+            this.frequency.attacks[i] * clamp((this.frequency.rawLevels[i] - 0.48) / 0.32)
+          );
+        }
+      this.energy = Math.sqrt(energy / this.levels.length);
+      this.bass = bass;
+      this.shake = Math.max(this.shake * Math.exp(-dt / 0.1), 0.65 * kick);
+    }
+    offset(strength = 1) {
+      const a = this.shake * strength,
+        t = this.time;
+      return [
+        a * 0.008 * (0.65 * Math.sin(t * 57) + 0.35 * Math.sin(t * 83 + 1.2)),
+        a * 0.006 * (0.65 * Math.sin(t * 65 + 0.7) + 0.35 * Math.sin(t * 91)),
+        a * 0.0025 * Math.sin(t * 48 + 0.3)
+      ];
+    }
+  }
+  const api = { Spectrum, COUNT, edges, centers, hues };
+  root.GravityAudio = api;
+  if (typeof module !== 'undefined' && module.exports) module.exports = api;
+})(globalThis);
+
+</script>
+  <script>
+(function (root) {
+  'use strict';
+  const wrap = (x) => ((x % 1) + 1) % 1;
+  const clamp = (x) => Math.max(0, Math.min(1, x));
+  const validHex = (value) => /^#[0-9a-f]{6}$/i.test(value);
+  const linear = (rgb) => rgb.map((v) => Math.pow(v, 2.2));
+  function hexRGB(hex) {
+    return [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
+  }
+  function hsv(h, s) {
+    return [0, 2 / 3, 1 / 3].map((shift) => 1 - s + s * clamp(Math.abs(wrap(h + shift) * 6 - 3) - 1));
+  }
+  function css(linearRGB) {
+    return (
+      '#' +
+      linearRGB
+        .map((v) =>
+          Math.round(Math.pow(clamp(v), 1 / 2.2) * 255)
+            .toString(16)
+            .padStart(2, '0')
+        )
+        .join('')
+    );
+  }
+  class Palette {
+    constructor() {
+      this.mode = 'hsv';
+      this.solid = '#aa44ff';
+      this.saturation = 1;
+      this.hsv = { offset: 0, animated: true, speed: 0.5 };
+      this.custom = {
+        offset: 0,
+        animated: true,
+        speed: 0.5,
+        stops: ['#23D183', '#1DCA97', '#17C2AB', '#12BBC0', '#0CB3D4', '#06ACE8']
+      };
+      this.revision = 0;
+    }
+    get gradient() {
+      return this.mode === 'solid' ? null : this[this.mode];
+    }
+    setMode(mode) {
+      if (['solid', 'hsv', 'custom'].includes(mode)) {
+        this.mode = mode;
+        this.revision++;
+      }
+    }
+    setSolid(hex) {
+      if (validHex(hex)) {
+        this.solid = hex;
+        this.revision++;
+      }
+    }
+    setSaturation(value) {
+      this.saturation = clamp(value);
+      this.revision++;
+    }
+    setOffset(value) {
+      if (this.gradient) {
+        this.gradient.offset = wrap(value);
+        this.revision++;
+      }
+    }
+    setAnimated(value) {
+      if (this.gradient) this.gradient.animated = Boolean(value);
+    }
+    setSpeed(value) {
+      if (this.gradient) this.gradient.speed = Math.max(-3, Math.min(3, value));
+    }
+    setStop(index, hex) {
+      if (index >= 0 && index < this.custom.stops.length && validHex(hex)) {
+        this.custom.stops[index] = hex;
+        this.revision++;
+      }
+    }
+    addStop() {
+      if (this.custom.stops.length >= 6) return;
+      const stops = this.custom.stops,
+        a = linear(hexRGB(stops.at(-1))),
+        b = linear(hexRGB(stops[0]));
+      stops.push(css(a.map((v, i) => (v + b[i]) / 2)));
+      this.revision++;
+    }
+    removeStop(index) {
+      if (this.custom.stops.length > 2 && index >= 0 && index < this.custom.stops.length) {
+        this.custom.stops.splice(index, 1);
+        this.revision++;
+      }
+    }
+    advance(dt, paused = false) {
+      const g = this.gradient;
+      if (!paused && g?.animated && g.speed !== 0 && dt > 0) {
+        g.offset = wrap(g.offset + (dt * g.speed) / 60);
+        this.revision++;
+      }
+    }
+    writeColors(hues, out) {
+      const stops = this.mode === 'custom' ? this.custom.stops.map((c) => linear(hexRGB(c))) : null;
+      const solid = this.mode === 'solid' ? linear(hexRGB(this.solid)) : null;
+      for (let band = 0; band < hues.length; band++) {
+        let color;
+        if (solid) color = solid;
+        else if (this.mode === 'hsv') color = linear(hsv(hues[band] + this.hsv.offset, this.saturation));
+        else {
+          // Reserve one segment to close the loop when animating the offset.
+          const position =
+            wrap(((band / (hues.length - 1)) * (stops.length - 1)) / stops.length + this.custom.offset) *
+            stops.length;
+          const index = Math.floor(position),
+            fraction = position - index;
+          const a = stops[index],
+            b = stops[(index + 1) % stops.length];
+          color = a.map((v, i) => v + (b[i] - v) * fraction);
+        }
+        out.set(color, band * 3);
+      }
+      return out;
+    }
+  }
+  const api = { Palette, wrap, hsv, hexRGB, css };
+  root.GravityPalette = api;
+  if (typeof module !== 'undefined' && module.exports) module.exports = api;
+})(globalThis);
+
+</script>
+  <script>
+(function (root) {
+  'use strict';
+  const header = `#version 300 es
+precision highp float;
+precision highp int;
+precision highp sampler2D;
+precision highp sampler2DArray;
+`;
+  const common = `
+const float PI=3.141592653589793;
+// Integer mixing preserves entropy for large particle IDs.
+float hash(float v){uint x=floatBitsToUint(v);x^=x>>16;x*=0x7feb352du;x^=x>>15;x*=0x846ca68bu;x^=x>>16;return float(x>>8)*(1./16777216.);}
+float noise3(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);float n=dot(i,vec3(1.,57.,113.));
+return mix(mix(mix(hash(n),hash(n+1.),f.x),mix(hash(n+57.),hash(n+58.),f.x),f.y),mix(mix(hash(n+113.),hash(n+114.),f.x),mix(hash(n+170.),hash(n+171.),f.x),f.y),f.z);}
+// Weights sum to one across four cells, conserving light as particles move.
+float cubicWeight(float x){
+  x=abs(x);
+  if(x<1.)return (4.-6.*x*x+3.*x*x*x)/6.;
+  return pow(max(2.-x,0.),3.)/6.;
+}
+// Kerr–Schild inverse metric eta - f l^mu l^nu. All derivatives are analytic.
+void metric(vec3 x,float a,out float r,out float f,out vec3 l,out vec3 dr,out vec3 df){
+  float aa=a*a,u=dot(x,x)-aa,d=sqrt(max(u*u+4.*aa*x.z*x.z,1e-12));
+  r=sqrt(max(.5*(u+d),1e-8));
+  float rr=r*r,den=rr+aa,w=max(rr*rr+aa*x.z*x.z,1e-10);
+  l=vec3(r*x.x+a*x.y,r*x.y-a*x.x,0.)/den;l.z=x.z/r;
+  f=2.*r*rr/w;
+  dr=(x*(1.+u/d)+vec3(0.,0.,2.*aa*x.z/d))/(2.*r);
+  df=f*(3.*dr/r-(4.*r*rr*dr+vec3(0.,0.,2.*aa*x.z))/w);
+}
+float radius(vec3 x,float a){float u=dot(x,x)-a*a;return sqrt(max(.5*(u+sqrt(u*u+4.*a*a*x.z*x.z)),1e-8));}
+void flow(vec3 x,vec3 p,float pt,float a,out vec3 dx,out vec3 dp,out float dt){
+  float r,f;vec3 l,dr,df;metric(x,a,r,f,l,dr,df);
+  float den=r*r+a*a,s=dot(x.xy,p.xy),num=r*s+a*(x.y*p.x-x.x*p.y);
+  float c=s/den-2.*r*num/(den*den)-x.z*p.z/(r*r);
+  vec3 grad=c*dr+vec3((r*p.x-a*p.y)/den,(a*p.x+r*p.y)/den,p.z/r);
+  float q=-pt+dot(l,p);
+  dx=p-f*q*l; dp=.5*df*q*q+f*q*grad; dt=-pt+f*q;
+}
+vec3 photon(vec3 x,vec3 n,float a){
+  float r,f;vec3 l,dr,df;metric(x,a,r,f,l,dr,df);
+  float s=sqrt(max(1.-f,1e-4));
+  return n/s+((1./(s*s)-1./s)*dot(n,l)-f/(s*s))*l;
+}
+void rk4(inout vec3 x,inout vec3 p,inout float t,float pt,float a,float h){
+  vec3 x1,p1,x2,p2,x3,p3,x4,p4;float t1,t2,t3,t4;
+  flow(x,p,pt,a,x1,p1,t1);
+  flow(x+.5*h*x1,p+.5*h*p1,pt,a,x2,p2,t2);
+  flow(x+.5*h*x2,p+.5*h*p2,pt,a,x3,p3,t3);
+  flow(x+h*x3,p+h*p3,pt,a,x4,p4,t4);
+  x+=h*(x1+2.*x2+2.*x3+x4)/6.; p+=h*(p1+2.*p2+2.*p3+p4)/6.;
+  t+=h*(t1+2.*t2+2.*t3+t4)/6.;
+}
+float stepSize(vec3 x,vec3 p,float a,float horizon,float cap){
+  vec3 dx,dp;float dt;flow(x,p,1.,a,dx,dp,dt);
+  float r=radius(x,a);
+  // Bound radial approach separately from the growing angular speed near the horizon.
+  float rr=r*r;
+  vec3 dr=r*vec3(rr*x.xy,(rr+a*a)*x.z)/(rr*rr+a*a*x.z*x.z);
+  float spatial=min(cap,max(.022,.12*(r-horizon+.35)))/max(length(dx),1.);
+  float radial=.12*(r-horizon)/max(abs(dot(dr,dx)),.001);
+  return min(spatial,radial);
+}
+`;
+  const fullscreen =
+    header +
+    `out vec2 uv;void main(){vec2 q=vec2((gl_VertexID<<1)&2,gl_VertexID&2);uv=q;gl_Position=vec4(q*2.-1.,0.,1.);}`;
+  const rayUniforms = `
+in vec2 uv;
+uniform vec3 uCamera,uRight,uUp,uForward;
+uniform float uAspect,uTanFov,uSpin,uHorizon,uISCO,uObserverEnergy;
+vec3 rayDirection(){vec2 q=uv*2.-1.;return normalize(uForward+q.x*uAspect*uTanFov*uRight+q.y*uTanFov*uUp);}
+`;
+  const volumeTrace =
+    header +
+    common +
+    rayUniforms +
+    `
+uniform sampler2D uStateX,uStateP;
+uniform int uSlice;
+layout(location=0) out vec4 stateX;
+layout(location=1) out vec4 stateP;
+layout(location=2) out vec4 pathX;
+layout(location=3) out vec4 pathP;
+void main(){
+  vec4 sx=texture(uStateX,uv),sp=texture(uStateP,uv);
+  vec3 x=uSlice==0?uCamera:sx.xyz,p=uSlice==0?photon(x,rayDirection(),uSpin):sp.xyz;
+  float status=uSlice==0?0.:sx.w,t=uSlice==0?0.:sp.w;
+  vec3 middle=x,mp=p;float travelled=0.;
+  // Skip empty space; spend the path cache on the finite-thickness disk.
+  for(int i=0;i<400;i++){
+    if(status!=0.)break;
+    float r=radius(x,uSpin);
+    if(r<uHorizon+.006){status=1.;break;}
+    if(dot(p,p)>1e10){status=4.;break;}
+    if(r>max(75.,length(uCamera)+5.)){status=2.;break;}
+    bool inside=abs(x.z)<4.8&&length(x.xy)<24.&&r>uISCO*.82;
+    vec3 old=x;
+    float h=stepSize(x,p,uSpin,uHorizon,inside?.25:1.0);
+    rk4(x,p,t,1.,uSpin,h);
+    if(inside){
+      middle=x;mp=p;travelled=length(x-old);old=x;
+      rk4(x,p,t,1.,uSpin,stepSize(x,p,uSpin,uHorizon,.25));
+      travelled+=length(x-old);break;
+    }
+    if(any(isnan(x))||any(isnan(p))){status=4.;break;}
+  }
+  stateX=vec4(x,status);stateP=vec4(p,t);
+  pathX=vec4(middle,status!=0.&&travelled==0.?-1.:travelled);pathP=vec4(clamp(mp,vec3(-60000.),vec3(60000.)),0.);
+}
+`;
+  const volumeFinish =
+    header +
+    common +
+    rayUniforms +
+    `
+uniform sampler2D uStateX,uStateP;
+out vec4 sky;
+void main(){
+  vec4 sx=texture(uStateX,uv),sp=texture(uStateP,uv);vec3 x=sx.xyz,p=sp.xyz;float t=sp.w,status=sx.w;
+  for(int i=0;i<1536;i++){
+    if(status!=0.)break;
+    float r=radius(x,uSpin);
+    if(r<uHorizon+.006){status=1.;break;}
+    if(dot(p,p)>1e10){status=4.;break;}
+    if(r>max(75.,length(uCamera)+5.)){status=2.;break;}
+    rk4(x,p,t,1.,uSpin,stepSize(x,p,uSpin,uHorizon,1.8));
+    if(any(isnan(x))||any(isnan(p))){status=4.;break;}
+  }
+  if(status==0.)status=3.;
+  vec3 dx,dp;float dt;flow(x,p,1.,uSpin,dx,dp,dt);sky=vec4(normalize(dx),status);
+}
+`;
+  const particleUpdate =
+    header +
+    common +
+    `
+layout(location=0) in vec4 aPosition;
+layout(location=1) in vec4 aMomentum;
+layout(location=2) in vec2 aLifecycle;
+out vec4 vPosition;out vec4 vMomentum;out vec2 vLifecycle;
+uniform float uSpin,uHorizon,uISCO,uDt,uSeed,uRealDt,uFadeSeconds,uTimeScale;
+void spawn(out vec3 x,out vec3 p,out float pt,out float age){
+  float id=float(gl_VertexID),s=id*1.718+uSeed*13.13;
+  float r=mix(uISCO+1.,22.,pow(hash(s+.1),.72)),angle=hash(s+7.)*2.*PI;
+  float rho=sqrt(r*r+uSpin*uSpin);
+  x=vec3(cos(angle)*rho,sin(angle)*rho,(hash(s+9.)-.5)*.025);
+  vec3 tangent=vec3(-sin(angle),cos(angle),0.);
+  float inc=(hash(s+13.)-.5)*.32+.035*sin(r*.4);
+  float node=hash(s+18.)*2.*PI;
+  vec3 axis=vec3(cos(node),sin(node),0.);
+  x=x*cos(inc)+cross(axis,x)*sin(inc)+axis*dot(axis,x)*(1.-cos(inc));
+  tangent=tangent*cos(inc)+cross(axis,tangent)*sin(inc)+axis*dot(axis,tangent)*(1.-cos(inc));
+  float rr,f;vec3 l,dr,df;metric(x,uSpin,rr,f,l,dr,df);
+  float omega=1./(pow(rr,1.5)+uSpin);
+  vec3 velocity=tangent*(rho*omega)*mix(.9,1.,hash(s+22.))-.009*normalize(x);
+  float lv=1.+dot(l,velocity),norm=1.-dot(velocity,velocity)-f*lv*lv;
+  if(norm<.02){velocity*=.65;lv=1.+dot(l,velocity);norm=1.-dot(velocity,velocity)-f*lv*lv;}
+  float ut=inversesqrt(max(norm,.01));
+  p=(velocity+f*l*lv)*ut;pt=(-1.+f*lv)*ut;age=90.+hash(s+28.)*240.;
+}
+void main(){
+  vec3 x=aPosition.xyz,p=aMomentum.xyz;float age=aPosition.w,pt=aMomentum.w;
+  vec2 life=aLifecycle;
+  float r=radius(x,uSpin);
+  bool initial=age<=0.&&life.x==0.&&life.y==0.;
+  bool expired=uFadeSeconds<=0.?age<=0.:life.y>=uFadeSeconds;
+  if(initial||expired||r<uHorizon+.025||r>30.||any(isnan(x))||dot(p,p)>1e7){
+    spawn(x,p,pt,age);life=vec2(0.,-1.);
+  }
+  else{
+    // Fade in real seconds, even if the time scale changes during expiry.
+    if(life.y<0.&&age<=uFadeSeconds*uTimeScale)life.y=0.;
+    life.x=min(life.x+uRealDt,max(uFadeSeconds,0.));
+    if(life.y>=0.)life.y+=uRealDt;
+    for(int i=0;i<4;i++){
+      float h=uDt*.25;vec3 dx,dp;float dt;flow(x,p,pt,uSpin,dx,dp,dt);
+      vec3 mx=x+.5*h*dx/max(dt,.05),mp=p+.5*h*dp/max(dt,.05);
+      flow(mx,mp,pt,uSpin,dx,dp,dt);x+=h*dx/max(dt,.05);p+=h*dp/max(dt,.05);
+    }
+    age=max(0.,age-uDt);
+  }
+  vPosition=vec4(x,age);vMomentum=vec4(p,pt);vLifecycle=life;
+}
+`;
+  const emptyFragment = header + `out vec4 color;void main(){color=vec4(0.);}`;
+  const depositVertex =
+    header +
+    common +
+    `
+layout(location=0) in vec4 aPosition;
+layout(location=1) in vec4 aMomentum;
+layout(location=2) in vec2 aLifecycle;
+uniform float uSpin,uISCO,uMaterial,uParticleWeight,uFadeSeconds;
+uniform float uBands[24],uAudioDriven;
+uniform int uBandCount;
+uniform float uSustainStrength;
+uniform vec3 uBandColors[24];
+uniform vec3 uVolumeGrid,uVolumeExtent;
+out vec3 vColor;out float vWeight;out vec3 vVelocity;out float vTime;
+flat out vec2 vCenter;flat out float vKernelMass;
+void main(){
+  vec3 x=aPosition.xyz;float r=radius(x,uSpin);
+  float random=hash(float(gl_VertexID)+.8);
+  vWeight=smoothstep(random-.035,random+.035,uMaterial)*uParticleWeight;
+  if(uFadeSeconds>0.){
+    float birth=smoothstep(0.,uFadeSeconds,aLifecycle.x);
+    float death=aLifecycle.y<0.?1.:1.-smoothstep(0.,uFadeSeconds,aLifecycle.y);
+    vWeight*=birth*death;
+  }
+  float inner=uISCO*.86;
+  vWeight*=smoothstep(inner,inner+.55,r)*(1.-smoothstep(22.,23.,r));
+  float heat=pow(uISCO/max(r,uISCO),.65);
+  float kind=hash(float(gl_VertexID)+37.2);
+  int band=int(hash(float(gl_VertexID)+81.3)*float(uBandCount));
+  float level=uBands[band];
+  vColor=uBandColors[band]*(.28+1.9*heat)*mix(.65,1.4,kind);
+  float emission=.70;
+  if(uAudioDriven>0.){
+    float amount=clamp(level*uSustainStrength,0.,1.);
+    float rank=hash(float(gl_VertexID)+113.9);
+    float visibility=smoothstep(rank-.025,rank+.025,mix(-.025,1.025,amount));
+    vWeight*=mix(1.,visibility,uAudioDriven);
+    emission=mix(.70,1.725,uAudioDriven);
+  }
+  vColor*=emission;
+  vWeight*=mix(.18,1.8,pow(hash(float(gl_VertexID)+51.),2.));
+  vColor*=pow(heat,1.4);
+  vec3 dx,dp;float dt;flow(x,aMomentum.xyz,aMomentum.w,uSpin,dx,dp,dt);
+  // Four-velocity supports the Doppler contraction with photon momentum.
+  vVelocity=dx;vTime=dt;
+  vKernelMass=.108*pow(mix(3.0,4.4,kind),2.);
+  vec3 q=(x/(uVolumeExtent*2.)+.5)*uVolumeGrid-.5;
+  float layer=floor(q.z)-1.+float(gl_InstanceID);
+  vWeight*=cubicWeight(q.z-layer);
+  if(layer<0.||layer>=uVolumeGrid.z||any(lessThan(q.xy,vec2(2.)))||any(greaterThan(q.xy,uVolumeGrid.xy-3.)))vWeight=0.;
+  float columns=8.;vec2 tile=vec2(mod(layer,columns),floor(layer/columns));
+  vCenter=tile*uVolumeGrid.xy+q.xy+.5;
+  // Evaluate at the original position to avoid point-rasterization snapping.
+  vec2 atlas=(tile*uVolumeGrid.xy+floor(q.xy)+1.)/vec2(uVolumeGrid.x*columns,uVolumeGrid.y*(uVolumeGrid.z/columns));
+  gl_Position=vec4(atlas*2.-1.,0.,1.);gl_PointSize=4.;
+}
+`;
+  const depositFragment =
+    header +
+    common +
+    `
+in vec3 vColor,vVelocity;in float vWeight,vTime;
+flat in vec2 vCenter;flat in float vKernelMass;
+layout(location=0) out vec4 color;
+layout(location=1) out vec4 velocity;
+void main(){
+vec2 delta=gl_FragCoord.xy-vCenter;
+float kernel=cubicWeight(delta.x)*cubicWeight(delta.y)*vKernelMass;
+float g=kernel*vWeight;
+color=vec4(vColor*g,g);velocity=vec4(vVelocity*g,vTime*g);}
+`;
+  const skyCode = `
+uniform float uStarDensity,uCloudDensity;
+vec3 background(vec3 direction){
+  vec3 d=normalize(direction);vec2 q=vec2(atan(d.y,d.x)/(2.*PI)+.5,asin(clamp(d.z,-1.,1.))/PI+.5);
+  vec2 grid=q*vec2(640.,320.),cell=floor(grid);float seed=dot(cell,vec2(1.,1543.));
+  vec2 center=vec2(hash(seed+3.),hash(seed+5.));vec2 delta=fract(grid)-center;
+  float footprint=max(length(fwidth(grid)),.12),width=clamp(footprint*.32,.08,.3),star=exp(-dot(delta,delta)/(width*width));
+  star*=(uStarDensity>0.?step(1.-.0045*uStarDensity,hash(seed)):0.)
+    *pow(hash(seed+8.),3.)*.18*min(1.,.3/footprint);
+  vec3 tint=mix(vec3(.57,.73,1.),vec3(1.,.72,.46),hash(seed+9.));
+  float band=exp(-pow(dot(d,normalize(vec3(.2,.6,1.)))*6.,2.));
+  float dust=noise3(d*9.)*.65+noise3(d*25.)*.35;
+  float cloud=uCloudDensity>0.?1.-pow(1.-band*pow(dust,3.),uCloudDensity):0.;
+  return vec3(.00013,.0002,.00035)+tint*star+vec3(.0012,.0017,.0032)*cloud;
+}
+`;
+  const viewCode = `
+uniform float uOrbitAngle,uRoll,uViewAspect,uOverscan;
+uniform vec2 uFraming;
+vec3 orbit(vec3 v){float c=cos(uOrbitAngle),s=sin(uOrbitAngle);return vec3(c*v.x-s*v.y,s*v.x+c*v.y,v.z);}
+vec2 viewUV(vec2 p){
+  vec2 q=(p-.5)*vec2(uViewAspect,1.)-uFraming;
+  float c=cos(uRoll),s=sin(uRoll);q=mat2(c,-s,s,c)*q;
+  return .5+q/vec2(uViewAspect,1.)/uOverscan;
+}
+`;
+  const volumeShade =
+    header +
+    common +
+    skyCode +
+    viewCode +
+    `
+in vec2 uv;out vec4 color;
+uniform sampler2DArray uPathX,uPathP;
+uniform sampler2D uSky,uEmission,uVelocity;
+uniform float uSpin,uBrightness,uObserverEnergy;
+uniform int uSlices;
+uniform vec3 uVolumeGrid,uVolumeExtent;
+vec4 volume(sampler2D atlas,vec3 position){
+  vec3 q=(position/(uVolumeExtent*2.)+.5)*uVolumeGrid-.5;
+  if(any(lessThan(q,vec3(0.)))||any(greaterThan(q,uVolumeGrid-1.)))return vec4(0.);
+  float z=floor(q.z);vec2 tile0=vec2(mod(z,8.),floor(z/8.));
+  float z1=min(z+1.,uVolumeGrid.z-1.);vec2 tile1=vec2(mod(z1,8.),floor(z1/8.));
+  vec2 dims=vec2(uVolumeGrid.x*8.,uVolumeGrid.y*(uVolumeGrid.z/8.));
+  vec2 local=clamp(q.xy+.5,vec2(.5),uVolumeGrid.xy-.5);
+  return mix(texture(atlas,(tile0*uVolumeGrid.xy+local)/dims),texture(atlas,(tile1*uVolumeGrid.xy+local)/dims),fract(q.z));
+}
+void main(){
+  vec2 lookup=uv;
+  if(any(lessThan(lookup,vec2(0.)))||any(greaterThan(lookup,vec2(1.)))){color=vec4(.00013,.0002,.00035,1.);return;}
+  vec3 sum=vec3(0.);float trans=1.;
+  for(int i=0;i<64;i++){
+    if(i>=uSlices||trans<.012)break;
+    vec4 path=texture(uPathX,vec3(lookup,float(i)));path.xyz=orbit(path.xyz);
+    if(path.w<0.)break;
+    if(path.w<.00001)continue;
+    vec3 p=orbit(texture(uPathP,vec3(lookup,float(i))).xyz);
+    float r,f;vec3 l,dr,df;metric(path.xyz,uSpin,r,f,l,dr,df);
+    vec3 direction=normalize(p-f*(-1.+dot(l,p))*l);
+    vec3 cells=abs(direction)*path.w*uVolumeGrid/(uVolumeExtent*2.);
+    // Sample each crossed cell so compact tracers do not flicker between segments.
+    int samples=clamp(int(ceil(max(cells.x,max(cells.y,cells.z)))),1,6);
+    for(int j=0;j<6;j++){
+      if(j>=samples||trans<.012)break;
+      vec3 position=path.xyz+direction*((float(j)+.5)/float(samples)-.5)*path.w;
+      vec4 e=volume(uEmission,position);
+      if(e.a<.0001)continue;
+      vec4 velocities=volume(uVelocity,position);
+      float g=clamp(uObserverEnergy*e.a/max(velocities.w+dot(velocities.xyz,p),.05*e.a),.08,3.);
+      float alpha=1.-exp(-e.a*path.w/float(samples)*.22);
+      vec3 light=e.rgb/max(e.a,.001)*pow(g,3.)*uBrightness;
+      sum+=trans*alpha*light;trans*=1.-alpha;
+    }
+  }
+  vec4 sky=texture(uSky,lookup);
+  if(sky.w>1.5&&sky.w<2.5)sum+=trans*background(orbit(sky.xyz));
+  float edge=min(min(lookup.x,lookup.y),min(1.-lookup.x,1.-lookup.y));
+  color=vec4(mix(vec3(.00013,.0002,.00035),sum,smoothstep(0.,.035,edge)),1.);
+}
+`;
+  const blur =
+    header +
+    `
+in vec2 uv;out vec4 color;uniform sampler2D uImage;uniform vec2 uDirection;uniform int uExtract;
+void main(){
+  vec3 c=vec3(0.);
+  if(uExtract==1){
+    vec2 texel=1./vec2(textureSize(uImage,0));
+    for(int y=-1;y<=1;y++)for(int x=-1;x<=1;x++)c+=texture(uImage,uv+vec2(x,y)*texel).rgb/9.;
+    c=max(c-vec3(.55),vec3(0.));
+  }else{
+    float weight=0.;
+    for(int i=-6;i<=6;i++){float w=exp(-float(i*i)/12.5);c+=texture(uImage,uv+uDirection*float(i)).rgb*w;weight+=w;}
+    c/=weight;
+  }
+  color=vec4(c,1.);
+}
+`;
+  const composite =
+    header +
+    viewCode +
+    `
+in vec2 uv;out vec4 color;uniform sampler2D uImage,uBloom;uniform float uExposure,uGlow,uSharpness;
+vec3 aces(vec3 v){return clamp((v*(2.51*v+.03))/(v*(2.43*v+.59)+.14),0.,1.);}
+vec3 reconstruct(vec2 coord){
+  // Catmull–Rom reconstruction with nine bilinear taps.
+  vec2 size=vec2(textureSize(uImage,0)),p=coord*size-.5,base=floor(p),f=p-base;
+  vec2 w0=f*(-.5+f*(1.-.5*f)),w1=1.+f*f*(-2.5+1.5*f);
+  vec2 w2=f*(.5+f*(2.-1.5*f)),w3=f*f*(-.5+.5*f),w12=w1+w2;
+  vec2 a=(base-.5)/size,b=(base+.5+w2/w12)/size,c=(base+2.5)/size;
+  vec3 sum=texture(uImage,vec2(a.x,a.y)).rgb*w0.x*w0.y
+    +texture(uImage,vec2(b.x,a.y)).rgb*w12.x*w0.y
+    +texture(uImage,vec2(c.x,a.y)).rgb*w3.x*w0.y
+    +texture(uImage,vec2(a.x,b.y)).rgb*w0.x*w12.y
+    +texture(uImage,vec2(b.x,b.y)).rgb*w12.x*w12.y
+    +texture(uImage,vec2(c.x,b.y)).rgb*w3.x*w12.y
+    +texture(uImage,vec2(a.x,c.y)).rgb*w0.x*w3.y
+    +texture(uImage,vec2(b.x,c.y)).rgb*w12.x*w3.y
+    +texture(uImage,vec2(c.x,c.y)).rgb*w3.x*w3.y;
+  // Bound negative-lobe overshoot by the four actual neighboring pixels.
+  ivec2 lo=ivec2(base),hi=textureSize(uImage,0)-1;
+  vec3 q0=texelFetch(uImage,clamp(lo,ivec2(0),hi),0).rgb;
+  vec3 q1=texelFetch(uImage,clamp(lo+ivec2(1,0),ivec2(0),hi),0).rgb;
+  vec3 q2=texelFetch(uImage,clamp(lo+ivec2(0,1),ivec2(0),hi),0).rgb;
+  vec3 q3=texelFetch(uImage,clamp(lo+ivec2(1),ivec2(0),hi),0).rgb;
+  return clamp(sum,min(min(q0,q1),min(q2,q3)),max(max(q0,q1),max(q2,q3)));
+}
+float value(vec3 c){return max(c.r,max(c.g,c.b));}
+vec3 sharpen(vec3 c,vec2 coord){
+  if(uSharpness<=0.)return c;
+  vec2 texel=1./vec2(textureSize(uImage,0));
+  float surrounding=.25*(value(texture(uImage,coord+vec2(texel.x,0.)).rgb)
+    +value(texture(uImage,coord-vec2(texel.x,0.)).rgb)
+    +value(texture(uImage,coord+vec2(0.,texel.y)).rgb)
+    +value(texture(uImage,coord-vec2(0.,texel.y)).rgb));
+  float peak=value(c);
+  // A shared RGB gain preserves hue; suppress contrast near black.
+  float detail=clamp((peak-surrounding)/max(peak,.002),-.4,.6);
+  return c*(1.+uSharpness*detail*smoothstep(.0005,.008,peak));
+}
+void main(){
+vec2 lookup=viewUV(uv);
+vec3 c=sharpen(reconstruct(lookup),lookup)+texture(uBloom,lookup).rgb*uGlow;
+if(any(lessThan(lookup,vec2(0.)))||any(greaterThan(lookup,vec2(1.))))c=vec3(.00013,.0002,.00035);
+// Compress all channels by the same factor to preserve hue.
+c=max(c,vec3(0.));float peak=max(c.r,max(c.g,c.b));
+c*=aces(vec3(peak*uExposure)).r/max(peak,1e-7);
+c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignette,1.);}
+`;
+  root.GravityShaders = {
+    fullscreen,
+    volumeTrace,
+    volumeFinish,
+    particleUpdate,
+    emptyFragment,
+    depositVertex,
+    depositFragment,
+    volumeShade,
+    blur,
+    composite
+  };
+})(globalThis);
+
+</script>
+  <script>
+(function () {
+  'use strict';
+  const $ = (id) => document.getElementById(id),
+    P = GravityPhysics,
+    S = GravityShaders;
+  const defaultCamera = { theta: (72 * Math.PI) / 180, phi: -Math.PI / 2, distance: 37 };
+  const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+  class Demo {
+    constructor() {
+      this.canvas = $('universe');
+      this.spinning = true;
+      this.spin = 0.25;
+      this.material = 0.3;
+      this.exposure = 1.7;
+      this.sharpness = 1;
+      this.starDensity = 1;
+      this.cloudDensity = 1;
+      this.speed = 10;
+      this.count = 65536;
+      this.quality = 'balanced';
+      this.fpsLimit = 60;
+      this.fadeSeconds = 3;
+      this.particleStride = 10;
+      this.camera = { ...defaultCamera };
+      this.cameraMotion = 'gentle';
+      this.cameraTime = 0;
+      this.orbitAngle = 0;
+      this.motionStrength = 0.55;
+      this.roll = (15 * Math.PI) / 180;
+      this.framing = 0.03;
+      this.framingY = 0.1;
+      this.overscan = 1.2;
+      this.cacheBuilds = 0;
+      this.paused = false;
+      this.failed = false;
+      this.lost = false;
+      this.simTime = 0;
+      this.audioEnergy = 0;
+      this.audioBass = 0;
+      this.audioContext = null;
+      this.audioURL = null;
+      this.spectrum = new GravityAudio.Spectrum();
+      this.audioGain = 1;
+      this.sustainStrength = 1;
+      this.shakeStrength = 0.7;
+      this.palette = new GravityPalette.Palette();
+      this.paletteColors = new Float32Array(GravityAudio.COUNT * 3);
+      this.paletteRevision = -1;
+      this.lastPresentation = 0;
+      this.fpsSamples = [];
+      this.measuredFPS = 0;
+      this.gpuMs = null;
+      this.frames = 0;
+      this.cacheTextures = [];
+      this.cacheFbos = [];
+      this.renderTextures = [];
+      this.renderFbos = [];
+      this.job = null;
+      this.cacheReady = false;
+      this.gl = this.canvas.getContext('webgl2', {
+        alpha: false,
+        antialias: false,
+        depth: false,
+        stencil: false,
+        powerPreference: 'high-performance'
+      });
+      if (!this.gl) throw new Error('WebGL2 is unavailable.');
+      this.bindUI();
+      this.createSpectrumUI();
+      this.refreshPalette(true);
+      this.renderColorStops();
+      this.readParameters();
+      this.initializeGL();
+      this.syncUI();
+      this.raf = requestAnimationFrame((t) => this.frame(t));
+    }
+    initializeGL() {
+      const gl = this.gl;
+      if (!gl.getExtension('EXT_color_buffer_float'))
+        throw new Error('This GPU/browser does not expose floating-point WebGL2 render targets.');
+      gl.getExtension('EXT_float_blend');
+      this.timerExtension = gl.getExtension('EXT_disjoint_timer_query_webgl2');
+      this.pendingQuery = null;
+      this.programs = {
+        trace: this.program(S.fullscreen, S.volumeTrace),
+        finish: this.program(S.fullscreen, S.volumeFinish),
+        update: this.program(S.particleUpdate, S.emptyFragment, ['vPosition', 'vMomentum', 'vLifecycle']),
+        deposit: this.program(S.depositVertex, S.depositFragment),
+        shade: this.program(S.fullscreen, S.volumeShade),
+        blur: this.program(S.fullscreen, S.blur),
+        composite: this.program(S.fullscreen, S.composite)
+      };
+      this.fullscreenVAO = gl.createVertexArray();
+      this.feedback = gl.createTransformFeedback();
+      this.particleBuffers = [];
+      this.particleVAOs = [];
+      // Restored contexts cannot delete handles belonging to the lost context.
+      this.emission = null;
+      this.velocity = null;
+      this.emissionFBO = null;
+      this.cacheTextures = [];
+      this.cacheFbos = [];
+      this.renderTextures = [];
+      this.renderFbos = [];
+      this.allocateParticles();
+      this.allocateEmission();
+      this.resize(true);
+      this.rendererName = gl.getParameter(gl.RENDERER);
+      const debug = gl.getExtension('WEBGL_debug_renderer_info');
+      if (debug) this.rendererName = gl.getParameter(debug.UNMASKED_RENDERER_WEBGL);
+    }
+    program(vertex, fragment, varyings) {
+      const gl = this.gl,
+        p = gl.createProgram();
+      for (const [kind, source] of [
+        [gl.VERTEX_SHADER, vertex],
+        [gl.FRAGMENT_SHADER, fragment]
+      ]) {
+        const shader = gl.createShader(kind);
+        gl.shaderSource(shader, source);
+        gl.compileShader(shader);
+        if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+          const log = gl.getShaderInfoLog(shader);
+          gl.deleteShader(shader);
+          gl.deleteProgram(p);
+          throw new Error('Shader compilation failed: ' + log);
+        }
+        gl.attachShader(p, shader);
+        gl.deleteShader(shader);
+      }
+      if (varyings) gl.transformFeedbackVaryings(p, varyings, gl.INTERLEAVED_ATTRIBS);
+      gl.linkProgram(p);
+      if (!gl.getProgramParameter(p, gl.LINK_STATUS))
+        throw new Error('Shader linking failed: ' + gl.getProgramInfoLog(p));
+      return { p, uniforms: new Map() };
+    }
+    use(program) {
+      this.current = program;
+      this.gl.useProgram(program.p);
+    }
+    loc(name) {
+      const p = this.current;
+      if (!p.uniforms.has(name)) p.uniforms.set(name, this.gl.getUniformLocation(p.p, name));
+      return p.uniforms.get(name);
+    }
+    f(name, v) {
+      this.gl.uniform1f(this.loc(name), v);
+    }
+    i(name, v) {
+      this.gl.uniform1i(this.loc(name), v);
+    }
+    v2(name, v) {
+      this.gl.uniform2fv(this.loc(name), v);
+    }
+    v3(name, v) {
+      this.gl.uniform3fv(this.loc(name), v);
+    }
+    bind(name, texture, unit, target) {
+      const gl = this.gl;
+      gl.activeTexture(gl.TEXTURE0 + unit);
+      gl.bindTexture(target || gl.TEXTURE_2D, texture);
+      this.i(name, unit);
+    }
+    texture(width, height, format, linear = false, layers = 0) {
+      const gl = this.gl,
+        t = gl.createTexture(),
+        target = layers ? gl.TEXTURE_2D_ARRAY : gl.TEXTURE_2D;
+      gl.bindTexture(target, t);
+      if (layers) gl.texStorage3D(target, 1, format, width, height, layers);
+      else gl.texStorage2D(target, 1, format, width, height);
+      gl.texParameteri(target, gl.TEXTURE_MIN_FILTER, linear ? gl.LINEAR : gl.NEAREST);
+      gl.texParameteri(target, gl.TEXTURE_MAG_FILTER, linear ? gl.LINEAR : gl.NEAREST);
+      gl.texParameteri(target, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(target, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      return t;
+    }
+    fbo(textures) {
+      const gl = this.gl,
+        fbo = gl.createFramebuffer();
+      gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+      textures.forEach((t, i) =>
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0 + i, gl.TEXTURE_2D, t, 0)
+      );
+      gl.drawBuffers(textures.map((_, i) => gl.COLOR_ATTACHMENT0 + i));
+      if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE)
+        throw new Error('The requested floating-point framebuffer is unsupported.');
+      return fbo;
+    }
+    quad() {
+      this.gl.bindVertexArray(this.fullscreenVAO);
+      this.gl.drawArrays(this.gl.TRIANGLES, 0, 3);
+    }
+    destroy(textures, fbos) {
+      for (const t of textures) this.gl.deleteTexture(t);
+      for (const f of fbos) this.gl.deleteFramebuffer(f);
+      textures.length = 0;
+      fbos.length = 0;
+    }
+    allocateParticles() {
+      const gl = this.gl;
+      for (const b of this.particleBuffers) gl.deleteBuffer(b);
+      for (const a of this.particleVAOs) gl.deleteVertexArray(a);
+      this.particleBuffers = [];
+      this.particleVAOs = [];
+      this.particleIndex = 0;
+      this.simTime = 0;
+      const initial = new Float32Array(this.count * this.particleStride),
+        stride = this.particleStride * 4;
+      for (let i = 0; i < 2; i++) {
+        const buffer = gl.createBuffer(),
+          vao = gl.createVertexArray();
+        gl.bindVertexArray(vao);
+        gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+        gl.bufferData(gl.ARRAY_BUFFER, initial, gl.DYNAMIC_COPY);
+        gl.enableVertexAttribArray(0);
+        gl.vertexAttribPointer(0, 4, gl.FLOAT, false, stride, 0);
+        gl.enableVertexAttribArray(1);
+        gl.vertexAttribPointer(1, 4, gl.FLOAT, false, stride, 16);
+        gl.enableVertexAttribArray(2);
+        gl.vertexAttribPointer(2, 2, gl.FLOAT, false, stride, 32);
+        this.particleBuffers.push(buffer);
+        this.particleVAOs.push(vao);
+      }
+      gl.bindVertexArray(null);
+      gl.bindBuffer(gl.ARRAY_BUFFER, null);
+      this.updateParticles(0);
+    }
+    allocateEmission() {
+      const gl = this.gl;
+      if (this.emission) gl.deleteTexture(this.emission);
+      if (this.velocity) gl.deleteTexture(this.velocity);
+      if (this.emissionFBO) gl.deleteFramebuffer(this.emissionFBO);
+      this.volumeGrid = [512, 512, 64];
+      this.volumeExtent = [24, 24, 4.8];
+      this.emissionWidth = this.volumeGrid[0] * 8;
+      this.emissionHeight = this.volumeGrid[1] * (this.volumeGrid[2] / 8);
+      this.emission = this.texture(this.emissionWidth, this.emissionHeight, gl.RGBA16F, true);
+      this.velocity = this.texture(this.emissionWidth, this.emissionHeight, gl.RGBA16F, true);
+      this.emissionFBO = this.fbo([this.emission, this.velocity]);
+    }
+    resize(force = false) {
+      const dpr = Math.min(devicePixelRatio || 1, 1.5),
+        width = Math.max(16, Math.round(innerWidth * dpr)),
+        height = Math.max(16, Math.round(innerHeight * dpr));
+      if (!force && width === this.canvas.width && height === this.canvas.height) return;
+      this.canvas.width = width;
+      this.canvas.height = height;
+      this.prepareCache(true);
+    }
+    a() {
+      return this.spinning ? this.spin : 0;
+    }
+    cameraUniforms() {
+      const { theta, phi, distance } = this.camera;
+      const pos = [
+        distance * Math.sin(theta) * Math.cos(phi),
+        distance * Math.sin(theta) * Math.sin(phi),
+        distance * Math.cos(theta)
+      ];
+      const forward = P.normalize(pos.map((v) => -v)),
+        right = P.normalize(cross(forward, [0, 0, 1])),
+        up = P.normalize(cross(right, forward));
+      this.observerEnergy = 1 / Math.sqrt(1 - P.metric(pos, this.a()).f);
+      this.v3('uCamera', pos);
+      this.v3('uForward', forward);
+      this.v3('uRight', right);
+      this.v3('uUp', up);
+      this.f('uAspect', this.canvas.width / this.canvas.height);
+      this.f('uTanFov', Math.tan((28 * Math.PI) / 180) * this.overscan);
+      this.f('uSpin', this.a());
+      this.f('uHorizon', P.horizon(this.a()));
+      this.f('uISCO', P.isco(this.a()));
+      this.f('uObserverEnergy', this.observerEnergy);
+    }
+    prepareCache(resizeTargets = false) {
+      if (this.lost || this.failed) return;
+      this.cacheBuilds++;
+      const gl = this.gl,
+        scale = { draft: 0.4, balanced: 0.65, high: 0.85, native: 1 }[this.quality];
+      let rw = Math.round(this.canvas.width * scale),
+        rh = Math.round(this.canvas.height * scale);
+      const cap = { draft: 260000, balanced: 750000, high: 1100000, native: 1600000 }[this.quality];
+      const shrink = Math.min(1, Math.sqrt(cap / (rw * rh)));
+      rw = Math.round(rw * shrink);
+      rh = Math.round(rh * shrink);
+      rw = Math.max(16, rw);
+      rh = Math.max(16, rh);
+      if (rw !== this.rw || rh !== this.rh || resizeTargets) {
+        this.rw = rw;
+        this.rh = rh;
+        this.allocateRenderTargets();
+      }
+      this.destroy(this.cacheTextures, this.cacheFbos);
+      this.cacheReady = false;
+      const cache = (format = gl.RGBA32F, layers = 0) => {
+        const t = this.texture(rw, rh, format, false, layers);
+        this.cacheTextures.push(t);
+        return t;
+      };
+      this.sky = cache();
+      this.slices = 64;
+      this.pathX = cache(gl.RGBA16F, this.slices);
+      this.pathP = cache(gl.RGBA16F, this.slices);
+      this.stateX = [cache(), cache()];
+      this.stateP = [cache(), cache()];
+      this.stateFbo = [
+        this.fbo([this.stateX[0], this.stateP[0]]),
+        this.fbo([this.stateX[1], this.stateP[1]])
+      ];
+      this.finishFbo = this.fbo([this.sky]);
+      this.cacheFbos.push(...this.stateFbo, this.finishFbo);
+      this.job = { next: 0, total: this.slices + 1 };
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+      this.lastPresentation = 0;
+      this.fpsSamples = [];
+      $('resolution').textContent = rw + ' × ' + rh;
+      $('trace-status').hidden = false;
+      $('trace-text').textContent = 'Preparing the view';
+      this.traceProgress(0);
+    }
+    allocateRenderTargets() {
+      const gl = this.gl;
+      this.destroy(this.renderTextures, this.renderFbos);
+      this.hdr = this.texture(this.rw, this.rh, gl.RGBA16F, true);
+      this.hdrFbo = this.fbo([this.hdr]);
+      this.bw = Math.max(8, Math.floor(this.rw / 3));
+      this.bh = Math.max(8, Math.floor(this.rh / 3));
+      this.bloom = [
+        this.texture(this.bw, this.bh, gl.RGBA16F, true),
+        this.texture(this.bw, this.bh, gl.RGBA16F, true)
+      ];
+      this.bloomFbo = this.bloom.map((t) => this.fbo([t]));
+      this.renderTextures.push(this.hdr, ...this.bloom);
+      this.renderFbos.push(this.hdrFbo, ...this.bloomFbo);
+      for (const fbo of this.renderFbos) {
+        gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+        gl.clearColor(0, 0, 0, 1);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+      }
+    }
+    traceProgress(progress) {
+      $('trace-progress').style.width = Math.round(progress * 100) + '%';
+      $('trace-percent').textContent = Math.round(progress * 100) + '%';
+    }
+    advanceTrace() {
+      const gl = this.gl,
+        job = this.job;
+      if (!job) return;
+      gl.disable(gl.BLEND);
+      gl.viewport(0, 0, this.rw, this.rh);
+      if (job.next < this.slices) {
+        const write = job.next % 2,
+          read = 1 - write;
+        gl.bindFramebuffer(gl.FRAMEBUFFER, this.stateFbo[write]);
+        gl.framebufferTextureLayer(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT2, this.pathX, 0, job.next);
+        gl.framebufferTextureLayer(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT3, this.pathP, 0, job.next);
+        gl.drawBuffers([
+          gl.COLOR_ATTACHMENT0,
+          gl.COLOR_ATTACHMENT1,
+          gl.COLOR_ATTACHMENT2,
+          gl.COLOR_ATTACHMENT3
+        ]);
+        this.use(this.programs.trace);
+        this.cameraUniforms();
+        this.i('uSlice', job.next);
+        this.bind('uStateX', this.stateX[read], 0);
+        this.bind('uStateP', this.stateP[read], 1);
+        this.quad();
+      } else {
+        gl.bindFramebuffer(gl.FRAMEBUFFER, this.finishFbo);
+        this.use(this.programs.finish);
+        this.cameraUniforms();
+        const read = (this.slices - 1) % 2;
+        this.bind('uStateX', this.stateX[read], 0);
+        this.bind('uStateP', this.stateP[read], 1);
+        this.quad();
+      }
+      job.next++;
+      this.traceProgress(job.next / job.total);
+      if (job.next >= job.total) {
+        this.job = null;
+        this.cacheReady = true;
+        $('trace-status').hidden = true;
+        this.fpsSamples = [];
+      }
+    }
+    updateParticles(dt, realDt = dt / Math.max(this.speed, 0.001)) {
+      const gl = this.gl;
+      this.use(this.programs.update);
+      this.f('uSpin', this.a());
+      this.f('uHorizon', P.horizon(this.a()));
+      this.f('uISCO', P.isco(this.a()));
+      this.f('uDt', dt);
+      this.f('uSeed', 1 + this.simTime * 0.017);
+      this.f('uRealDt', realDt);
+      this.f('uFadeSeconds', this.fadeSeconds);
+      this.f('uTimeScale', this.speed);
+      const next = 1 - this.particleIndex;
+      gl.bindVertexArray(this.particleVAOs[this.particleIndex]);
+      gl.bindBuffer(gl.ARRAY_BUFFER, null);
+      gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, this.feedback);
+      gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, this.particleBuffers[next]);
+      gl.enable(gl.RASTERIZER_DISCARD);
+      gl.beginTransformFeedback(gl.POINTS);
+      gl.drawArrays(gl.POINTS, 0, this.count);
+      gl.endTransformFeedback();
+      gl.disable(gl.RASTERIZER_DISCARD);
+      gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, null);
+      gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, null);
+      gl.bindVertexArray(null);
+      this.particleIndex = next;
+    }
+    deposit() {
+      const gl = this.gl;
+      gl.bindFramebuffer(gl.FRAMEBUFFER, this.emissionFBO);
+      gl.viewport(0, 0, this.emissionWidth, this.emissionHeight);
+      gl.clearColor(0, 0, 0, 0);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+      gl.enable(gl.BLEND);
+      gl.blendFunc(gl.ONE, gl.ONE);
+      this.use(this.programs.deposit);
+      this.f('uSpin', this.a());
+      this.f('uISCO', P.isco(this.a()));
+      this.f('uParticleWeight', (8 * 65536) / this.count);
+      this.i('uBandCount', this.spectrum.levels.length);
+      this.gl.uniform1fv(this.loc('uBands[0]'), this.spectrum.levels);
+      this.f('uSustainStrength', this.sustainStrength);
+      this.gl.uniform3fv(this.loc('uBandColors[0]'), this.paletteColors);
+      this.f('uFadeSeconds', this.fadeSeconds);
+      this.f('uAudioDriven', this.spectrum.driven);
+      this.f('uMaterial', this.material);
+      this.v3('uVolumeGrid', this.volumeGrid);
+      this.v3('uVolumeExtent', this.volumeExtent);
+      gl.bindVertexArray(this.particleVAOs[this.particleIndex]);
+      gl.drawArraysInstanced(gl.POINTS, 0, this.count, 4);
+      gl.disable(gl.BLEND);
+      gl.bindVertexArray(null);
+    }
+    shade() {
+      const gl = this.gl;
+      gl.bindFramebuffer(gl.FRAMEBUFFER, this.hdrFbo);
+      gl.viewport(0, 0, this.rw, this.rh);
+      this.use(this.programs.shade);
+      this.f('uSpin', this.a());
+      this.f('uBrightness', 1.1);
+      this.f('uStarDensity', this.starDensity);
+      this.f('uCloudDensity', this.cloudDensity);
+      this.v3('uVolumeGrid', this.volumeGrid);
+      this.v3('uVolumeExtent', this.volumeExtent);
+      this.f('uOrbitAngle', this.orbitAngle);
+      this.f('uObserverEnergy', this.observerEnergy);
+      this.bind('uSky', this.sky, 0);
+      this.bind('uEmission', this.emission, 1);
+      this.bind('uPathX', this.pathX, 2, gl.TEXTURE_2D_ARRAY);
+      this.bind('uPathP', this.pathP, 3, gl.TEXTURE_2D_ARRAY);
+      this.bind('uVelocity', this.velocity, 4);
+      this.i('uSlices', this.slices);
+      this.quad();
+      this.use(this.programs.blur);
+      gl.viewport(0, 0, this.bw, this.bh);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, this.bloomFbo[0]);
+      this.bind('uImage', this.hdr, 0);
+      this.i('uExtract', 1);
+      this.v2('uDirection', [1 / this.rw, 0]);
+      this.quad();
+      gl.bindFramebuffer(gl.FRAMEBUFFER, this.bloomFbo[1]);
+      this.bind('uImage', this.bloom[0], 0);
+      this.i('uExtract', 0);
+      this.v2('uDirection', [0, 1 / this.bh]);
+      this.quad();
+      gl.bindFramebuffer(gl.FRAMEBUFFER, this.bloomFbo[0]);
+      this.bind('uImage', this.bloom[1], 0);
+      this.v2('uDirection', [1 / this.bw, 0]);
+      this.quad();
+    }
+    present() {
+      const gl = this.gl;
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+      gl.viewport(0, 0, this.canvas.width, this.canvas.height);
+      this.use(this.programs.composite);
+      this.bind('uImage', this.hdr, 0);
+      this.bind('uBloom', this.bloom[0], 1);
+      // Transform filtered radiance, not discrete ray-cache coordinates.
+      const aspect = this.canvas.width / this.canvas.height;
+      const shake = this.spectrum.offset(
+        this.paused || this.cameraMotion === 'fixed' ? 0 : this.shakeStrength
+      );
+      this.f(
+        'uRoll',
+        (this.roll + 0.035 * Math.sin(this.cameraTime * 0.13)) * Math.min(1, 1.8 / aspect) + shake[2]
+      );
+      this.f('uViewAspect', aspect);
+      this.f('uOverscan', this.overscan);
+      this.v2('uFraming', [
+        this.framing + 0.028 * Math.sin(this.cameraTime * 0.09) + shake[0],
+        this.framingY + 0.012 * Math.sin(this.cameraTime * 0.12) + shake[1]
+      ]);
+      this.f('uExposure', this.exposure);
+      this.f('uGlow', 0.1);
+      this.f('uSharpness', this.sharpness);
+      this.quad();
+    }
+    createSpectrumUI() {
+      const labels = Array.from(GravityAudio.centers, (hz) => Math.round(hz) + ' Hz');
+      $('spectrum-bars').replaceChildren();
+      this.bandBars = labels.map((label) => {
+        const bar = document.createElement('span');
+        bar.title = label;
+        $('spectrum-bars').append(bar);
+        return bar;
+      });
+    }
+    refreshPalette(force = false) {
+      if (force || this.paletteRevision !== this.palette.revision) {
+        this.palette.writeColors(GravityAudio.hues, this.paletteColors);
+        this.paletteRevision = this.palette.revision;
+      } else return;
+      if (force || this.frames % 4 === 0) {
+        const colors = this.bandBars.map((bar, i) => {
+          const color = GravityPalette.css(Array.from(this.paletteColors.subarray(i * 3, i * 3 + 3)));
+          bar.style.background = color;
+          return color;
+        });
+        $('palette-preview').style.background = 'linear-gradient(to right,' + colors.join(',') + ')';
+        if (this.palette.gradient) {
+          const percent = this.palette.gradient.offset * 100;
+          $('palette-offset').value = percent;
+          $('palette-offset-value').textContent = percent.toFixed(0) + '%';
+        }
+      }
+    }
+    syncPaletteUI() {
+      const p = this.palette,
+        g = p.gradient;
+      $('color-mode').value = p.mode;
+      $('solid-controls').hidden = p.mode !== 'solid';
+      $('hsv-controls').hidden = p.mode !== 'hsv';
+      $('custom-controls').hidden = p.mode !== 'custom';
+      $('gradient-controls').hidden = !g;
+      $('solid-color').value = p.solid;
+      $('palette-saturation').value = p.saturation * 100;
+      $('palette-saturation-value').textContent = Math.round(p.saturation * 100) + '%';
+      if (g) {
+        $('palette-offset').value = g.offset * 100;
+        $('palette-offset-value').textContent = Math.round(g.offset * 100) + '%';
+        $('palette-animate').checked = g.animated;
+        $('palette-speed').value = g.speed;
+        $('palette-speed').disabled = !g.animated;
+        $('palette-speed-value').textContent = g.speed.toFixed(2) + ' cycles/min';
+      }
+      $('add-color').disabled = p.custom.stops.length >= 6;
+    }
+    renderColorStops() {
+      const container = $('custom-colors');
+      container.replaceChildren();
+      this.palette.custom.stops.forEach((color, index) => {
+        const row = document.createElement('div');
+        row.className = 'color-stop';
+        const label = document.createElement('label');
+        label.textContent = 'Color ' + (index + 1);
+        const input = document.createElement('input');
+        input.type = 'color';
+        input.value = color;
+        input.dataset.stop = index;
+        input.setAttribute('aria-label', 'Gradient color ' + (index + 1));
+        input.addEventListener('input', () => {
+          this.palette.setStop(index, input.value);
+          this.refreshPalette(true);
+        });
+        label.append(input);
+        row.append(label);
+        const remove = document.createElement('button');
+        remove.textContent = '×';
+        remove.type = 'button';
+        remove.disabled = this.palette.custom.stops.length <= 2;
+        remove.setAttribute('aria-label', 'Remove gradient color ' + (index + 1));
+        remove.addEventListener('click', () => {
+          this.palette.removeStop(index);
+          this.renderColorStops();
+          this.syncPaletteUI();
+          this.refreshPalette(true);
+        });
+        row.append(remove);
+        container.append(row);
+      });
+    }
+    updateAudio(dt) {
+      let bins = null,
+        attacks = null;
+      if (this.analyser && !$('music').paused && !$('music').ended) {
+        this.analyser.getFloatFrequencyData(this.audioBins);
+        this.attackAnalyser.getFloatFrequencyData(this.attackBins);
+        bins = this.audioBins;
+        attacks = this.attackBins;
+      }
+      this.spectrum.update(dt, bins, this.audioContext?.sampleRate, 4096, this.audioGain, {
+        attacks,
+        attackSize: 1024
+      });
+      this.audioEnergy = this.spectrum.energy;
+      this.audioBass = this.spectrum.bass;
+      if (this.frames % 4 === 0) {
+        const height = $('spectrum-bars').clientHeight;
+        this.bandBars.forEach((bar, i) => {
+          bar.style.height = Math.max(1, Math.round(height * (0.04 + 0.96 * this.spectrum.levels[i]))) + 'px';
+          bar.style.opacity = 0.65 + 0.35 * this.spectrum.attacks[i];
+        });
+      }
+    }
+    pollTimer() {
+      if (!this.pendingQuery || !this.timerExtension) return;
+      const gl = this.gl;
+      if (gl.getQueryParameter(this.pendingQuery, gl.QUERY_RESULT_AVAILABLE)) {
+        if (!gl.getParameter(this.timerExtension.GPU_DISJOINT_EXT))
+          this.gpuMs = gl.getQueryParameter(this.pendingQuery, gl.QUERY_RESULT) / 1e6;
+        gl.deleteQuery(this.pendingQuery);
+        this.pendingQuery = null;
+      }
+    }
+    frame(now) {
+      this.raf = requestAnimationFrame((t) => this.frame(t));
+      if (this.failed || this.lost) return;
+      if (this.fpsLimit && now - this.lastPresentation < 1000 / this.fpsLimit - 0.7) return;
+      const frameDelta = this.lastPresentation ? (now - this.lastPresentation) / 1000 : 1 / 60;
+      this.lastPresentation = now;
+      const dt = Math.min(frameDelta, 0.0667);
+      this.frames++;
+      try {
+        this.pollTimer();
+        if (this.job) {
+          this.advanceTrace();
+          this.present();
+          return;
+        }
+        if (!this.cacheReady) return;
+        let timing = false;
+        if (this.timerExtension && !this.pendingQuery && this.frames % 30 === 0) {
+          this.pendingQuery = this.gl.createQuery();
+          this.gl.beginQuery(this.timerExtension.TIME_ELAPSED_EXT, this.pendingQuery);
+          timing = true;
+        }
+        this.updateAudio(frameDelta);
+        this.palette.advance(dt, this.paused);
+        this.refreshPalette();
+        if (!this.paused) {
+          this.simTime += dt * this.speed;
+          this.updateParticles(dt * this.speed, dt);
+          if (this.cameraMotion !== 'fixed') {
+            const response = this.cameraMotion === 'music' ? 1 + this.audioBass * 1.5 : 1;
+            this.cameraTime += dt * response;
+            this.orbitAngle =
+              (this.orbitAngle + dt * (0.012 + 0.032 * this.motionStrength) * response) % (Math.PI * 2);
+          }
+        }
+        this.deposit();
+        this.shade();
+        this.present();
+        if (timing) this.gl.endQuery(this.timerExtension.TIME_ELAPSED_EXT);
+        this.fpsSamples.push(frameDelta);
+        if (this.fpsSamples.length > 45) this.fpsSamples.shift();
+        if (this.frames % 10 === 0) {
+          this.measuredFPS = this.fpsSamples.length / this.fpsSamples.reduce((a, b) => a + b, 0);
+          $('fps').textContent = Math.round(this.measuredFPS);
+          $('gpu-time').textContent = this.gpuMs === null ? 'Unavailable' : this.gpuMs.toFixed(1) + ' ms';
+        }
+      } catch (error) {
+        this.fail(error);
+      }
+    }
+    setSpin(on, value = this.spin) {
+      this.spinning = on;
+      this.spin = Math.max(0.05, Math.min(0.95, value));
+      this.allocateParticles();
+      this.prepareCache();
+      this.syncUI();
+    }
+    reset() {
+      this.camera = { ...defaultCamera };
+      this.cameraTime = 0;
+      this.orbitAngle = 0;
+      this.allocateParticles();
+      this.prepareCache();
+      this.syncUI();
+    }
+    syncUI() {
+      for (const b of document.querySelectorAll('[data-metric]')) {
+        const on = (b.dataset.metric === 'spin') === this.spinning;
+        b.classList.toggle('selected', on);
+        b.setAttribute('aria-pressed', on);
+      }
+      $('spin').disabled = !this.spinning;
+      $('spin').value = this.spin;
+      $('spin-value').textContent = this.a().toFixed(2);
+      $('quality').value = this.quality;
+      $('particles').value = this.count;
+      $('material').value = Math.round(this.material * 100);
+      $('material-value').textContent = Math.round(this.material * 100) + '%';
+      $('exposure').value = this.exposure;
+      $('exposure-value').textContent = this.exposure.toFixed(1) + '×';
+      $('sharpness').value = Math.round(this.sharpness * 100);
+      $('sharpness-value').textContent = Math.round(this.sharpness * 100) + '%';
+      $('particle-fade').value = this.fadeSeconds;
+      $('particle-fade-value').textContent = this.fadeSeconds.toFixed(1) + ' s';
+      this.syncPaletteUI();
+      $('speed').value = this.speed;
+      $('speed-value').textContent = this.speed + '×';
+      $('camera-motion').value = this.cameraMotion;
+      $('framing').value = this.framing * 100;
+      $('framing-y').value = this.framingY * 100;
+      for (const [id, value] of [
+        ['audio-balance', this.spectrum.balance],
+        ['sustained-light', this.sustainStrength],
+        ['star-density', this.starDensity],
+        ['cloud-density', this.cloudDensity]
+      ]) {
+        $(id).value = Math.round(value * 100);
+        $(id + '-value').textContent = Math.round(value * 100) + '%';
+      }
+      $('audio-gain').value = this.audioGain;
+      $('audio-gain-value').textContent = this.audioGain.toFixed(1) + '×';
+      $('bass-shake').value = this.shakeStrength * 100;
+      $('bass-shake-value').textContent = Math.round(this.shakeStrength * 100) + '%';
+      $('elevation').value = Math.round(90 - (this.camera.theta * 180) / Math.PI);
+      $('elevation-value').textContent = $('elevation').value + '°';
+      $('distance').value = this.camera.distance;
+      $('distance-value').textContent = Math.round(this.camera.distance);
+    }
+    togglePause() {
+      this.paused = !this.paused;
+      $('pause').textContent = this.paused ? 'Resume' : 'Pause';
+    }
+    toggleUI() {
+      const hidden = !$('controls').hidden;
+      $('controls').hidden = hidden;
+      $('quick-controls').hidden = !hidden;
+      $('show-ui').setAttribute('aria-expanded', !hidden);
+      $(hidden ? 'show-ui' : 'hide-ui').focus();
+    }
+    async fullscreen() {
+      try {
+        if (document.fullscreenElement) await document.exitFullscreen();
+        else await document.documentElement.requestFullscreen();
+      } catch (error) {
+        if ($('controls').hidden) this.toggleUI();
+        this.controlError('Fullscreen is unavailable in this browser window.');
+      }
+    }
+    controlError(message) {
+      $('control-error').textContent = message;
+      $('control-error').hidden = false;
+    }
+    async initializeAudio() {
+      if (!this.audioContext) {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        this.audioContext = new AudioContext();
+        this.analyser = this.audioContext.createAnalyser();
+        this.analyser.fftSize = 4096;
+        this.analyser.smoothingTimeConstant = 0;
+        this.audioBins = new Float32Array(this.analyser.frequencyBinCount);
+        this.mediaSource = this.audioContext.createMediaElementSource($('music'));
+        this.mediaSource.connect(this.analyser);
+        this.analyser.connect(this.audioContext.destination);
+        this.attackAnalyser = this.audioContext.createAnalyser();
+        this.attackAnalyser.fftSize = 1024;
+        this.attackAnalyser.smoothingTimeConstant = 0;
+        this.attackBins = new Float32Array(this.attackAnalyser.frequencyBinCount);
+        this.mediaSource.connect(this.attackAnalyser);
+      }
+      await this.audioContext.resume();
+    }
+    loadAudio(file) {
+      if (!file) return;
+      const music = $('music');
+      music.pause();
+      this.spectrum.reset();
+      if (this.audioURL) URL.revokeObjectURL(this.audioURL);
+      this.audioURL = URL.createObjectURL(file);
+      music.src = this.audioURL;
+      music.hidden = false;
+      $('audio-name').textContent = file.name;
+    }
+    bindUI() {
+      for (const b of document.querySelectorAll('[data-metric]'))
+        b.addEventListener('click', () => this.setSpin(b.dataset.metric === 'spin'));
+      let spinTimeout;
+      $('spin').addEventListener('input', (e) => {
+        $('spin-value').textContent = Number(e.target.value).toFixed(2);
+        clearTimeout(spinTimeout);
+        spinTimeout = setTimeout(() => this.setSpin(true, Number(e.target.value)), 180);
+      });
+      $('material').addEventListener('input', (e) => {
+        this.material = Number(e.target.value) / 100;
+        $('material-value').textContent = e.target.value + '%';
+      });
+      $('exposure').addEventListener('input', (e) => {
+        this.exposure = Number(e.target.value);
+        $('exposure-value').textContent = this.exposure.toFixed(1) + '×';
+      });
+      $('sharpness').addEventListener('input', (e) => {
+        this.sharpness = Number(e.target.value) / 100;
+        $('sharpness-value').textContent = e.target.value + '%';
+      });
+      $('particle-fade').addEventListener('input', (e) => {
+        this.fadeSeconds = Number(e.target.value);
+        $('particle-fade-value').textContent = this.fadeSeconds.toFixed(1) + ' s';
+      });
+      $('color-mode').addEventListener('change', (e) => {
+        this.palette.setMode(e.target.value);
+        this.syncPaletteUI();
+        this.refreshPalette(true);
+      });
+      $('solid-color').addEventListener('input', (e) => {
+        this.palette.setSolid(e.target.value);
+        this.refreshPalette(true);
+      });
+      $('palette-saturation').addEventListener('input', (e) => {
+        this.palette.setSaturation(Number(e.target.value) / 100);
+        this.syncPaletteUI();
+        this.refreshPalette(true);
+      });
+      $('palette-offset').addEventListener('input', (e) => {
+        this.palette.setOffset(Number(e.target.value) / 100);
+        this.syncPaletteUI();
+        this.refreshPalette(true);
+      });
+      $('palette-animate').addEventListener('change', (e) => {
+        this.palette.setAnimated(e.target.checked);
+        this.syncPaletteUI();
+      });
+      $('palette-speed').addEventListener('input', (e) => {
+        this.palette.setSpeed(Number(e.target.value));
+        this.syncPaletteUI();
+      });
+      $('add-color').addEventListener('click', () => {
+        this.palette.addStop();
+        this.renderColorStops();
+        this.syncPaletteUI();
+        this.refreshPalette(true);
+      });
+      $('speed').addEventListener('input', (e) => {
+        this.speed = Number(e.target.value);
+        $('speed-value').textContent = this.speed + '×';
+      });
+      $('camera-motion').addEventListener('change', (e) => {
+        this.cameraMotion = e.target.value;
+      });
+      $('camera-amount').addEventListener('input', (e) => {
+        this.motionStrength = Number(e.target.value) / 100;
+      });
+      $('camera-roll').addEventListener('input', (e) => {
+        this.roll = (Number(e.target.value) * Math.PI) / 180;
+        $('roll-value').textContent = e.target.value + '°';
+      });
+      $('framing').addEventListener('input', (e) => {
+        this.framing = Number(e.target.value) / 100;
+      });
+      $('framing-y').addEventListener('input', (e) => {
+        this.framingY = Number(e.target.value) / 100;
+      });
+      const percentageControls = {
+        'audio-balance': (value) => {
+          this.spectrum.balance = value;
+        },
+        'sustained-light': (value) => {
+          this.sustainStrength = value;
+        },
+        'star-density': (value) => {
+          this.starDensity = value;
+        },
+        'cloud-density': (value) => {
+          this.cloudDensity = value;
+        }
+      };
+      for (const [id, set] of Object.entries(percentageControls))
+        $(id).addEventListener('input', (e) => {
+          set(Number(e.target.value) / 100);
+          $(id + '-value').textContent = e.target.value + '%';
+        });
+      $('audio-gain').addEventListener('input', (e) => {
+        this.audioGain = Number(e.target.value);
+        $('audio-gain-value').textContent = this.audioGain.toFixed(1) + '×';
+      });
+      $('bass-shake').addEventListener('input', (e) => {
+        this.shakeStrength = Number(e.target.value) / 100;
+        $('bass-shake-value').textContent = e.target.value + '%';
+      });
+      let cameraTimeout;
+      for (const name of ['elevation', 'distance'])
+        $(name).addEventListener('input', (e) => {
+          if (name === 'elevation') this.camera.theta = ((90 - Number(e.target.value)) * Math.PI) / 180;
+          else this.camera.distance = Number(e.target.value);
+          $(name + '-value').textContent = e.target.value + (name === 'elevation' ? '°' : '');
+          clearTimeout(cameraTimeout);
+          cameraTimeout = setTimeout(() => this.prepareCache(), 250);
+        });
+      $('particles').addEventListener('change', (e) => {
+        this.count = Number(e.target.value);
+        this.allocateParticles();
+      });
+      $('quality').addEventListener('change', (e) => {
+        this.quality = e.target.value;
+        this.prepareCache();
+      });
+      $('fps-limit').addEventListener('change', (e) => {
+        this.fpsLimit = Number(e.target.value);
+        this.fpsSamples = [];
+      });
+      $('pause').addEventListener('click', () => this.togglePause());
+      $('reset').addEventListener('click', () => this.reset());
+      $('hide-ui').addEventListener('click', () => this.toggleUI());
+      $('show-ui').addEventListener('click', () => this.toggleUI());
+      $('fullscreen').addEventListener('click', () => this.fullscreen());
+      $('quick-fullscreen').addEventListener('click', () => this.fullscreen());
+      document.addEventListener('fullscreenchange', () => {
+        const label = document.fullscreenElement ? 'Exit fullscreen' : 'Fullscreen';
+        $('fullscreen').textContent = label;
+        $('quick-fullscreen').textContent = label;
+      });
+      $('audio-file-button').addEventListener('click', () => $('audio-file').click());
+      $('audio-file').addEventListener('change', (e) => {
+        this.loadAudio(e.target.files[0]);
+        e.target.value = '';
+      });
+      $('music').addEventListener('seeking', () => this.spectrum.reset());
+      $('music').addEventListener('error', () => {
+        $('audio-name').textContent = 'This audio file could not be decoded. Try MP3, WAV, or Ogg.';
+      });
+      $('music').addEventListener('play', () => {
+        this.initializeAudio().catch((error) =>
+          this.controlError('Audio analysis unavailable: ' + error.message)
+        );
+      });
+      let resizeTimeout;
+      window.addEventListener('resize', () => {
+        clearTimeout(resizeTimeout);
+        resizeTimeout = setTimeout(() => this.resize(), 150);
+      });
+      document.addEventListener('visibilitychange', () => {
+        this.lastPresentation = 0;
+        this.fpsSamples = [];
+      });
+      this.canvas.addEventListener('webglcontextlost', (e) => {
+        e.preventDefault();
+        this.lost = true;
+        this.job = null;
+        $('trace-status').hidden = false;
+        $('trace-text').textContent = 'Graphics context suspended';
+      });
+      this.canvas.addEventListener('webglcontextrestored', () => {
+        this.lost = false;
+        try {
+          this.initializeGL();
+        } catch (error) {
+          this.fail(error);
+        }
+      });
+    }
+    readParameters() {
+      const q = new URLSearchParams(location.search);
+      if (q.get('spin') === '0') this.spinning = false;
+      if (['draft', 'balanced', 'high', 'native'].includes(q.get('quality'))) this.quality = q.get('quality');
+      if (q.get('motion') === 'fixed') this.cameraMotion = 'fixed';
+      if (q.get('ui') === '1') this.toggleUI();
+    }
+    stats() {
+      return {
+        ready: this.cacheReady,
+        spin: this.a(),
+        particles: this.count,
+        quality: this.quality,
+        width: this.rw,
+        height: this.rh,
+        fps: this.measuredFPS,
+        gpuMs: this.gpuMs,
+        renderer: this.rendererName,
+        paused: this.paused,
+        simTime: this.simTime,
+        audioEnergy: this.audioEnergy,
+        audioBass: this.audioBass,
+        audioBands: Array.from(this.spectrum.levels),
+        audioAttacks: Array.from(this.spectrum.attacks),
+        bassShake: this.spectrum.shake,
+        cameraMotion: this.cameraMotion,
+        cameraDistance: this.camera.distance,
+        framing: [this.framing, this.framingY],
+        overscan: this.overscan,
+        starDensity: this.starDensity,
+        cloudDensity: this.cloudDensity,
+        orbitAngle: this.orbitAngle,
+        cacheBuilds: this.cacheBuilds,
+        failed: this.failed,
+        lost: this.lost,
+        traceProgress: this.job ? this.job.next / this.job.total : 1
+      };
+    }
+    diagnostics() {
+      const gl = this.gl,
+        fb = this.finishFbo;
+      gl.bindFramebuffer(gl.READ_FRAMEBUFFER, fb);
+      gl.readBuffer(gl.COLOR_ATTACHMENT0);
+      const data = new Float32Array(this.rw * this.rh * 4);
+      gl.readPixels(0, 0, this.rw, this.rh, gl.RGBA, gl.FLOAT, data);
+      const result = { captured: 0, escaped: 0, budget: 0, invalid: 0, other: 0 };
+      for (let i = 3; i < data.length; i += 4) {
+        const v = Math.round(data[i]);
+        result[
+          v === 1 ? 'captured' : v === 2 ? 'escaped' : v === 3 ? 'budget' : v === 4 ? 'invalid' : 'other'
+        ]++;
+      }
+      gl.bindFramebuffer(gl.READ_FRAMEBUFFER, null);
+      return result;
+    }
+    fail(error) {
+      this.failed = true;
+      console.error(error);
+      $('error').hidden = false;
+      $('error-text').textContent = error.message;
+      $('trace-status').hidden = true;
+    }
+  }
+  setTimeout(() => {
+    try {
+      window.GravityDemo = new Demo();
+    } catch (error) {
+      console.error(error);
+      $('error').hidden = false;
+      $('error-text').textContent = error.message;
+      $('trace-status').hidden = true;
+    }
+  }, 30);
+})();
+
+</script>
+</body>
+</html>

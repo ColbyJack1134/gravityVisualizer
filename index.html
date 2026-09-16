@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#08090c">
+  <title>Gravity Visualizer</title>
+  <link rel="stylesheet" href="src/style.css">
+</head>
+<body>
+  <canvas id="universe" aria-label="Interactive black hole and particle simulation"></canvas>
+  <aside id="controls" class="controls" aria-label="Controls" hidden>
+    <div class="controls-heading"><h1>Controls</h1><button id="hide-ui" class="icon-button" aria-label="Close controls">×</button></div>
+    <section class="control-section">
+      <h2>Audio</h2>
+      <button id="audio-file-button" class="file-button">Choose music</button>
+      <input id="audio-file" type="file" accept="audio/*" hidden>
+      <audio id="music" controls preload="metadata" hidden></audio>
+      <div id="audio-name" class="audio-name" role="status"></div>
+      <div id="spectrum-bars" class="spectrum-bars" aria-hidden="true"></div>
+      <div class="spectrum-legend"><span id="spectrum-low">BASS</span><span id="spectrum-high">HIGHS</span></div>
+      <label class="range-label" for="audio-gain">Sensitivity <output id="audio-gain-value">1.0×</output></label>
+      <input id="audio-gain" type="range" min="0.3" max="3" step="0.1" value="1">
+      <label class="range-label" for="audio-balance">Band balance <output id="audio-balance-value">75%</output></label>
+      <input id="audio-balance" type="range" min="0" max="100" value="75">
+      <label class="range-label" for="sustained-light">Sustained amount <output id="sustained-light-value">100%</output></label>
+      <input id="sustained-light" type="range" min="0" max="100" value="100">
+      <label class="range-label" for="bass-shake">Bass shake <output id="bass-shake-value">70%</output></label>
+      <input id="bass-shake" type="range" min="0" max="100" value="70">
+    </section>
+
+    <section class="control-section">
+      <h2>Colors</h2>
+      <select id="color-mode" aria-label="Color mode"><option value="hsv">HSV gradient</option><option value="solid">Solid color</option><option value="custom">Custom gradient</option></select>
+      <div id="palette-preview" class="palette-preview" aria-label="Palette from bass to high frequencies"></div>
+      <div id="solid-controls" hidden><label class="color-label" for="solid-color">Particle color <input id="solid-color" type="color" value="#aa44ff"></label></div>
+      <div id="hsv-controls">
+        <label class="range-label" for="palette-saturation">Saturation <output id="palette-saturation-value">100%</output></label>
+        <input id="palette-saturation" type="range" min="0" max="100" value="100">
+      </div>
+      <div id="custom-controls" hidden>
+        <div id="custom-colors"></div><button id="add-color" class="text-button" type="button">+ Add color</button>
+      </div>
+      <div id="gradient-controls">
+        <label class="range-label" for="palette-offset">Offset <output id="palette-offset-value">0%</output></label>
+        <input id="palette-offset" type="range" min="0" max="100" step="0.1" value="0">
+        <label class="check-label"><input id="palette-animate" type="checkbox" checked> Animate gradient</label>
+        <label class="range-label" for="palette-speed">Speed <output id="palette-speed-value">0.50 cycles/min</output></label>
+        <input id="palette-speed" type="range" min="-3" max="3" step="0.05" value="0.5">
+      </div>
+    </section>
+
+    <section class="control-section">
+      <h2>Background</h2>
+      <label class="range-label" for="star-density">Star density <output id="star-density-value">100%</output></label>
+      <input id="star-density" type="range" min="0" max="500" step="5" value="100">
+      <label class="range-label" for="cloud-density">Cloud density <output id="cloud-density-value">100%</output></label>
+      <input id="cloud-density" type="range" min="0" max="500" step="5" value="100">
+    </section>
+
+    <section class="control-section">
+      <h2>Camera</h2>
+      <select id="camera-motion" aria-label="Camera movement"><option value="gentle">Slow orbit</option><option value="music">Music-driven orbit</option><option value="fixed">Hold this view</option></select>
+      <label class="range-label" for="camera-amount">Movement</label>
+      <input id="camera-amount" type="range" min="0" max="100" value="55">
+      <label class="range-label" for="camera-roll">Tilt <output id="roll-value">15°</output></label>
+      <input id="camera-roll" type="range" min="-30" max="30" value="15">
+      <label class="range-label" for="framing">Horizontal position</label>
+      <input id="framing" type="range" min="-35" max="35" value="3">
+      <label class="range-label" for="framing-y">Vertical position</label>
+      <input id="framing-y" type="range" min="-20" max="20" step="0.5" value="10">
+      <details class="camera-advanced"><summary>View angle & distance</summary>
+        <label class="range-label" for="elevation">Elevation <output id="elevation-value">18°</output></label>
+        <input id="elevation" type="range" min="5" max="80" value="18">
+        <label class="range-label" for="distance">Distance <output id="distance-value">37</output></label>
+        <input id="distance" type="range" min="32" max="85" value="37">
+      </details>
+    </section>
+
+    <section class="control-section">
+      <h2>Black hole</h2>
+      <div class="segments" role="group" aria-label="Black hole rotation">
+        <button data-metric="static" aria-pressed="false">Non-spinning</button>
+        <button data-metric="spin" class="selected" aria-pressed="true">Spinning</button>
+      </div>
+      <label class="range-label" for="spin">Spin <output id="spin-value">0.25</output></label>
+      <input id="spin" type="range" min="0.05" max="0.95" step="0.05" value="0.25">
+    </section>
+
+    <section class="control-section">
+      <h2>Material & light</h2>
+      <label class="range-label" for="material">Material <output id="material-value">30%</output></label>
+      <input id="material" type="range" min="10" max="100" value="30">
+      <label class="range-label" for="exposure">Exposure <output id="exposure-value">1.7×</output></label>
+      <input id="exposure" type="range" min="0.3" max="3" step="0.1" value="1.7">
+      <label class="range-label" for="sharpness">Sharpness <output id="sharpness-value">100%</output></label>
+      <input id="sharpness" type="range" min="0" max="100" value="100">
+      <label class="range-label" for="particle-fade">Particle fade <output id="particle-fade-value">3.0 s</output></label>
+      <input id="particle-fade" type="range" min="0" max="6" step="0.5" value="3">
+      <label class="range-label" for="speed">Time scale <output id="speed-value">10×</output></label>
+      <input id="speed" type="range" min="1" max="24" step="1" value="10">
+    </section>
+
+    <details class="performance-settings">
+      <summary>Performance</summary>
+      <label for="particles">Particles<select id="particles"><option value="16384">16,384</option><option value="32768">32,768</option><option value="65536" selected>65,536</option><option value="131072">131,072</option><option value="262144">262,144</option><option value="524288">524,288</option></select></label>
+      <label for="quality">Quality<select id="quality"><option value="draft">Draft</option><option value="balanced" selected>Balanced</option><option value="high">High</option><option value="native">Native / maximum</option></select></label>
+      <label for="fps-limit">Frame cap<select id="fps-limit"><option value="0">Uncapped</option><option value="60" selected>60 FPS</option><option value="30">30 FPS</option></select></label>
+      <dl class="stats">
+        <div><dt>FPS</dt><dd id="fps">—</dd></div>
+        <div><dt>GPU frame</dt><dd id="gpu-time">—</dd></div>
+        <div><dt>Render size</dt><dd id="resolution">—</dd></div>
+      </dl>
+    </details>
+    <div class="transport"><button id="pause">Pause</button><button id="reset" title="Reset particles and camera">Reset</button><button id="fullscreen">Fullscreen</button></div>
+    <p id="control-error" role="alert" hidden></p>
+  </aside>
+
+  <div id="trace-status" role="status"><span id="trace-text">Tracing light paths</span><span id="trace-percent">0%</span><div class="trace-track"><span id="trace-progress"></span></div></div>
+  <div id="quick-controls" class="quick-controls">
+    <button id="show-ui" aria-controls="controls" aria-expanded="false">Controls</button>
+    <button id="quick-fullscreen">Fullscreen</button>
+  </div>
+  <div id="error" role="alert" hidden><h2>Unable to start the renderer</h2><p id="error-text"></p><p>Try opening this file in a current desktop Chrome or Edge browser with graphics acceleration enabled.</p></div>
+  <script src="src/physics.js"></script>
+  <script src="src/audio.js"></script>
+  <script src="src/palette.js"></script>
+  <script src="src/shaders.js"></script>
+  <script src="src/app.js"></script>
+</body>
+</html>
