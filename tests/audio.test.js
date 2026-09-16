@@ -98,7 +98,7 @@ for (const autoSensitivity of [false, true]) {
     s.reset();advance(2, t => .08 * Math.min(1, t));
     assert.ok(s.shake > .1 && s.kick < .005, 'A gradual bass swell sustains rumble without repeated kicks');
     s.reset();
-    assert.ok(Math.max(...advance(.3, () => .01)) > .15, 'Moderate bass hits cross the softened gate');
+    assert.ok(Math.max(...advance(.3, () => .01)) < .1, 'Quieter bass produces only faint shake');
     s.reset();
     const beats = advance(4, t => .05 + .03 * Math.exp(-(t % .5) * 10)).slice(fps * 2);
     assert.ok(Math.max(...beats) - Math.min(...beats) > .025, 'Beats remain distinct over sustained bass');

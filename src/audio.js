@@ -224,12 +224,12 @@
           bass = Math.max(bass, this.frequency.rawLevels[i]);
           kick = Math.max(
             kick,
-            this.frequency.attacks[i] * clamp((this.frequency.rawLevels[i] - 0.3) / 0.45)
+            this.frequency.attacks[i] * clamp((this.frequency.rawLevels[i] - 0.45) / 0.3)
           );
         }
       this.energy = Math.sqrt(energy / this.levels.length);
       this.bass = bass;
-      const sustained = clamp((bass - 0.35) / 0.4);
+      const sustained = clamp((bass - 0.5) / 0.25);
       this.kick = Math.max(this.kick * Math.exp(-dt / 0.18), 0.65 * kick);
       this.rumble = follow(this.rumble, 0.16 * sustained * sustained, dt, 0.06, 0.18);
       this.shake = Math.min(0.65, this.kick + this.rumble);
