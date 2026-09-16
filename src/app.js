@@ -7,7 +7,7 @@
     constructor(canvas) {
       this.canvas = canvas;
       this.spinning = true;
-      this.spin = 0.25;
+      this.spin = 0.5;
       this.material = 0.3;
       this.exposure = 1.7;
       this.sharpness = 1;

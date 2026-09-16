@@ -56,7 +56,7 @@ function tone(){
   try{
     const url=process.env.GRAVITY_URL||pathToFileURL(path.resolve('gravity-demo.html')).href;
     await page.goto(url+'?ui=1&motion=fixed');await ready();
-    assert.deepEqual(await page.evaluate(()=>[GravityDemo.spin,GravityDemo.exposure,GravityDemo.speed,GravityDemo.material]),[.25,1.7,10,.3]);
+    assert.deepEqual(await page.evaluate(()=>[GravityDemo.spin,GravityDemo.exposure,GravityDemo.speed,GravityDemo.material]),[.5,1.7,10,.3]);
     const sizes=benchmark?[{width:1920,height:1080},{width:3840,height:1080}]:[{width:1920,height:1080}];
     for(const size of sizes){
       await page.setViewportSize(size);await page.waitForTimeout(250);

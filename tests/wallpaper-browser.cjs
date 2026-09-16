@@ -55,7 +55,7 @@ const project = require('../wallpaper/project.json');
         showIdleParticles: r.showIdleParticles };
     });
     assert.equal(defaults.stats.cacheBuilds, 1, 'Early settings must precede the first cache allocation');
-    assert.equal(defaults.stats.particles, 65536); assert.equal(defaults.stats.spin, 0.25);
+    assert.equal(defaults.stats.particles, 65536); assert.equal(defaults.stats.spin, 0.5);
     assert.deepEqual(defaults.framing, [0.03, 0.1]); assert.equal(defaults.fps, 30);
     assert.equal(defaults.material, 0.3); assert.equal(defaults.exposure, 1.7);
     assert.equal(defaults.sharpness, 1); assert.equal(defaults.fade, 3); assert.equal(defaults.animated, true);

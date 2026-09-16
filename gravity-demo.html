@@ -426,8 +426,8 @@ summary {
         <button data-metric="static" aria-pressed="false">Non-spinning</button>
         <button data-metric="spin" class="selected" aria-pressed="true">Spinning</button>
       </div>
-      <label class="range-label" for="spin">Spin <output id="spin-value">0.25</output></label>
-      <input id="spin" type="range" min="0.05" max="0.95" step="0.05" value="0.25">
+      <label class="range-label" for="spin">Spin <output id="spin-value">0.50</output></label>
+      <input id="spin" type="range" min="0.05" max="0.95" step="0.05" value="0.5">
     </section>
 
     <section class="control-section">
@@ -1388,7 +1388,7 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
     constructor(canvas) {
       this.canvas = canvas;
       this.spinning = true;
-      this.spin = 0.25;
+      this.spin = 0.5;
       this.material = 0.3;
       this.exposure = 1.7;
       this.sharpness = 1;
