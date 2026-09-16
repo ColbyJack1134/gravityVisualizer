@@ -2,3 +2,5 @@ node_modules/
 test-results/
 __pycache__/
 dist/
+docs/
+research/
