@@ -489,6 +489,9 @@ summary {
       <label class="range-label" for="brightness-max">Maximum brightness <output id="brightness-max-value">140%</output></label>
       <input id="brightness-max" type="range" min="0" max="400" step="5" value="140">
       <p class="control-hint">Base intensity. Shading and overlap still affect visible brightness.</p>
+      <label class="range-label" for="radial-dimming">Radial dimming <output id="radial-dimming-value">100%</output></label>
+      <input id="radial-dimming" type="range" min="0" max="100" step="5" value="100">
+      <p class="control-hint">Dims stars farther from the black hole. 0% turns this off.</p>
     </section>
 
     <details class="performance-settings">
@@ -1286,7 +1289,7 @@ layout(location=0) in vec4 aPosition;
 layout(location=1) in vec4 aMomentum;
 layout(location=2) in vec2 aLifecycle;
 uniform float uSpin,uISCO,uMaterial,uParticleWeight,uFadeSeconds;
-uniform float uCloudRadius;uniform vec2 uBrightnessRange;
+uniform float uCloudRadius,uRadialDimming;uniform vec2 uBrightnessRange;
 uniform float uBands[24],uAudioDriven,uIdleParticles;
 uniform int uBandCount;
 uniform float uSustainStrength;
@@ -1306,7 +1309,7 @@ void main(){
   }
   float inner=uISCO*.86;
   vWeight*=smoothstep(inner,inner+.55,r)*(1.-smoothstep(uCloudRadius,uCloudRadius+1.,r));
-  float heat=pow(uISCO/max(r,uISCO),.65);
+  float heat=pow(uISCO/max(r,uISCO),.65*uRadialDimming);
   float kind=hash(float(gl_VertexID)+37.2);
   float palettePosition=hash(float(gl_VertexID)+81.3);
   int band=int(palettePosition*float(uBandCount));
@@ -1573,6 +1576,7 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
       this.starDefinition = 0.7;
       this.brightnessMin = 0.65;
       this.brightnessMax = 1.4;
+      this.radialDimming = 1;
       this.starDensity = 1;
       this.cloudDensity = 1;
       this.speed = 10;
@@ -1700,6 +1704,7 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
       const ranges = {
         spin: [0.05, 0.95], material: [0.1, 1], exposure: [0.3, 3], sharpness: [0, 1],
         starDefinition: [0, 1], brightnessMin: [0, 4], brightnessMax: [0, 4], cloudRadius: [11, 33],
+        radialDimming: [0, 1],
         starDensity: [0, 5], cloudDensity: [0, 5], speed: [1, 24], fadeSeconds: [0, 6],
         motionStrength: [0, 1], roll: [-Math.PI / 6, Math.PI / 6],
         framing: [-0.35, 0.35], framingY: [-0.2, 0.2], audioGain: [0.3, 3],
@@ -2113,6 +2118,7 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
       this.f('uISCO', P.isco(this.a()));
       this.f('uCloudRadius', this.cloudRadius);
       this.v2('uBrightnessRange', [this.brightnessMin, this.brightnessMax]);
+      this.f('uRadialDimming', this.radialDimming);
       // Keep particle mass fixed as volume cells grow.
       this.f('uParticleWeight', (12.8 * 65536) / (this.count * this.volumeScale ** 3));
       this.i('uBandCount', this.spectrum.levels.length);
@@ -2617,6 +2623,7 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
         ['star-definition', this.starDefinition],
         ['brightness-min', this.brightnessMin],
         ['brightness-max', this.brightnessMax],
+        ['radial-dimming', this.radialDimming],
         ['cloud-radius', this.cloudRadius / 22],
         ['star-density', this.starDensity],
         ['cloud-density', this.cloudDensity]
@@ -2825,6 +2832,7 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
         material: ['material', 0.01], exposure: ['exposure', 1], sharpness: ['sharpness', 0.01],
         'star-definition': ['starDefinition', 0.01],
         'brightness-min': ['brightnessMin', 0.01], 'brightness-max': ['brightnessMax', 0.01],
+        'radial-dimming': ['radialDimming', 0.01],
         'particle-fade': ['fadeSeconds', 1], speed: ['speed', 1],
         'camera-amount': ['motionStrength', 0.01], 'camera-roll': ['roll', Math.PI / 180],
         framing: ['framing', 0.01], 'framing-y': ['framingY', 0.01],

@@ -50,7 +50,7 @@ const project = require('../wallpaper/project.json');
       const r = GravityWallpaper.renderer;
       return { stats: r.stats(), framing: [r.framing, r.framingY], fps: r.fpsLimit,
         material: r.material, exposure: r.exposure, sharpness: r.sharpness, fade: r.fadeSeconds,
-        brightness: [r.brightnessMin, r.brightnessMax], radius: r.cloudRadius,
+        brightness: [r.brightnessMin, r.brightnessMax], radius: r.cloudRadius, dimming: r.radialDimming,
         animated: r.palette.hsv.animated, colors: r.palette.custom.stops.map(c => c.toUpperCase()), registrations: audioRegistrations,
         idle: [r.idlePalette.mode, r.idlePalette.weighted.animated, r.idlePalette.weighted.weights],
         rendered: Array.from(r.paletteColors), auto: r.spectrum.autoSensitivity,
@@ -61,6 +61,15 @@ const project = require('../wallpaper/project.json');
     assert.deepEqual(defaults.framing, [0.03, 0.1]); assert.equal(defaults.fps, 30);
     assert.equal(defaults.material, 0.3); assert.equal(defaults.exposure, 1.7);
     assert.deepEqual(defaults.brightness.map(v => Math.round(v * 100)), [65, 140]); assert.equal(defaults.radius, 22);
+    assert.equal(defaults.dimming, 1);
+    for (const percent of [0, 50, 100]) {
+      await apply({radialdimming: percent});
+      assert.equal(await page.evaluate(() => {
+        const r = GravityWallpaper.renderer; r.deposit();
+        return r.gl.getUniform(r.programs.deposit.p, r.gl.getUniformLocation(r.programs.deposit.p, 'uRadialDimming'));
+      }), percent / 100);
+    }
+    assert.equal(await page.evaluate(() => GravityWallpaper.renderer.cacheBuilds), defaults.stats.cacheBuilds);
     assert.equal(defaults.sharpness, 1); assert.equal(defaults.fade, 3); assert.equal(defaults.animated, true);
     assert.deepEqual(defaults.colors, ['#23D183', '#1DCA97', '#17C2AB', '#12BBC0', '#0CB3D4', '#06ACE8']);
     assert.equal(defaults.registrations, 1);
@@ -226,7 +235,7 @@ const project = require('../wallpaper/project.json');
     await page.setViewportSize({ width: 3840, height: 1080 }); await page.waitForTimeout(250); await ready();
     assert.ok(await page.evaluate(() => GravityWallpaper.renderer.rw * GravityWallpaper.renderer.rh < 261000));
     await apply({ material: 45, exposure: 2, stardensity: 200, clouddensity: 25, paused: true,
-      cloudradius: 150, brightnessmin: 80, brightnessmax: 180,
+      cloudradius: 150, brightnessmin: 80, brightnessmax: 180, radialdimming: 50,
       idlecolormode: 'weighted', idleweightedcount: 3, idleweightedweight1: 20, idleweightedweight2: 60, idleweightedweight3: 20 });
     await ready();
     const snapshot = await page.evaluate(() => [GravityWallpaper.renderer.material, GravityWallpaper.renderer.exposure, GravityWallpaper.renderer.starDensity, GravityWallpaper.renderer.cloudDensity]);
@@ -238,6 +247,7 @@ const project = require('../wallpaper/project.json');
     assert.equal(await page.evaluate(() => GravityWallpaper.renderer.framingY), 0.115);
     assert.deepEqual(await page.evaluate(() => [GravityWallpaper.renderer.cloudRadius,
       GravityWallpaper.renderer.brightnessMin, GravityWallpaper.renderer.brightnessMax]), [33, .8, 1.8]);
+    assert.equal(await page.evaluate(() => GravityWallpaper.renderer.radialDimming), .5);
     assert.deepEqual(await page.evaluate(() => [GravityWallpaper.renderer.palette.mode, GravityWallpaper.renderer.idlePalette.solid,
       GravityWallpaper.renderer.spectrum.autoSensitivity, GravityWallpaper.renderer.audioGain]), ['hsv', '#ffffff', true, 2.3]);
     assert.deepEqual(await page.evaluate(() => [GravityWallpaper.renderer.idlePalette.mode,
@@ -245,6 +255,7 @@ const project = require('../wallpaper/project.json');
     assert.ok(await page.evaluate(() => {
       const r = GravityWallpaper.renderer, gl = r.gl; r.deposit();
       const range = gl.getUniform(r.programs.deposit.p, gl.getUniformLocation(r.programs.deposit.p, 'uBrightnessRange'));
+      if (gl.getUniform(r.programs.deposit.p, gl.getUniformLocation(r.programs.deposit.p, 'uRadialDimming')) !== .5) return false;
       if (Math.abs(range[0] - .8) > 1e-6 || Math.abs(range[1] - 1.8) > 1e-6 ||
           gl.getUniform(r.programs.deposit.p, gl.getUniformLocation(r.programs.deposit.p, 'uCloudRadius')) !== 33) return false;
       const framebuffer = r.fbo([r.paletteTexture]), colors = new Float32Array(r.paletteSamples.length);

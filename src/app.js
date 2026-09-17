@@ -16,6 +16,7 @@
       this.starDefinition = 0.7;
       this.brightnessMin = 0.65;
       this.brightnessMax = 1.4;
+      this.radialDimming = 1;
       this.starDensity = 1;
       this.cloudDensity = 1;
       this.speed = 10;
@@ -143,6 +144,7 @@
       const ranges = {
         spin: [0.05, 0.95], material: [0.1, 1], exposure: [0.3, 3], sharpness: [0, 1],
         starDefinition: [0, 1], brightnessMin: [0, 4], brightnessMax: [0, 4], cloudRadius: [11, 33],
+        radialDimming: [0, 1],
         starDensity: [0, 5], cloudDensity: [0, 5], speed: [1, 24], fadeSeconds: [0, 6],
         motionStrength: [0, 1], roll: [-Math.PI / 6, Math.PI / 6],
         framing: [-0.35, 0.35], framingY: [-0.2, 0.2], audioGain: [0.3, 3],
@@ -556,6 +558,7 @@
       this.f('uISCO', P.isco(this.a()));
       this.f('uCloudRadius', this.cloudRadius);
       this.v2('uBrightnessRange', [this.brightnessMin, this.brightnessMax]);
+      this.f('uRadialDimming', this.radialDimming);
       // Keep particle mass fixed as volume cells grow.
       this.f('uParticleWeight', (12.8 * 65536) / (this.count * this.volumeScale ** 3));
       this.i('uBandCount', this.spectrum.levels.length);

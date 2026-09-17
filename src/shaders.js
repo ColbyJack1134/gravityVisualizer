@@ -195,7 +195,7 @@ layout(location=0) in vec4 aPosition;
 layout(location=1) in vec4 aMomentum;
 layout(location=2) in vec2 aLifecycle;
 uniform float uSpin,uISCO,uMaterial,uParticleWeight,uFadeSeconds;
-uniform float uCloudRadius;uniform vec2 uBrightnessRange;
+uniform float uCloudRadius,uRadialDimming;uniform vec2 uBrightnessRange;
 uniform float uBands[24],uAudioDriven,uIdleParticles;
 uniform int uBandCount;
 uniform float uSustainStrength;
@@ -215,7 +215,7 @@ void main(){
   }
   float inner=uISCO*.86;
   vWeight*=smoothstep(inner,inner+.55,r)*(1.-smoothstep(uCloudRadius,uCloudRadius+1.,r));
-  float heat=pow(uISCO/max(r,uISCO),.65);
+  float heat=pow(uISCO/max(r,uISCO),.65*uRadialDimming);
   float kind=hash(float(gl_VertexID)+37.2);
   float palettePosition=hash(float(gl_VertexID)+81.3);
   int band=int(palettePosition*float(uBandCount));

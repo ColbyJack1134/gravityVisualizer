@@ -23,7 +23,8 @@ const {chromium} = require('playwright');
     await page.goto((process.env.GRAVITY_URL || pathToFileURL(path.resolve('gravity-demo.html')).href) + '?motion=fixed&ui=1');
     await ready();
     assert.deepEqual(await page.evaluate(() => [GravityDemo.brightnessMin, GravityDemo.brightnessMax, GravityDemo.cloudRadius]), [.65, 1.4, 22]);
-    for (const [id, section] of [['brightness-min', 'Star appearance'], ['brightness-max', 'Star appearance'], ['cloud-radius', 'Material & light']])
+    assert.equal(await page.locator('#radial-dimming').inputValue(), '100');
+    for (const [id, section] of [['brightness-min', 'Star appearance'], ['brightness-max', 'Star appearance'], ['radial-dimming', 'Star appearance'], ['cloud-radius', 'Material & light']])
       assert.equal(await page.locator('#' + id).evaluate(el => el.closest('section').querySelector('h2').textContent), section);
     await page.evaluate(() => {
       const d = GravityDemo; d.paused = true; d.updateParticles(0, d.fadeSeconds);
@@ -36,8 +37,8 @@ const {chromium} = require('playwright');
       const feedback = gl.createTransformFeedback(), buffer = gl.createBuffer();
       gl.bindBuffer(gl.ARRAY_BUFFER, buffer); gl.bufferData(gl.ARRAY_BUFFER, d.count * 16, gl.DYNAMIC_READ); gl.bindBuffer(gl.ARRAY_BUFFER, null);
       d.programs.deposit = program;
-      const capture = (min, max) => {
-        d.applySettings({brightnessMin: min, brightnessMax: max}); d.deposit();
+      const capture = (min, max, radialDimming = 1) => {
+        d.applySettings({brightnessMin: min, brightnessMax: max, radialDimming}); d.deposit();
         gl.bindVertexArray(d.particleVAOs[d.particleIndex]); gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, feedback);
         gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, buffer); gl.enable(gl.RASTERIZER_DISCARD);
         gl.beginTransformFeedback(gl.POINTS); gl.drawArrays(gl.POINTS, 0, d.count); gl.endTransformFeedback();
@@ -56,13 +57,37 @@ const {chromium} = require('playwright');
         }
         stable &&= initial[i] === restored[i];
       }
+      const savedPalette = {mode: d.idlePalette.mode, solid: d.idlePalette.solid};
+      d.idlePalette.apply({mode: 'solid', solid: '#ffffff'}); d.refreshPalette(true);
+      const full = capture(1, 1), reduced = capture(1, 1, .5), off = capture(1, 1, 0);
+      let uniformOff = true, between = true, sameWeight = true, lifted = 0;
+      for (let i = 0; i < off.length; i++) {
+        if (i % 4 === 3) sameWeight &&= off[i] === full[i] && off[i] === reduced[i];
+        else {
+          uniformOff &&= Math.abs(off[i] - 1.526) < 1e-5;
+          between &&= full[i] <= reduced[i] + 1e-6 && reduced[i] <= off[i] + 1e-6;
+          if (reduced[i] > full[i] + .01) lifted++;
+        }
+      }
+      d.idlePalette.apply(savedPalette); d.refreshPalette(true);
+      const dimmingRestored = capture(.65, 1.4).every((value, i) => value === initial[i]);
       d.programs.deposit = original; gl.deleteProgram(program.p); gl.deleteBuffer(buffer); gl.deleteTransformFeedback(feedback);
-      return {minimum, maximum, error, weightsUnchanged, black, stable, glError: gl.getError()};
+      return {minimum, maximum, error, weightsUnchanged, black, stable, uniformOff, between, lifted, sameWeight, dimmingRestored, glError: gl.getError()};
     });
     assert.ok(results.brightness.minimum >= .64999 && results.brightness.minimum < .66);
     assert.ok(results.brightness.maximum <= 1.40001 && results.brightness.maximum > 1.39);
     assert.ok(results.brightness.error < 1e-6 && results.brightness.weightsUnchanged && results.brightness.black && results.brightness.stable);
     assert.equal(results.brightness.glError, 0);
+    assert.ok(results.brightness.uniformOff && results.brightness.between && results.brightness.sameWeight && results.brightness.dimmingRestored);
+    assert.ok(results.brightness.lifted > 10000);
+    for (const percent of [0, 50, 100]) {
+      await slider('radial-dimming', percent);
+      assert.equal(await page.locator('#radial-dimming-value').textContent(), percent + '%');
+      assert.equal(await page.evaluate(() => {
+        const d = GravityDemo; d.deposit();
+        return d.gl.getUniform(d.programs.deposit.p, d.gl.getUniformLocation(d.programs.deposit.p, 'uRadialDimming'));
+      }), percent / 100);
+    }
     await slider('brightness-min', 200);
     assert.equal(await page.locator('#brightness-max').inputValue(), '200');
     await slider('brightness-max', 50);
