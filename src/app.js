@@ -17,7 +17,7 @@
       this.starDefinition = 0.7;
       this.brightnessMin = 0.65;
       this.brightnessMax = 1.4;
-      this.radialDimming = 0.5;
+      this.radialDimming = 0.25;
       this.starDensity = 1;
       this.cloudDensity = 1;
       this.speed = 10;

@@ -484,8 +484,8 @@ summary {
       <input id="brightness-min" type="range" min="0" max="400" step="5" value="65">
       <label class="range-label" for="brightness-max">Maximum brightness <output id="brightness-max-value">140%</output></label>
       <input id="brightness-max" type="range" min="0" max="400" step="5" value="140">
-      <label class="range-label" for="radial-dimming">Radial dimming <output id="radial-dimming-value">50%</output></label>
-      <input id="radial-dimming" type="range" min="0" max="100" step="5" value="50">
+      <label class="range-label" for="radial-dimming">Radial dimming <output id="radial-dimming-value">25%</output></label>
+      <input id="radial-dimming" type="range" min="0" max="100" step="5" value="25">
     </section>
 
     <details class="performance-settings">
@@ -1595,7 +1595,7 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
       this.starDefinition = 0.7;
       this.brightnessMin = 0.65;
       this.brightnessMax = 1.4;
-      this.radialDimming = 0.5;
+      this.radialDimming = 0.25;
       this.starDensity = 1;
       this.cloudDensity = 1;
       this.speed = 10;

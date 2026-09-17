@@ -1010,7 +1010,7 @@
       "radialdimming": {
         "text": "Radial dimming (%)",
         "type": "slider",
-        "value": 50,
+        "value": 25,
         "min": 0,
         "max": 100,
         "step": 5,

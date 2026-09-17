@@ -23,7 +23,7 @@ const {chromium} = require('playwright');
     await page.goto((process.env.GRAVITY_URL || pathToFileURL(path.resolve('gravity-demo.html')).href) + '?motion=fixed&ui=1');
     await ready();
     assert.deepEqual(await page.evaluate(() => [GravityDemo.brightnessMin, GravityDemo.brightnessMax, GravityDemo.cloudRadius]), [.65, 1.4, 26.4]);
-    assert.equal(await page.locator('#radial-dimming').inputValue(), '50');
+    assert.equal(await page.locator('#radial-dimming').inputValue(), '25');
     for (const [id, value] of [['camera-roll', '10'], ['elevation', '5'], ['distance', '37'], ['cloud-radius', '120'], ['framing', '-1'], ['framing-y', '5']])
       assert.equal(await page.locator('#' + id).inputValue(), value);
     assert.equal(await page.locator('[data-metric="static"]').getAttribute('aria-pressed'), 'true');
