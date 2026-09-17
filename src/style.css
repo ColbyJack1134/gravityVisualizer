@@ -69,6 +69,21 @@ output {
   color: #b5b4c0;
   font-variant-numeric: tabular-nums;
 }
+.slider-value {
+  padding: 2px 4px;
+  background: transparent;
+  border-color: transparent;
+  white-space: nowrap;
+}
+.slider-number {
+  width: 88px;
+  padding: 2px 4px;
+  color: #e5e4ed;
+  background: #212127;
+  border: 1px solid #3a3a43;
+  border-radius: 5px;
+  text-align: right;
+}
 h1,
 h2 {
   margin: 0;

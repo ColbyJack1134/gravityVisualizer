@@ -29,6 +29,7 @@
       };
       this.onError = showError;
       this.bindUI();
+      this.bindSliderEditors();
       this.bindCameraInput();
       this.createSpectrumUI();
       this.renderColorStops();
@@ -124,6 +125,7 @@
         input.value = p.editableGradient.stops[Number(input.dataset.stop)];
       for (const input of document.querySelectorAll('[data-weight]'))
         input.value = p.weighted.weights[Number(input.dataset.weight)];
+      this.syncSliderEditors();
     }
     renderColorStops() {
       const container = $('custom-colors');
@@ -289,6 +291,66 @@
       $('bass-shake').value = this.shakeStrength * 100;
       $('bass-shake-value').textContent = Math.round(this.shakeStrength * 100) + '%';
       this.syncViewUI();
+      this.syncSliderEditors();
+    }
+    bindSliderEditors() {
+      this.sliderEditors = [...document.querySelectorAll('input[type="range"]')].map(slider => {
+        const label = slider.labels[0], name = label.firstChild.textContent.trim();
+        const heading = document.createElement('div');
+        heading.className = 'range-label';
+        label.before(heading);
+        heading.append(label);
+        label.classList.remove('range-label');
+        const output = label.querySelector('output') || document.createElement('output');
+        const plain = !output.id;
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'slider-value';
+        button.setAttribute('aria-label', 'Edit ' + name);
+        button.title = 'Click to enter a number';
+        button.append(output);
+        const input = document.createElement('input');
+        input.type = 'number';
+        input.className = 'slider-number';
+        input.id = slider.id + '-number';
+        input.setAttribute('aria-label', name + ' value');
+        input.min = slider.min; input.max = slider.max; input.step = slider.step || '1';
+        input.hidden = true;
+        heading.append(button, input);
+        const sync = () => {
+          heading.hidden = slider.hidden;
+          button.disabled = slider.disabled;
+          if (plain) output.textContent = slider.value;
+        };
+        const finish = commit => {
+          if (input.hidden) return;
+          input.hidden = true; button.hidden = false;
+          if (commit && !slider.disabled && Number.isFinite(input.valueAsNumber)) {
+            const previous = slider.value;
+            slider.value = input.value;
+            if (slider.value !== previous) slider.dispatchEvent(new Event('input', {bubbles: true}));
+          }
+          sync();
+        };
+        button.addEventListener('click', () => {
+          if (slider.disabled) return;
+          input.value = slider.value;
+          button.hidden = true; input.hidden = false;
+          input.focus(); input.select();
+        });
+        input.addEventListener('blur', () => finish(true));
+        input.addEventListener('keydown', event => {
+          if (event.key !== 'Enter' && event.key !== 'Escape') return;
+          event.preventDefault(); event.stopPropagation();
+          finish(event.key === 'Enter'); button.focus();
+        });
+        slider.addEventListener('input', sync);
+        sync();
+        return sync;
+      });
+    }
+    syncSliderEditors() {
+      this.sliderEditors?.forEach(sync => sync());
     }
     syncViewUI() {
       $('elevation').value = Math.round(90 - (this.camera.theta * 180) / Math.PI);
