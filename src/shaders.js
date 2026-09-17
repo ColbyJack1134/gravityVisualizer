@@ -288,16 +288,9 @@ vec2 viewUV(vec2 p){
   return .5+(q+uCacheFraming)/vec2(uViewAspect,1.)/uOverscan;
 }
 `;
-  const volumeShade =
-    header +
-    common +
-    viewCode +
-    `
-in vec2 uv;out vec4 color;
-uniform sampler2DArray uPathX,uPathP;
-uniform sampler2D uEmission,uVelocity,uBase,uSources;
-uniform float uSpin,uBrightness,uObserverEnergy,uCacheRow;
-uniform int uSlices;uniform bool uContinuation;
+  const volumeLighting = `
+uniform sampler2D uEmission,uVelocity;
+uniform float uBrightness;
 uniform vec3 uVolumeGrid,uVolumeExtent;
 vec4 volume(sampler2D atlas,vec3 position){
   vec3 q=(position/(uVolumeExtent*2.)+.5)*uVolumeGrid-.5;
@@ -341,6 +334,14 @@ void accumulate(vec4 path,vec3 p,inout vec3 sum,inout float trans){
     sum+=trans*alpha*light;trans*=1.-alpha;
   }
 }
+`;
+  const volumeShade = header + common + viewCode + `
+in vec2 uv;out vec4 color;
+uniform sampler2DArray uPathX,uPathP;
+uniform sampler2D uBase,uSources;
+uniform float uSpin,uObserverEnergy,uCacheRow;
+uniform int uSlices;uniform bool uContinuation;
+` + volumeLighting + `
 void main(){
   vec2 lookup=vec2(uv.x,(gl_FragCoord.y-uCacheRow)/float(textureSize(uPathX,0).y));
   vec4 initial=uContinuation?texelFetch(uBase,ivec2(texture(uSources,lookup).xy),0):vec4(0.,0.,0.,1.);
@@ -353,6 +354,38 @@ void main(){
     accumulate(path,texture(uPathP,vec3(lookup,float(i))).xyz,sum,trans);
   }
   color=vec4(sum,trans);
+}
+`;
+  const continuousTrace = header + common + rayUniforms + skyCode + `
+vec3 orbit(vec3 v){return v;}
+` + volumeLighting + `
+out vec4 color;
+uniform float uVolumeScale;
+void main(){
+  vec3 x=uCamera,p=photon(x,rayDirection(),uSpin),sum=vec3(0.);
+  float t=0.,trans=1.;bool escaped=false;
+  for(int i=0;i<768;i++){
+    float r=radius(x,uSpin);
+    if(r<uHorizon+.006||dot(p,p)>1e10||trans<.012)break;
+    if(r>max(75.,length(uCamera)+5.)){escaped=true;break;}
+    bool inside=abs(x.z)<4.8*uVolumeScale&&length(x.xy)<24.*uVolumeScale&&r>uISCO*.82;
+    vec3 old=x;
+    rk4(x,p,t,1.,uSpin,stepSize(x,p,uSpin,uHorizon,inside?.25*uVolumeScale:1.));
+    if(inside){
+      vec3 middle=x,mp=p;float travelled=length(x-old);old=x;
+      rk4(x,p,t,1.,uSpin,stepSize(x,p,uSpin,uHorizon,.25*uVolumeScale));
+      accumulate(vec4(middle,travelled+length(x-old)),mp,sum,trans);
+    }
+    if(any(isnan(x))||any(isnan(p)))break;
+  }
+  float foreground=max(sum.r,max(sum.g,sum.b));
+  if(escaped){
+    vec3 dx,dp;float dt;flow(x,p,1.,uSpin,dx,dp,dt);
+    sum+=trans*background(normalize(dx));
+  }
+  float edge=min(min(uv.x,uv.y),min(1.-uv.x,1.-uv.y));
+  float fade=smoothstep(0.,.035,edge);
+  color=vec4(mix(vec3(.00013,.0002,.00035),sum,fade),foreground*fade);
 }
 `;
   const volumeComposite = header + common + skyCode + viewCode + `
@@ -484,6 +517,7 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
   root.GravityShaders = {
     fullscreen,
     volumeTrace,
+    continuousTrace,
     volumeFinish,
     particleUpdate,
     emptyFragment,

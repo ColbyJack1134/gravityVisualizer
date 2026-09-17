@@ -30,6 +30,8 @@
       this.particleStride = 10;
       this.camera = { ...defaultCamera };
       this.cameraMotion = 'gentle';
+      this.floatingCamera = false;
+      this.floatingTime = 0;
       this.cameraTime = 0;
       this.orbitAngle = 0;
       this.motionStrength = 0.55;
@@ -143,6 +145,7 @@
     applySettings(settings) {
       const oldSpin = this.a(), oldCount = this.count, oldQuality = this.quality;
       const oldTheta = this.camera.theta, oldDistance = this.camera.distance;
+      const oldFloating = this.floatingCamera;
       const oldRadius = this.cloudRadius, oldThickness = this.cloudThickness;
       const oldDetail = this.starDetail;
       const oldRoll = this.roll, oldFraming = this.framing, oldFramingY = this.framingY;
@@ -164,8 +167,9 @@
         if (Number.isFinite(settings.brightnessMin)) this.brightnessMax = this.brightnessMin;
         else this.brightnessMin = this.brightnessMax;
       }
-      for (const key of ['spinning', 'paused', 'showIdleParticles'])
+      for (const key of ['spinning', 'paused', 'showIdleParticles', 'floatingCamera'])
         if (typeof settings[key] === 'boolean') this[key] = settings[key];
+      if (oldFloating !== this.floatingCamera) this.floatingTime = 0;
       if ([16384, 32768, 65536, 131072, 262144, 524288].includes(settings.count))
         this.count = settings.count;
       if (['draft', 'balanced', 'high', 'native'].includes(settings.quality))
@@ -198,7 +202,7 @@
           this.allocateParticles();
           if (this.paused) this.updateParticles(0, this.fadeSeconds);
         }
-        if (oldSpin !== this.a() || oldQuality !== this.quality ||
+        if (oldFloating !== this.floatingCamera || oldSpin !== this.a() || oldQuality !== this.quality ||
             oldTheta !== this.camera.theta || oldDistance !== this.camera.distance || oldRadius !== this.cloudRadius ||
             oldRoll !== this.roll || oldFraming !== this.framing || oldFramingY !== this.framingY) this.prepareCache();
       }
@@ -407,8 +411,18 @@
     a() {
       return this.spinning ? this.spin : 0;
     }
+    cameraView() {
+      if (!this.floatingCamera) return this.camera;
+      const phase = this.floatingTime * .055, amount = this.motionStrength;
+      return {
+        theta: this.camera.theta - amount * (.7 * Math.sin(phase) + .18 * Math.sin(phase * 2)),
+        phi: this.camera.phi + this.orbitAngle + .25 * amount * Math.sin(phase * 2),
+        distance: this.camera.distance + Math.min(8, this.camera.distance - 32, 85 - this.camera.distance)
+          * amount * Math.sin(phase * 2)
+      };
+    }
     cameraUniforms(row = 0) {
-      const { theta, phi, distance } = this.camera;
+      const { theta, phi, distance } = this.cameraView();
       const pos = [
         distance * Math.sin(theta) * Math.cos(phi),
         distance * Math.sin(theta) * Math.sin(phi),
@@ -455,6 +469,14 @@
         this.allocateRenderTargets();
       }
       this.destroy(this.cacheTextures, this.cacheFbos);
+      if (this.floatingCamera) {
+        if (!this.programs.continuous) this.programs.continuous = this.program(S.fullscreen, S.continuousTrace);
+        this.job = null;
+        this.rayTiles = [];
+        this.cacheReady = true;
+        this.onTrace?.(1);
+        return;
+      }
       this.cacheReady = false;
       this.slices = 64;
       // Bound allocations and keep derivative quads inside each tile.
@@ -677,6 +699,22 @@
     }
     shade() {
       const gl = this.gl;
+      if (this.floatingCamera) {
+        gl.bindFramebuffer(gl.FRAMEBUFFER, this.hdrFbo);
+        gl.viewport(0, 0, this.rw, this.rh);
+        this.use(this.programs.continuous);
+        this.cameraUniforms();
+        this.f('uBrightness', 1.1);
+        this.f('uStarDensity', this.starDensity);
+        this.f('uCloudDensity', this.cloudDensity);
+        this.v3('uVolumeGrid', this.volumeGrid);
+        this.v3('uVolumeExtent', this.volumeExtent);
+        this.bind('uEmission', this.emission, 0);
+        this.bind('uVelocity', this.velocity, 1);
+        this.quad();
+        this.bloomPass();
+        return;
+      }
       gl.bindFramebuffer(gl.FRAMEBUFFER, this.materialBaseFbo);
       gl.viewport(0, 0, this.rw, this.rh);
       this.use(this.programs.shade);
@@ -732,6 +770,10 @@
         this.quad();
       }
       gl.disable(gl.SCISSOR_TEST);
+      this.bloomPass();
+    }
+    bloomPass() {
+      const gl = this.gl;
       this.use(this.programs.blur);
       gl.viewport(0, 0, this.bw, this.bh);
       gl.bindFramebuffer(gl.FRAMEBUFFER, this.bloomFbo[0]);
@@ -880,8 +922,10 @@
           if (this.cameraMotion !== 'fixed') {
             const response = this.cameraMotion === 'music' ? 1 + this.audioBass * 1.5 : 1;
             this.cameraTime += dt * response;
+            if (this.floatingCamera) this.floatingTime += Math.min(frameDelta, .25) * response;
             this.orbitAngle =
-              (this.orbitAngle + dt * (0.012 + 0.032 * this.motionStrength) * response) % (Math.PI * 2);
+              (this.orbitAngle + (this.floatingCamera ? Math.min(frameDelta, .25) : dt)
+                * (0.012 + 0.032 * this.motionStrength) * response) % (Math.PI * 2);
           }
         }
         this.deposit();
@@ -904,6 +948,7 @@
     reset() {
       this.camera = { ...defaultCamera };
       this.cameraTime = 0;
+      this.floatingTime = 0;
       this.orbitAngle = 0;
       this.allocateParticles();
       this.prepareCache();

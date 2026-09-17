@@ -207,6 +207,7 @@
       $('speed').value = this.speed;
       $('speed-value').textContent = this.speed + '×';
       $('camera-motion').value = this.cameraMotion;
+      $('floating-camera').checked = this.floatingCamera;
       $('framing').value = this.framing * 100;
       $('framing-y').value = this.framingY * 100;
       for (const [id, value] of [
@@ -437,6 +438,8 @@
         $(id).addEventListener('input', (event) => this.applySettings({ [key]: Number(event.target.value) * scale }));
       $('camera-motion').addEventListener('change', (event) =>
         this.applySettings({ cameraMotion: event.target.value }));
+      $('floating-camera').addEventListener('change', (event) =>
+        this.applySettings({ floatingCamera: event.target.checked }));
       $('star-appearance').addEventListener('change', (event) =>
         this.applySettings({ starAppearance: event.target.value }));
       $('star-detail').addEventListener('change', (event) =>

@@ -428,6 +428,7 @@ summary {
 
     <section class="control-section">
       <h2>Camera</h2>
+      <label class="check-label"><input id="floating-camera" type="checkbox"> Floating camera</label>
       <select id="camera-motion" aria-label="Camera movement"><option value="gentle">Slow orbit</option><option value="music">Music-driven orbit</option><option value="fixed">Hold this view</option></select>
       <label class="range-label" for="camera-amount">Movement</label>
       <input id="camera-amount" type="range" min="0" max="100" value="55">
@@ -1378,16 +1379,9 @@ vec2 viewUV(vec2 p){
   return .5+(q+uCacheFraming)/vec2(uViewAspect,1.)/uOverscan;
 }
 `;
-  const volumeShade =
-    header +
-    common +
-    viewCode +
-    `
-in vec2 uv;out vec4 color;
-uniform sampler2DArray uPathX,uPathP;
-uniform sampler2D uEmission,uVelocity,uBase,uSources;
-uniform float uSpin,uBrightness,uObserverEnergy,uCacheRow;
-uniform int uSlices;uniform bool uContinuation;
+  const volumeLighting = `
+uniform sampler2D uEmission,uVelocity;
+uniform float uBrightness;
 uniform vec3 uVolumeGrid,uVolumeExtent;
 vec4 volume(sampler2D atlas,vec3 position){
   vec3 q=(position/(uVolumeExtent*2.)+.5)*uVolumeGrid-.5;
@@ -1431,6 +1425,14 @@ void accumulate(vec4 path,vec3 p,inout vec3 sum,inout float trans){
     sum+=trans*alpha*light;trans*=1.-alpha;
   }
 }
+`;
+  const volumeShade = header + common + viewCode + `
+in vec2 uv;out vec4 color;
+uniform sampler2DArray uPathX,uPathP;
+uniform sampler2D uBase,uSources;
+uniform float uSpin,uObserverEnergy,uCacheRow;
+uniform int uSlices;uniform bool uContinuation;
+` + volumeLighting + `
 void main(){
   vec2 lookup=vec2(uv.x,(gl_FragCoord.y-uCacheRow)/float(textureSize(uPathX,0).y));
   vec4 initial=uContinuation?texelFetch(uBase,ivec2(texture(uSources,lookup).xy),0):vec4(0.,0.,0.,1.);
@@ -1443,6 +1445,38 @@ void main(){
     accumulate(path,texture(uPathP,vec3(lookup,float(i))).xyz,sum,trans);
   }
   color=vec4(sum,trans);
+}
+`;
+  const continuousTrace = header + common + rayUniforms + skyCode + `
+vec3 orbit(vec3 v){return v;}
+` + volumeLighting + `
+out vec4 color;
+uniform float uVolumeScale;
+void main(){
+  vec3 x=uCamera,p=photon(x,rayDirection(),uSpin),sum=vec3(0.);
+  float t=0.,trans=1.;bool escaped=false;
+  for(int i=0;i<768;i++){
+    float r=radius(x,uSpin);
+    if(r<uHorizon+.006||dot(p,p)>1e10||trans<.012)break;
+    if(r>max(75.,length(uCamera)+5.)){escaped=true;break;}
+    bool inside=abs(x.z)<4.8*uVolumeScale&&length(x.xy)<24.*uVolumeScale&&r>uISCO*.82;
+    vec3 old=x;
+    rk4(x,p,t,1.,uSpin,stepSize(x,p,uSpin,uHorizon,inside?.25*uVolumeScale:1.));
+    if(inside){
+      vec3 middle=x,mp=p;float travelled=length(x-old);old=x;
+      rk4(x,p,t,1.,uSpin,stepSize(x,p,uSpin,uHorizon,.25*uVolumeScale));
+      accumulate(vec4(middle,travelled+length(x-old)),mp,sum,trans);
+    }
+    if(any(isnan(x))||any(isnan(p)))break;
+  }
+  float foreground=max(sum.r,max(sum.g,sum.b));
+  if(escaped){
+    vec3 dx,dp;float dt;flow(x,p,1.,uSpin,dx,dp,dt);
+    sum+=trans*background(normalize(dx));
+  }
+  float edge=min(min(uv.x,uv.y),min(1.-uv.x,1.-uv.y));
+  float fade=smoothstep(0.,.035,edge);
+  color=vec4(mix(vec3(.00013,.0002,.00035),sum,fade),foreground*fade);
 }
 `;
   const volumeComposite = header + common + skyCode + viewCode + `
@@ -1574,6 +1608,7 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
   root.GravityShaders = {
     fullscreen,
     volumeTrace,
+    continuousTrace,
     volumeFinish,
     particleUpdate,
     emptyFragment,
@@ -1621,6 +1656,8 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
       this.particleStride = 10;
       this.camera = { ...defaultCamera };
       this.cameraMotion = 'gentle';
+      this.floatingCamera = false;
+      this.floatingTime = 0;
       this.cameraTime = 0;
       this.orbitAngle = 0;
       this.motionStrength = 0.55;
@@ -1734,6 +1771,7 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
     applySettings(settings) {
       const oldSpin = this.a(), oldCount = this.count, oldQuality = this.quality;
       const oldTheta = this.camera.theta, oldDistance = this.camera.distance;
+      const oldFloating = this.floatingCamera;
       const oldRadius = this.cloudRadius, oldThickness = this.cloudThickness;
       const oldDetail = this.starDetail;
       const oldRoll = this.roll, oldFraming = this.framing, oldFramingY = this.framingY;
@@ -1755,8 +1793,9 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
         if (Number.isFinite(settings.brightnessMin)) this.brightnessMax = this.brightnessMin;
         else this.brightnessMin = this.brightnessMax;
       }
-      for (const key of ['spinning', 'paused', 'showIdleParticles'])
+      for (const key of ['spinning', 'paused', 'showIdleParticles', 'floatingCamera'])
         if (typeof settings[key] === 'boolean') this[key] = settings[key];
+      if (oldFloating !== this.floatingCamera) this.floatingTime = 0;
       if ([16384, 32768, 65536, 131072, 262144, 524288].includes(settings.count))
         this.count = settings.count;
       if (['draft', 'balanced', 'high', 'native'].includes(settings.quality))
@@ -1789,7 +1828,7 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
           this.allocateParticles();
           if (this.paused) this.updateParticles(0, this.fadeSeconds);
         }
-        if (oldSpin !== this.a() || oldQuality !== this.quality ||
+        if (oldFloating !== this.floatingCamera || oldSpin !== this.a() || oldQuality !== this.quality ||
             oldTheta !== this.camera.theta || oldDistance !== this.camera.distance || oldRadius !== this.cloudRadius ||
             oldRoll !== this.roll || oldFraming !== this.framing || oldFramingY !== this.framingY) this.prepareCache();
       }
@@ -1998,8 +2037,18 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
     a() {
       return this.spinning ? this.spin : 0;
     }
+    cameraView() {
+      if (!this.floatingCamera) return this.camera;
+      const phase = this.floatingTime * .055, amount = this.motionStrength;
+      return {
+        theta: this.camera.theta - amount * (.7 * Math.sin(phase) + .18 * Math.sin(phase * 2)),
+        phi: this.camera.phi + this.orbitAngle + .25 * amount * Math.sin(phase * 2),
+        distance: this.camera.distance + Math.min(8, this.camera.distance - 32, 85 - this.camera.distance)
+          * amount * Math.sin(phase * 2)
+      };
+    }
     cameraUniforms(row = 0) {
-      const { theta, phi, distance } = this.camera;
+      const { theta, phi, distance } = this.cameraView();
       const pos = [
         distance * Math.sin(theta) * Math.cos(phi),
         distance * Math.sin(theta) * Math.sin(phi),
@@ -2046,6 +2095,14 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
         this.allocateRenderTargets();
       }
       this.destroy(this.cacheTextures, this.cacheFbos);
+      if (this.floatingCamera) {
+        if (!this.programs.continuous) this.programs.continuous = this.program(S.fullscreen, S.continuousTrace);
+        this.job = null;
+        this.rayTiles = [];
+        this.cacheReady = true;
+        this.onTrace?.(1);
+        return;
+      }
       this.cacheReady = false;
       this.slices = 64;
       // Bound allocations and keep derivative quads inside each tile.
@@ -2268,6 +2325,22 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
     }
     shade() {
       const gl = this.gl;
+      if (this.floatingCamera) {
+        gl.bindFramebuffer(gl.FRAMEBUFFER, this.hdrFbo);
+        gl.viewport(0, 0, this.rw, this.rh);
+        this.use(this.programs.continuous);
+        this.cameraUniforms();
+        this.f('uBrightness', 1.1);
+        this.f('uStarDensity', this.starDensity);
+        this.f('uCloudDensity', this.cloudDensity);
+        this.v3('uVolumeGrid', this.volumeGrid);
+        this.v3('uVolumeExtent', this.volumeExtent);
+        this.bind('uEmission', this.emission, 0);
+        this.bind('uVelocity', this.velocity, 1);
+        this.quad();
+        this.bloomPass();
+        return;
+      }
       gl.bindFramebuffer(gl.FRAMEBUFFER, this.materialBaseFbo);
       gl.viewport(0, 0, this.rw, this.rh);
       this.use(this.programs.shade);
@@ -2323,6 +2396,10 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
         this.quad();
       }
       gl.disable(gl.SCISSOR_TEST);
+      this.bloomPass();
+    }
+    bloomPass() {
+      const gl = this.gl;
       this.use(this.programs.blur);
       gl.viewport(0, 0, this.bw, this.bh);
       gl.bindFramebuffer(gl.FRAMEBUFFER, this.bloomFbo[0]);
@@ -2471,8 +2548,10 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
           if (this.cameraMotion !== 'fixed') {
             const response = this.cameraMotion === 'music' ? 1 + this.audioBass * 1.5 : 1;
             this.cameraTime += dt * response;
+            if (this.floatingCamera) this.floatingTime += Math.min(frameDelta, .25) * response;
             this.orbitAngle =
-              (this.orbitAngle + dt * (0.012 + 0.032 * this.motionStrength) * response) % (Math.PI * 2);
+              (this.orbitAngle + (this.floatingCamera ? Math.min(frameDelta, .25) : dt)
+                * (0.012 + 0.032 * this.motionStrength) * response) % (Math.PI * 2);
           }
         }
         this.deposit();
@@ -2495,6 +2574,7 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
     reset() {
       this.camera = { ...defaultCamera };
       this.cameraTime = 0;
+      this.floatingTime = 0;
       this.orbitAngle = 0;
       this.allocateParticles();
       this.prepareCache();
@@ -2773,6 +2853,7 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
       $('speed').value = this.speed;
       $('speed-value').textContent = this.speed + '×';
       $('camera-motion').value = this.cameraMotion;
+      $('floating-camera').checked = this.floatingCamera;
       $('framing').value = this.framing * 100;
       $('framing-y').value = this.framingY * 100;
       for (const [id, value] of [
@@ -3003,6 +3084,8 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
         $(id).addEventListener('input', (event) => this.applySettings({ [key]: Number(event.target.value) * scale }));
       $('camera-motion').addEventListener('change', (event) =>
         this.applySettings({ cameraMotion: event.target.value }));
+      $('floating-camera').addEventListener('change', (event) =>
+        this.applySettings({ floatingCamera: event.target.checked }));
       $('star-appearance').addEventListener('change', (event) =>
         this.applySettings({ starAppearance: event.target.value }));
       $('star-detail').addEventListener('change', (event) =>
