@@ -300,7 +300,7 @@
       "weightedweight1": {
         "text": "Color 1 weight",
         "type": "slider",
-        "value": 15,
+        "value": 8,
         "min": 0,
         "max": 100,
         "step": 1,
@@ -314,13 +314,13 @@
         "order": 31,
         "text": "Weighted color 2",
         "type": "color",
-        "value": "1.000000000 0.878431373 0.741176471",
+        "value": "1.000000000 0.917647059 0.835294118",
         "condition": "colormode.value == 'weighted' && weightedcount.value >= 2"
       },
       "weightedweight2": {
         "text": "Color 2 weight",
         "type": "slider",
-        "value": 15,
+        "value": 12,
         "min": 0,
         "max": 100,
         "step": 1,
@@ -334,7 +334,7 @@
         "order": 33,
         "text": "Weighted color 3",
         "type": "color",
-        "value": "1.000000000 0.956862745 0.917647059",
+        "value": "0.976470588 0.980392157 1.000000000",
         "condition": "colormode.value == 'weighted' && weightedcount.value >= 3"
       },
       "weightedweight3": {
@@ -354,13 +354,13 @@
         "order": 35,
         "text": "Weighted color 4",
         "type": "color",
-        "value": "0.792156863 0.862745098 1.000000000",
+        "value": "0.749019608 0.835294118 1.000000000",
         "condition": "colormode.value == 'weighted' && weightedcount.value >= 4"
       },
       "weightedweight4": {
         "text": "Color 4 weight",
         "type": "slider",
-        "value": 10,
+        "value": 20,
         "min": 0,
         "max": 100,
         "step": 1,
@@ -374,7 +374,7 @@
         "order": 37,
         "text": "Weighted color 5",
         "type": "color",
-        "value": "1.000000000 0.956862745 0.917647059",
+        "value": "0.976470588 0.980392157 1.000000000",
         "condition": "colormode.value == 'weighted' && weightedcount.value >= 5"
       },
       "weightedweight5": {
@@ -394,7 +394,7 @@
         "order": 39,
         "text": "Weighted color 6",
         "type": "color",
-        "value": "1.000000000 0.956862745 0.917647059",
+        "value": "0.976470588 0.980392157 1.000000000",
         "condition": "colormode.value == 'weighted' && weightedcount.value >= 6"
       },
       "weightedweight6": {
@@ -636,7 +636,7 @@
       "idleweightedweight1": {
         "text": "Color 1 weight",
         "type": "slider",
-        "value": 15,
+        "value": 8,
         "min": 0,
         "max": 100,
         "step": 1,
@@ -650,13 +650,13 @@
         "order": 64,
         "text": "Weighted color 2",
         "type": "color",
-        "value": "1.000000000 0.878431373 0.741176471",
+        "value": "1.000000000 0.917647059 0.835294118",
         "condition": "idlecolormode.value == 'weighted' && idleweightedcount.value >= 2"
       },
       "idleweightedweight2": {
         "text": "Color 2 weight",
         "type": "slider",
-        "value": 15,
+        "value": 12,
         "min": 0,
         "max": 100,
         "step": 1,
@@ -670,7 +670,7 @@
         "order": 66,
         "text": "Weighted color 3",
         "type": "color",
-        "value": "1.000000000 0.956862745 0.917647059",
+        "value": "0.976470588 0.980392157 1.000000000",
         "condition": "idlecolormode.value == 'weighted' && idleweightedcount.value >= 3"
       },
       "idleweightedweight3": {
@@ -690,13 +690,13 @@
         "order": 68,
         "text": "Weighted color 4",
         "type": "color",
-        "value": "0.792156863 0.862745098 1.000000000",
+        "value": "0.749019608 0.835294118 1.000000000",
         "condition": "idlecolormode.value == 'weighted' && idleweightedcount.value >= 4"
       },
       "idleweightedweight4": {
         "text": "Color 4 weight",
         "type": "slider",
-        "value": 10,
+        "value": 20,
         "min": 0,
         "max": 100,
         "step": 1,
@@ -710,7 +710,7 @@
         "order": 70,
         "text": "Weighted color 5",
         "type": "color",
-        "value": "1.000000000 0.956862745 0.917647059",
+        "value": "0.976470588 0.980392157 1.000000000",
         "condition": "idlecolormode.value == 'weighted' && idleweightedcount.value >= 5"
       },
       "idleweightedweight5": {
@@ -730,7 +730,7 @@
         "order": 72,
         "text": "Weighted color 6",
         "type": "color",
-        "value": "1.000000000 0.956862745 0.917647059",
+        "value": "0.976470588 0.980392157 1.000000000",
         "condition": "idlecolormode.value == 'weighted' && idleweightedcount.value >= 6"
       },
       "idleweightedweight6": {

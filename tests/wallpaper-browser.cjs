@@ -64,7 +64,7 @@ const project = require('../wallpaper/project.json');
     assert.equal(defaults.sharpness, 1); assert.equal(defaults.fade, 3); assert.equal(defaults.animated, true);
     assert.deepEqual(defaults.colors, ['#23D183', '#1DCA97', '#17C2AB', '#12BBC0', '#0CB3D4', '#06ACE8']);
     assert.equal(defaults.registrations, 1);
-    assert.deepEqual(defaults.idle, ['weighted', false, [15, 15, 60, 10]]);
+    assert.deepEqual(defaults.idle, ['weighted', false, [8, 12, 60, 20]]);
     assert.ok(defaults.rendered.some(v => v < .99));
     assert.equal(defaults.auto, true);
     assert.equal(defaults.showIdleParticles, true);

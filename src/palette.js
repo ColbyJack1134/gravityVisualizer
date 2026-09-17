@@ -4,8 +4,8 @@
   const clamp = (x) => Math.max(0, Math.min(1, x));
   const validHex = (value) => /^#[0-9a-f]{6}$/i.test(value);
   const linear = (rgb) => rgb.map((v) => Math.pow(v, 2.2));
-  const stellarColors = ['#ffc38a', '#ffe0bd', '#fff4ea', '#cadcff'];
-  const stellarWeights = [15, 15, 60, 10];
+  const stellarColors = ['#ffc38a', '#ffead5', '#f9faff', '#bfd5ff'];
+  const stellarWeights = [8, 12, 60, 20];
   function shares(weights, total = 100) {
     const sum = weights.reduce((a, b) => a + b, 0);
     const exact = weights.map(w => total * (sum > 0 ? w / sum : 1 / weights.length));
