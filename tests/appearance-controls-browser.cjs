@@ -24,7 +24,8 @@ const {chromium} = require('playwright');
     await ready();
     assert.deepEqual(await page.evaluate(() => [GravityDemo.brightnessMin, GravityDemo.brightnessMax, GravityDemo.cloudRadius]), [.65, 1.4, 22]);
     assert.equal(await page.locator('#radial-dimming').inputValue(), '50');
-    for (const [id, section] of [['brightness-min', 'Star appearance'], ['brightness-max', 'Star appearance'], ['radial-dimming', 'Star appearance'], ['cloud-radius', 'Material & light']])
+    for (const id of ['cloud-thickness', 'edge-softness']) assert.equal(await page.locator('#' + id).inputValue(), '100');
+    for (const [id, section] of [['brightness-min', 'Star appearance'], ['brightness-max', 'Star appearance'], ['radial-dimming', 'Star appearance'], ['cloud-radius', 'Material & light'], ['cloud-thickness', 'Material & light'], ['edge-softness', 'Material & light']])
       assert.equal(await page.locator('#' + id).evaluate(el => el.closest('section').querySelector('h2').textContent), section);
     await page.evaluate(() => {
       const d = GravityDemo; d.paused = true; d.updateParticles(0, d.fadeSeconds);
@@ -37,8 +38,8 @@ const {chromium} = require('playwright');
       const feedback = gl.createTransformFeedback(), buffer = gl.createBuffer();
       gl.bindBuffer(gl.ARRAY_BUFFER, buffer); gl.bufferData(gl.ARRAY_BUFFER, d.count * 16, gl.DYNAMIC_READ); gl.bindBuffer(gl.ARRAY_BUFFER, null);
       d.programs.deposit = program;
-      const capture = (min, max, radialDimming = 1) => {
-        d.applySettings({brightnessMin: min, brightnessMax: max, radialDimming}); d.deposit();
+      const capture = (min, max, radialDimming = 1, edgeSoftness = 1) => {
+        d.applySettings({brightnessMin: min, brightnessMax: max, radialDimming, edgeSoftness}); d.deposit();
         gl.bindVertexArray(d.particleVAOs[d.particleIndex]); gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, feedback);
         gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, buffer); gl.enable(gl.RASTERIZER_DISCARD);
         gl.beginTransformFeedback(gl.POINTS); gl.drawArrays(gl.POINTS, 0, d.count); gl.endTransformFeedback();
@@ -71,8 +72,18 @@ const {chromium} = require('playwright');
       }
       d.idlePalette.apply(savedPalette); d.refreshPalette(true);
       const dimmingRestored = capture(.65, 1.4).every((value, i) => value === initial[i]);
+      const material = d.material; d.material = 1;
+      const positions = new Float32Array(d.particleStride * 3);
+      gl.bindBuffer(gl.ARRAY_BUFFER, d.particleBuffers[d.particleIndex]); gl.getBufferSubData(gl.ARRAY_BUFFER, 0, positions);
+      for (const [i, r] of [8, GravityPhysics.isco(d.a()) * .86 + .2, d.cloudRadius + .25].entries())
+        positions.set([Math.sqrt(r * r + d.a() * d.a()), 0, 0], i * d.particleStride);
+      gl.bufferSubData(gl.ARRAY_BUFFER, 0, positions); gl.bindBuffer(gl.ARRAY_BUFFER, null);
+      const softEdge = capture(1, 1), sharpEdge = capture(1, 1, 1, 0), restoredEdge = capture(1, 1);
+      const edges = {soft: [3, 7, 11].map(i => softEdge[i]), sharp: [3, 7, 11].map(i => sharpEdge[i]),
+        restored: softEdge.every((v, i) => v === restoredEdge[i])};
+      d.applySettings({material, brightnessMin: .65, brightnessMax: 1.4});
       d.programs.deposit = original; gl.deleteProgram(program.p); gl.deleteBuffer(buffer); gl.deleteTransformFeedback(feedback);
-      return {minimum, maximum, error, weightsUnchanged, black, stable, uniformOff, between, lifted, sameWeight, dimmingRestored, glError: gl.getError()};
+      return {minimum, maximum, error, weightsUnchanged, black, stable, uniformOff, between, lifted, sameWeight, dimmingRestored, edges, glError: gl.getError()};
     });
     assert.ok(results.brightness.minimum >= .64999 && results.brightness.minimum < .66);
     assert.ok(results.brightness.maximum <= 1.40001 && results.brightness.maximum > 1.39);
@@ -80,12 +91,25 @@ const {chromium} = require('playwright');
     assert.equal(results.brightness.glError, 0);
     assert.ok(results.brightness.uniformOff && results.brightness.between && results.brightness.sameWeight && results.brightness.dimmingRestored);
     assert.ok(results.brightness.lifted > 10000);
+    const {soft, sharp, restored} = results.brightness.edges;
+    assert.ok(soft[0] > 0 && sharp[0] === soft[0], 'Edge softness preserves interior material');
+    assert.ok(sharp[1] > soft[1] && soft[1] > 0, 'A sharper inner edge narrows the fade');
+    assert.ok(sharp[2] === 0 && soft[2] > 0, 'A sharper outer edge removes the extended fade');
+    assert.ok(restored, 'Restoring edge softness restores the same emission');
     for (const percent of [0, 50, 100]) {
       await slider('radial-dimming', percent);
       assert.equal(await page.locator('#radial-dimming-value').textContent(), percent + '%');
       assert.equal(await page.evaluate(() => {
         const d = GravityDemo; d.deposit();
         return d.gl.getUniform(d.programs.deposit.p, d.gl.getUniformLocation(d.programs.deposit.p, 'uRadialDimming'));
+      }), percent / 100);
+    }
+    for (const percent of [0, 50, 100]) {
+      await slider('edge-softness', percent);
+      assert.equal(await page.locator('#edge-softness-value').textContent(), percent + '%');
+      assert.equal(await page.evaluate(() => {
+        const d = GravityDemo; d.deposit();
+        return d.gl.getUniform(d.programs.deposit.p, d.gl.getUniformLocation(d.programs.deposit.p, 'uEdgeSoftness'));
       }), percent / 100);
     }
     await slider('brightness-min', 200);
@@ -145,12 +169,47 @@ const {chromium} = require('playwright');
         assert.equal(recycling.outside[8], 0);
       }
     }
-    const valid = await page.evaluate(() => [GravityDemo.cloudRadius, GravityDemo.brightnessMin, GravityDemo.brightnessMax]);
-    await page.evaluate(() => GravityDemo.applySettings({cloudRadius: NaN, brightnessMin: Infinity, brightnessMax: NaN}));
-    assert.deepEqual(await page.evaluate(() => [GravityDemo.cloudRadius, GravityDemo.brightnessMin, GravityDemo.brightnessMax]), valid);
+    await page.evaluate(() => {
+      const d = GravityDemo; d.simTime = 0; d.allocateParticles(); d.updateParticles(0, d.fadeSeconds);
+      window.readShape = () => {
+        const data = new Float32Array(d.count * d.particleStride), gl = d.gl;
+        gl.bindBuffer(gl.ARRAY_BUFFER, d.particleBuffers[d.particleIndex]); gl.getBufferSubData(gl.ARRAY_BUFFER, 0, data); gl.bindBuffer(gl.ARRAY_BUFFER, null);
+        return data;
+      };
+      window.originalShape = readShape();
+    });
+    const builds = await page.evaluate(() => GravityDemo.cacheBuilds);
+    results.thickness = [];
+    for (const percent of [0, 25, 100]) {
+      await slider('cloud-thickness', percent);
+      await page.waitForFunction(value => GravityDemo.cloudThickness === value / 100, percent);
+      assert.equal(await page.locator('#cloud-thickness-value').textContent(), percent + '%');
+      const shape = await page.evaluate(percent => {
+        const d = GravityDemo, data = readShape();
+        let z2 = 0, baseZ2 = 0, visible = true;
+        for (let i = 0; i < data.length; i += d.particleStride) {
+          z2 += data[i + 2] ** 2; baseZ2 += originalShape[i + 2] ** 2;
+          visible &&= data[i + 8] >= d.fadeSeconds;
+        }
+        if (percent === 0) for (let i = 0; i < 200; i++) d.updateParticles(.2, .02);
+        const planar = percent !== 0 || readShape().every((v, i) => i % d.particleStride !== 2 || Math.abs(v) < 1e-7);
+        d.deposit(); d.shade(); d.present();
+        return {percent, heightRatio: Math.sqrt(z2 / baseZ2), visible, planar, count: d.count,
+          restored: data.every((v, i) => v === originalShape[i]), builds: d.cacheBuilds, error: d.gl.getError()};
+      }, percent);
+      assert.ok(Math.abs(shape.heightRatio - percent / 100) < .01);
+      assert.ok(shape.visible && shape.planar); assert.equal(shape.error, 0);
+      assert.equal(shape.count, 65536); assert.equal(shape.builds, builds);
+      if (percent === 100) assert.ok(shape.restored, '100% restores the original particle distribution');
+      results.thickness.push(shape);
+      await page.screenshot({path: `test-results/cloud-thickness-${percent}.png`});
+    }
+    const valid = await page.evaluate(() => [GravityDemo.cloudRadius, GravityDemo.brightnessMin, GravityDemo.brightnessMax, GravityDemo.cloudThickness, GravityDemo.edgeSoftness]);
+    await page.evaluate(() => GravityDemo.applySettings({cloudRadius: NaN, brightnessMin: Infinity, brightnessMax: NaN, cloudThickness: NaN, edgeSoftness: Infinity}));
+    assert.deepEqual(await page.evaluate(() => [GravityDemo.cloudRadius, GravityDemo.brightnessMin, GravityDemo.brightnessMax, GravityDemo.cloudThickness, GravityDemo.edgeSoftness]), valid);
     assert.deepEqual(errors, []);
     results.passed = true;
-    console.log('PASS: brightness range, zero intensity, unchanged material/physics, radius distribution, equal cells, fixed allocations and live controls.');
+    console.log('PASS: brightness, radius, orbital thickness, edge softness, baseline restoration and live controls.');
   } finally {
     fs.mkdirSync('test-results', {recursive: true});
     fs.writeFileSync('test-results/appearance-controls-results.json', JSON.stringify({...results, errors}, null, 2));

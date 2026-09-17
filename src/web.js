@@ -215,6 +215,8 @@
         ['brightness-max', this.brightnessMax],
         ['radial-dimming', this.radialDimming],
         ['cloud-radius', this.cloudRadius / 22],
+        ['cloud-thickness', this.cloudThickness],
+        ['edge-softness', this.edgeSoftness],
         ['star-density', this.starDensity],
         ['cloud-density', this.cloudDensity]
       ]) {
@@ -423,6 +425,7 @@
         'star-definition': ['starDefinition', 0.01],
         'brightness-min': ['brightnessMin', 0.01], 'brightness-max': ['brightnessMax', 0.01],
         'radial-dimming': ['radialDimming', 0.01],
+        'edge-softness': ['edgeSoftness', 0.01],
         'particle-fade': ['fadeSeconds', 1], speed: ['speed', 1],
         'camera-amount': ['motionStrength', 0.01], 'camera-roll': ['roll', Math.PI / 180],
         framing: ['framing', 0.01], 'framing-y': ['framingY', 0.01],
@@ -439,11 +442,14 @@
         this.applySettings({ starAppearance: event.target.value }));
       let geometryTimeout;
       let geometryChanges = {};
-      for (const name of ['elevation', 'distance', 'cloud-radius'])
+      const geometry = {
+        elevation: ['elevation', 1, '°'], distance: ['distance', 1, ''],
+        'cloud-radius': ['cloudRadius', .22, '%'], 'cloud-thickness': ['cloudThickness', .01, '%']
+      };
+      for (const [name, [key, scale, suffix]] of Object.entries(geometry))
         $(name).addEventListener('input', (event) => {
-          const radius = name === 'cloud-radius';
-          geometryChanges[radius ? 'cloudRadius' : name] = Number(event.target.value) * (radius ? 0.22 : 1);
-          $(name + '-value').textContent = event.target.value + (radius ? '%' : name === 'elevation' ? '°' : '');
+          geometryChanges[key] = Number(event.target.value) * scale;
+          $(name + '-value').textContent = event.target.value + suffix;
           clearTimeout(geometryTimeout);
           geometryTimeout = setTimeout(() => {
             this.applySettings(geometryChanges);

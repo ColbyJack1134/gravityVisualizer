@@ -51,6 +51,7 @@ const project = require('../wallpaper/project.json');
       return { stats: r.stats(), framing: [r.framing, r.framingY], fps: r.fpsLimit,
         material: r.material, exposure: r.exposure, sharpness: r.sharpness, fade: r.fadeSeconds,
         brightness: [r.brightnessMin, r.brightnessMax], radius: r.cloudRadius, dimming: r.radialDimming,
+        shape: [r.cloudThickness, r.edgeSoftness],
         animated: r.palette.hsv.animated, colors: r.palette.custom.stops.map(c => c.toUpperCase()), registrations: audioRegistrations,
         idle: [r.idlePalette.mode, r.idlePalette.weighted.animated, r.idlePalette.weighted.weights],
         rendered: Array.from(r.paletteColors), auto: r.spectrum.autoSensitivity,
@@ -62,12 +63,22 @@ const project = require('../wallpaper/project.json');
     assert.equal(defaults.material, 0.3); assert.equal(defaults.exposure, 1.7);
     assert.deepEqual(defaults.brightness.map(v => Math.round(v * 100)), [65, 140]); assert.equal(defaults.radius, 22);
     assert.equal(defaults.dimming, .5);
+    assert.deepEqual(defaults.shape, [1, 1]);
     for (const percent of [0, 50, 100]) {
       await apply({radialdimming: percent});
       assert.equal(await page.evaluate(() => {
         const r = GravityWallpaper.renderer; r.deposit();
         return r.gl.getUniform(r.programs.deposit.p, r.gl.getUniformLocation(r.programs.deposit.p, 'uRadialDimming'));
       }), percent / 100);
+    }
+    for (const percent of [0, 25, 100]) {
+      await apply({cloudthickness: percent, edgesoftness: percent});
+      const uniforms = await page.evaluate(() => {
+        const r = GravityWallpaper.renderer, gl = r.gl; r.deposit();
+        return [gl.getUniform(r.programs.update.p, gl.getUniformLocation(r.programs.update.p, 'uCloudThickness')),
+          gl.getUniform(r.programs.deposit.p, gl.getUniformLocation(r.programs.deposit.p, 'uEdgeSoftness'))];
+      });
+      assert.deepEqual(uniforms, [percent / 100, percent / 100]);
     }
     assert.equal(await page.evaluate(() => GravityWallpaper.renderer.cacheBuilds), defaults.stats.cacheBuilds);
     assert.equal(defaults.sharpness, 1); assert.equal(defaults.fade, 3); assert.equal(defaults.animated, true);
@@ -235,7 +246,7 @@ const project = require('../wallpaper/project.json');
     await page.setViewportSize({ width: 3840, height: 1080 }); await page.waitForTimeout(250); await ready();
     assert.ok(await page.evaluate(() => GravityWallpaper.renderer.rw * GravityWallpaper.renderer.rh < 261000));
     await apply({ material: 45, exposure: 2, stardensity: 200, clouddensity: 25, paused: true,
-      cloudradius: 150, brightnessmin: 80, brightnessmax: 180, radialdimming: 50,
+      cloudradius: 150, brightnessmin: 80, brightnessmax: 180, radialdimming: 50, cloudthickness: 25, edgesoftness: 20,
       idlecolormode: 'weighted', idleweightedcount: 3, idleweightedweight1: 20, idleweightedweight2: 60, idleweightedweight3: 20 });
     await ready();
     const snapshot = await page.evaluate(() => [GravityWallpaper.renderer.material, GravityWallpaper.renderer.exposure, GravityWallpaper.renderer.starDensity, GravityWallpaper.renderer.cloudDensity]);
@@ -248,6 +259,7 @@ const project = require('../wallpaper/project.json');
     assert.deepEqual(await page.evaluate(() => [GravityWallpaper.renderer.cloudRadius,
       GravityWallpaper.renderer.brightnessMin, GravityWallpaper.renderer.brightnessMax]), [33, .8, 1.8]);
     assert.equal(await page.evaluate(() => GravityWallpaper.renderer.radialDimming), .5);
+    assert.deepEqual(await page.evaluate(() => [GravityWallpaper.renderer.cloudThickness, GravityWallpaper.renderer.edgeSoftness]), [.25, .2]);
     assert.deepEqual(await page.evaluate(() => [GravityWallpaper.renderer.palette.mode, GravityWallpaper.renderer.idlePalette.solid,
       GravityWallpaper.renderer.spectrum.autoSensitivity, GravityWallpaper.renderer.audioGain]), ['hsv', '#ffffff', true, 2.3]);
     assert.deepEqual(await page.evaluate(() => [GravityWallpaper.renderer.idlePalette.mode,

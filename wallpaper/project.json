@@ -959,8 +959,32 @@
         "precision": 0,
         "order": 93
       },
+      "cloudthickness": {
+        "text": "Cloud thickness (%)",
+        "type": "slider",
+        "value": 100,
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "editable": true,
+        "fraction": false,
+        "precision": 0,
+        "order": 94
+      },
+      "edgesoftness": {
+        "text": "Edge softness (%)",
+        "type": "slider",
+        "value": 100,
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "editable": true,
+        "fraction": false,
+        "precision": 0,
+        "order": 95
+      },
       "exposure": {
-        "order": 94,
+        "order": 96,
         "text": "Exposure",
         "type": "slider",
         "value": 1.7,
@@ -981,7 +1005,7 @@
         "editable": true,
         "fraction": false,
         "precision": 0,
-        "order": 95
+        "order": 97
       },
       "brightnessmax": {
         "text": "Maximum star brightness (%)",
@@ -993,7 +1017,7 @@
         "editable": true,
         "fraction": false,
         "precision": 0,
-        "order": 96
+        "order": 98
       },
       "radialdimming": {
         "text": "Radial dimming (%)",
@@ -1005,10 +1029,10 @@
         "editable": true,
         "fraction": false,
         "precision": 0,
-        "order": 97
+        "order": 99
       },
       "sharpness": {
-        "order": 98,
+        "order": 100,
         "text": "Sharpness",
         "type": "slider",
         "value": 100,
@@ -1020,7 +1044,7 @@
         "precision": 0
       },
       "particlefade": {
-        "order": 99,
+        "order": 101,
         "text": "Particle fade (seconds)",
         "type": "slider",
         "value": 3,
@@ -1032,7 +1056,7 @@
         "precision": 1
       },
       "timescale": {
-        "order": 100,
+        "order": 102,
         "text": "Time scale",
         "type": "slider",
         "value": 10,
@@ -1046,10 +1070,10 @@
       "groupperformance": {
         "type": "group",
         "text": "Performance",
-        "order": 101
+        "order": 103
       },
       "particles": {
-        "order": 102,
+        "order": 104,
         "text": "Particles",
         "type": "combo",
         "value": "65536",
@@ -1081,7 +1105,7 @@
         ]
       },
       "quality": {
-        "order": 103,
+        "order": 105,
         "text": "Quality",
         "type": "combo",
         "value": "balanced",

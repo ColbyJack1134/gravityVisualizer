@@ -10,6 +10,8 @@
       this.spin = 0.5;
       this.material = 0.3;
       this.cloudRadius = 22;
+      this.cloudThickness = 1;
+      this.edgeSoftness = 1;
       this.exposure = 1.7;
       this.sharpness = 1;
       this.starAppearance = 'compact';
@@ -140,11 +142,12 @@
     applySettings(settings) {
       const oldSpin = this.a(), oldCount = this.count, oldQuality = this.quality;
       const oldTheta = this.camera.theta, oldDistance = this.camera.distance;
-      const oldRadius = this.cloudRadius;
+      const oldRadius = this.cloudRadius, oldThickness = this.cloudThickness;
       const ranges = {
         spin: [0.05, 0.95], material: [0.1, 1], exposure: [0.3, 3], sharpness: [0, 1],
         starDefinition: [0, 1], brightnessMin: [0, 4], brightnessMax: [0, 4], cloudRadius: [11, 33],
         radialDimming: [0, 1],
+        cloudThickness: [0, 1], edgeSoftness: [0, 1],
         starDensity: [0, 5], cloudDensity: [0, 5], speed: [1, 24], fadeSeconds: [0, 6],
         motionStrength: [0, 1], roll: [-Math.PI / 6, Math.PI / 6],
         framing: [-0.35, 0.35], framingY: [-0.2, 0.2], audioGain: [0.3, 3],
@@ -185,7 +188,10 @@
       if (Object.hasOwn(settings, 'fpsLimit')) this.resetClock();
       if (this.started && !this.lost && !this.failed) {
         if (oldRadius !== this.cloudRadius) this.updateVolumeExtent();
-        if (oldSpin !== this.a() || oldCount !== this.count || oldRadius !== this.cloudRadius) this.allocateParticles();
+        if (oldSpin !== this.a() || oldCount !== this.count || oldRadius !== this.cloudRadius || oldThickness !== this.cloudThickness) {
+          this.allocateParticles();
+          if (this.paused) this.updateParticles(0, this.fadeSeconds);
+        }
         if (oldSpin !== this.a() || oldQuality !== this.quality ||
             oldTheta !== this.camera.theta || oldDistance !== this.camera.distance || oldRadius !== this.cloudRadius) this.prepareCache();
       }
@@ -589,6 +595,7 @@
       this.f('uFadeSeconds', this.fadeSeconds);
       this.f('uTimeScale', this.speed);
       this.f('uCloudRadius', this.cloudRadius);
+      this.f('uCloudThickness', this.cloudThickness);
       const next = 1 - this.particleIndex;
       gl.bindVertexArray(this.particleVAOs[this.particleIndex]);
       gl.bindBuffer(gl.ARRAY_BUFFER, null);
@@ -618,6 +625,7 @@
       this.f('uCloudRadius', this.cloudRadius);
       this.v2('uBrightnessRange', [this.brightnessMin, this.brightnessMax]);
       this.f('uRadialDimming', this.radialDimming);
+      this.f('uEdgeSoftness', this.edgeSoftness);
       // Keep particle mass fixed as volume cells grow.
       this.f('uParticleWeight', (12.8 * 65536) / (this.count * this.volumeScale ** 3));
       this.i('uBandCount', this.spectrum.levels.length);

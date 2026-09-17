@@ -141,14 +141,14 @@ layout(location=1) in vec4 aMomentum;
 layout(location=2) in vec2 aLifecycle;
 out vec4 vPosition;out vec4 vMomentum;out vec2 vLifecycle;
 uniform float uSpin,uHorizon,uISCO,uDt,uSeed,uRealDt,uFadeSeconds,uTimeScale;
-uniform float uCloudRadius;
+uniform float uCloudRadius,uCloudThickness;
 void spawn(out vec3 x,out vec3 p,out float pt,out float age){
   float id=float(gl_VertexID),s=id*1.718+uSeed*13.13;
   float r=mix(uISCO+1.,uCloudRadius,pow(hash(s+.1),.72)),angle=hash(s+7.)*2.*PI;
   float rho=sqrt(r*r+uSpin*uSpin);
-  x=vec3(cos(angle)*rho,sin(angle)*rho,(hash(s+9.)-.5)*.025);
+  x=vec3(cos(angle)*rho,sin(angle)*rho,(hash(s+9.)-.5)*.025*uCloudThickness);
   vec3 tangent=vec3(-sin(angle),cos(angle),0.);
-  float inc=(hash(s+13.)-.5)*.32+.035*sin(r*.4);
+  float inc=((hash(s+13.)-.5)*.32+.035*sin(r*.4))*uCloudThickness;
   float node=hash(s+18.)*2.*PI;
   vec3 axis=vec3(cos(node),sin(node),0.);
   x=x*cos(inc)+cross(axis,x)*sin(inc)+axis*dot(axis,x)*(1.-cos(inc));
@@ -194,7 +194,7 @@ layout(location=0) in vec4 aPosition;
 layout(location=1) in vec4 aMomentum;
 layout(location=2) in vec2 aLifecycle;
 uniform float uSpin,uISCO,uMaterial,uParticleWeight,uFadeSeconds;
-uniform float uCloudRadius,uRadialDimming;uniform vec2 uBrightnessRange;
+uniform float uCloudRadius,uRadialDimming,uEdgeSoftness;uniform vec2 uBrightnessRange;
 uniform float uBands[24],uAudioDriven,uIdleParticles;
 uniform int uBandCount;
 uniform float uSustainStrength;
@@ -213,7 +213,9 @@ void main(){
     vWeight*=birth*death;
   }
   float inner=uISCO*.86;
-  vWeight*=smoothstep(inner,inner+.55,r)*(1.-smoothstep(uCloudRadius,uCloudRadius+1.,r));
+  float cell=2.*uVolumeExtent.x/uVolumeGrid.x;
+  float innerWidth=max(cell,.55*uEdgeSoftness),outerWidth=max(cell,uEdgeSoftness);
+  vWeight*=smoothstep(inner,inner+innerWidth,r)*(1.-smoothstep(uCloudRadius,uCloudRadius+outerWidth,r));
   float heat=pow(uISCO/max(r,uISCO),.65*uRadialDimming);
   float kind=hash(float(gl_VertexID)+37.2);
   float palettePosition=hash(float(gl_VertexID)+81.3);
