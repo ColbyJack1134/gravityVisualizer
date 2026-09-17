@@ -55,7 +55,6 @@
         <input id="palette-saturation" type="range" min="0" max="100" value="100">
       </div>
       <div id="custom-controls">
-        <p id="distribution-hint" class="control-hint">Set each color’s share. The others adjust to total 100%; edges blend smoothly.</p>
         <div id="custom-colors"></div><button id="add-color" class="text-button" type="button">+ Add color</button>
       </div>
       <div id="gradient-controls">
@@ -131,10 +130,8 @@
       <input id="brightness-min" type="range" min="0" max="400" step="5" value="65">
       <label class="range-label" for="brightness-max">Maximum brightness <output id="brightness-max-value">140%</output></label>
       <input id="brightness-max" type="range" min="0" max="400" step="5" value="140">
-      <p class="control-hint">Base intensity. Shading and overlap still affect visible brightness.</p>
       <label class="range-label" for="radial-dimming">Radial dimming <output id="radial-dimming-value">50%</output></label>
       <input id="radial-dimming" type="range" min="0" max="100" step="5" value="50">
-      <p class="control-hint">Dims stars farther from the black hole. 0% turns this off.</p>
     </section>
 
     <details class="performance-settings">

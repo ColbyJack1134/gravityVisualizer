@@ -106,7 +106,6 @@
       $('solid-controls').hidden = p.mode !== 'solid';
       $('hsv-controls').hidden = p.mode !== 'hsv';
       $('custom-controls').hidden = p.mode !== 'custom' && p.mode !== 'weighted';
-      $('distribution-hint').hidden = p.mode !== 'weighted';
       $('gradient-controls').hidden = !g;
       $('solid-color').value = p.solid;
       $('palette-saturation').value = p.saturation * 100;
