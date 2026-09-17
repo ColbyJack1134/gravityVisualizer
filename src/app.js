@@ -1,7 +1,7 @@
 (function () {
   'use strict';
   const P = GravityPhysics, S = GravityShaders;
-  const defaultCamera = { theta: (85 * Math.PI) / 180, phi: -Math.PI / 2, distance: 37 };
+  const defaultCamera = { theta: (85 * Math.PI) / 180, phi: -Math.PI / 2, distance: 40 };
   const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
   class Renderer {
     constructor(canvas) {

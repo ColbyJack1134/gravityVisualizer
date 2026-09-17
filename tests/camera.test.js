@@ -22,8 +22,8 @@ for (const spinning of [false, true]) {
     for (const elevation of [-180, -135, -90, -45, 0, 45, 90, 135, 180]) {
       const u = view(elevation), axes = [u.uForward, u.uRight, u.uUp];
       close(90 - d.camera.theta * 180 / Math.PI, elevation);
-      close(P.length(u.uCamera), 37);
-      close(P.dot(u.uForward, u.uCamera), -37);
+      close(P.length(u.uCamera), 40);
+      close(P.dot(u.uForward, u.uCamera), -40);
       for (const axis of axes) { assert.ok(axis.every(Number.isFinite)); close(P.length(axis), 1); }
       for (let i = 0; i < axes.length; i++) for (let j = i + 1; j < axes.length; j++) close(P.dot(axes[i], axes[j]), 0);
       assert.ok(Number.isFinite(u.uObserverEnergy));
@@ -37,8 +37,8 @@ for (const spinning of [false, true]) {
   }
 }
 d.camera.phi = -Math.PI / 2;
-for (const [angle, position, up] of [[0, [0, -37, 0], [0, 0, 1]], [90, [0, 0, 37], [0, 1, 0]],
-  [-90, [0, 0, -37], [0, -1, 0]], [180, [0, 37, 0], [0, 0, -1]]]) {
+for (const [angle, position, up] of [[0, [0, -40, 0], [0, 0, 1]], [90, [0, 0, 40], [0, 1, 0]],
+  [-90, [0, 0, -40], [0, -1, 0]], [180, [0, 40, 0], [0, 0, -1]]]) {
   const u = view(angle);
   assert.ok(distance(u.uCamera, position) < 1e-12); assert.ok(distance(u.uUp, up) < 1e-12);
 }

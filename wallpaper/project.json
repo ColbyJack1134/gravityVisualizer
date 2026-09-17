@@ -898,7 +898,7 @@
         "order": 87,
         "text": "Distance",
         "type": "slider",
-        "value": 37,
+        "value": 40,
         "min": 32,
         "max": 85,
         "step": 1,
