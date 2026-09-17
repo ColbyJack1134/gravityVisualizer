@@ -88,8 +88,31 @@ const {chromium} = require('playwright');
         fs.writeFileSync('test-results/camera-cutoff-fixed.png', Buffer.from(image.split(',')[1], 'base64'));
       }
     }
+    await page.setViewportSize({width: 480, height: 240});
+    await page.waitForTimeout(200);
+    assert.deepEqual(await page.locator('#elevation').evaluate(el => [el.min, el.max]), ['-180', '180']);
+    await page.locator('.camera-advanced summary').click();
+    for (const spinning of [false, true]) {
+      await page.evaluate(spinning => GravityDemo.applySettings({spinning, spin: .95, distance: 32}), spinning);
+      for (const elevation of [-180, -135, -90, -45, 0, 45, 90, 135, 180]) {
+        await page.locator('#elevation').fill(String(elevation));
+        await page.locator('#elevation').dispatchEvent('input');
+        await page.waitForFunction(value => Math.abs(90 - GravityDemo.camera.theta * 180 / Math.PI - value) < 1e-6, elevation);
+        const result = await page.evaluate(async () => {
+          const d = GravityDemo;
+          while (d.job) { d.advanceTrace(); await new Promise(r => setTimeout(r, 0)); }
+          d.deposit(); d.shade(); d.present();
+          return {elevation: 90 - d.camera.theta * 180 / Math.PI, spinning: d.spinning,
+            rays: d.diagnostics(), error: d.gl.getError()};
+        });
+        assert.equal(await page.locator('#elevation-value').textContent(), elevation + '°');
+        assert.equal(result.error, 0); assert.equal(result.rays.invalid, 0); assert.equal(result.rays.budget, 0); assert.equal(result.rays.other, 0);
+        assert.ok(result.rays.captured > 0 && result.rays.escaped > 0);
+        results.push(result);
+      }
+    }
     assert.deepEqual(errors, []);
-    console.log('PASS: extended clouds, camera framing, tilt extremes, portrait/ultrawide coverage and animation without retracing.');
+    console.log('PASS: extended clouds, camera framing, tilt extremes, portrait/ultrawide coverage, full elevation orbit and animation without retracing.');
   } finally {
     fs.mkdirSync('test-results', {recursive: true});
     fs.writeFileSync('test-results/camera-browser-results.json', JSON.stringify({results, errors}, null, 2));

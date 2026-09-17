@@ -12,7 +12,7 @@ const cross=(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]]
 function referenceRay(camera,spin,u,v,aspect,overscan=1.2,roll=0,framing=[0,0]){
   const {theta,phi,distance}=camera;
   let x=[distance*Math.sin(theta)*Math.cos(phi),distance*Math.sin(theta)*Math.sin(phi),distance*Math.cos(theta)];
-  const forward=P.normalize(x.map(q=>-q)),right=P.normalize(cross(forward,[0,0,1])),up=P.normalize(cross(right,forward));
+  const forward=P.normalize(x.map(q=>-q)),right=[-Math.sin(phi),Math.cos(phi),0],up=P.normalize(cross(right,forward));
   const fov=Math.tan(28*Math.PI/180)*overscan;
   const qx=(2*u-1)*aspect-2*framing[0]/overscan,qy=(2*v-1)-2*framing[1]/overscan;
   const rx=Math.cos(roll)*qx+Math.sin(roll)*qy,ry=-Math.sin(roll)*qx+Math.cos(roll)*qy;
@@ -180,7 +180,7 @@ function tone(){
       const fps=await page.evaluate(()=>GravityDemo.measuredFPS);assert.ok(fps<32);results.checks.push(`30 FPS cap (${fps.toFixed(1)} measured)`);
     }
     if(!benchmark){
-      await page.evaluate(()=>GravityDemo.applySettings({quality:'native',elevation:18,distance:37,spinning:true,paused:true,roll:Math.PI/12,framing:.03,framingY:.1}));await ready();
+      await page.evaluate(()=>GravityDemo.applySettings({quality:'native',elevation:-135,distance:37,spinning:true,paused:true,roll:Math.PI/12,framing:.03,framingY:.1}));await ready();
       const native=await page.evaluate(()=>{
         const d=GravityDemo,gl=d.gl,samples=[];
         for(const tile of d.rayTiles){

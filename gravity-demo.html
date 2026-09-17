@@ -439,7 +439,7 @@ summary {
       <input id="framing-y" type="range" min="-20" max="20" step="0.5" value="5">
       <details class="camera-advanced"><summary>View angle & distance</summary>
         <label class="range-label" for="elevation">Elevation <output id="elevation-value">5°</output></label>
-        <input id="elevation" type="range" min="5" max="80" value="5">
+        <input id="elevation" type="range" min="-180" max="180" value="5">
         <label class="range-label" for="distance">Distance <output id="distance-value">37</output></label>
         <input id="distance" type="range" min="32" max="85" value="37">
       </details>
@@ -1750,7 +1750,7 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
       if (['compact', 'soft'].includes(settings.starAppearance))
         this.starAppearance = settings.starAppearance;
       if (typeof settings.elevation === 'number' && Number.isFinite(settings.elevation))
-        this.camera.theta = ((90 - Math.max(5, Math.min(80, settings.elevation))) * Math.PI) / 180;
+        this.camera.theta = ((90 - Math.max(-180, Math.min(180, settings.elevation))) * Math.PI) / 180;
       if (typeof settings.distance === 'number' && Number.isFinite(settings.distance))
         this.camera.distance = Math.max(32, Math.min(85, settings.distance));
       if (typeof settings.balance === 'number' && Number.isFinite(settings.balance))
@@ -1979,7 +1979,7 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
         distance * Math.cos(theta)
       ];
       const forward = P.normalize(pos.map((v) => -v)),
-        right = P.normalize(cross(forward, [0, 0, 1])),
+        right = [-Math.sin(phi), Math.cos(phi), 0],
         up = P.normalize(cross(right, forward));
       this.observerEnergy = 1 / Math.sqrt(1 - P.metric(pos, this.a()).f);
       this.v3('uCamera', pos);

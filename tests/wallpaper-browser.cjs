@@ -65,7 +65,7 @@ const project = require('../wallpaper/project.json');
     assert.equal(defaults.dimming, .25);
     assert.equal(defaults.thickness, .01);
     assert.equal(defaults.tilt, 10); assert.equal(defaults.elevation, 5); assert.equal(defaults.stats.cameraDistance, 37);
-    for (const percent of [0, 50, 100]) {
+    for (const percent of [25, 0, 50, 100]) {
       await apply({radialdimming: percent});
       assert.equal(await page.evaluate(() => {
         const r = GravityWallpaper.renderer; r.deposit();
@@ -186,6 +186,17 @@ const project = require('../wallpaper/project.json');
     await apply({ exposure: NaN, distance: Infinity, particles: 'invalid', quality: 'invalid', solidcolor: 'not a color' });
     assert.deepEqual(await page.evaluate(() => [GravityWallpaper.renderer.exposure, GravityWallpaper.renderer.camera.distance, GravityWallpaper.renderer.count, GravityWallpaper.renderer.quality]), [1.7, 45, 16384, 'draft']);
     results.checks.push('Coalesced geometry updates, particle allocation and invalid-value rejection');
+    assert.deepEqual([project.general.properties.elevation.min, project.general.properties.elevation.max], [-180, 180]);
+    for (const elevation of [-180, -90, 0, 90, 135, 180]) {
+      await apply({elevation}); await ready();
+      const view = await page.evaluate(() => {
+        const r = GravityWallpaper.renderer;
+        return {elevation: 90 - r.camera.theta * 180 / Math.PI, rays: r.diagnostics(), error: r.gl.getError()};
+      });
+      assert.ok(Math.abs(view.elevation - elevation) < 1e-6);
+      assert.equal(view.rays.invalid, 0); assert.equal(view.rays.budget, 0); assert.equal(view.error, 0);
+    }
+    results.checks.push('Native elevation reaches both poles and inverted views');
 
     await apply({ bassshake: 70, audiobalance: 75 });
     const frozen = await page.evaluate(() => {
@@ -247,7 +258,7 @@ const project = require('../wallpaper/project.json');
     await page.setViewportSize({ width: 3840, height: 1080 }); await page.waitForTimeout(250); await ready();
     assert.ok(await page.evaluate(() => GravityWallpaper.renderer.rw * GravityWallpaper.renderer.rh < 261000));
     await apply({ material: 45, exposure: 2, stardensity: 200, clouddensity: 25, paused: true,
-      cloudradius: 150, brightnessmin: 80, brightnessmax: 180, radialdimming: 50, cloudthickness: 25,
+      elevation: -135, cloudradius: 150, brightnessmin: 80, brightnessmax: 180, radialdimming: 50, cloudthickness: 25,
       idlecolormode: 'weighted', idleweightedcount: 3, idleweightedweight1: 20, idleweightedweight2: 60, idleweightedweight3: 20 });
     await ready();
     const snapshot = await page.evaluate(() => [GravityWallpaper.renderer.material, GravityWallpaper.renderer.exposure, GravityWallpaper.renderer.starDensity, GravityWallpaper.renderer.cloudDensity]);
@@ -259,6 +270,7 @@ const project = require('../wallpaper/project.json');
     assert.equal(await page.evaluate(() => GravityWallpaper.renderer.framingY), 0.115);
     assert.deepEqual(await page.evaluate(() => [GravityWallpaper.renderer.cloudRadius,
       GravityWallpaper.renderer.brightnessMin, GravityWallpaper.renderer.brightnessMax]), [33, .8, 1.8]);
+    assert.equal(await page.evaluate(() => 90 - GravityWallpaper.renderer.camera.theta * 180 / Math.PI), -135);
     assert.equal(await page.evaluate(() => GravityWallpaper.renderer.radialDimming), .5);
     assert.equal(await page.evaluate(() => GravityWallpaper.renderer.cloudThickness), .25);
     assert.deepEqual(await page.evaluate(() => [GravityWallpaper.renderer.palette.mode, GravityWallpaper.renderer.idlePalette.solid,

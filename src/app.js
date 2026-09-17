@@ -172,7 +172,7 @@
       if (['compact', 'soft'].includes(settings.starAppearance))
         this.starAppearance = settings.starAppearance;
       if (typeof settings.elevation === 'number' && Number.isFinite(settings.elevation))
-        this.camera.theta = ((90 - Math.max(5, Math.min(80, settings.elevation))) * Math.PI) / 180;
+        this.camera.theta = ((90 - Math.max(-180, Math.min(180, settings.elevation))) * Math.PI) / 180;
       if (typeof settings.distance === 'number' && Number.isFinite(settings.distance))
         this.camera.distance = Math.max(32, Math.min(85, settings.distance));
       if (typeof settings.balance === 'number' && Number.isFinite(settings.balance))
@@ -401,7 +401,7 @@
         distance * Math.cos(theta)
       ];
       const forward = P.normalize(pos.map((v) => -v)),
-        right = P.normalize(cross(forward, [0, 0, 1])),
+        right = [-Math.sin(phi), Math.cos(phi), 0],
         up = P.normalize(cross(right, forward));
       this.observerEnergy = 1 / Math.sqrt(1 - P.metric(pos, this.a()).f);
       this.v3('uCamera', pos);
