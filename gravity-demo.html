@@ -1766,6 +1766,7 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
       if (Object.hasOwn(settings, 'fpsLimit')) this.resetClock();
       if (this.started && !this.lost && !this.failed) {
         if (oldRadius !== this.cloudRadius) this.updateVolumeExtent();
+        if (oldThickness !== this.cloudThickness) this.allocateEmission();
         if (oldSpin !== this.a() || oldCount !== this.count || oldRadius !== this.cloudRadius || oldThickness !== this.cloudThickness) {
           this.allocateParticles();
           if (this.paused) this.updateParticles(0, this.fadeSeconds);
@@ -1931,12 +1932,18 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
       gl.bindBuffer(gl.ARRAY_BUFFER, null);
       this.updateParticles(0);
     }
+    volumeDimensions() {
+      const layers = Math.max(16, Math.min(104, Math.ceil((104 * this.cloudThickness + 8) / 8) * 8));
+      return [512, 512, layers];
+    }
     allocateEmission() {
       const gl = this.gl;
+      const grid = this.volumeDimensions();
+      if (this.emission && grid.every((cells, axis) => cells === this.volumeGrid[axis])) return;
       if (this.emission) gl.deleteTexture(this.emission);
       if (this.velocity) gl.deleteTexture(this.velocity);
       if (this.emissionFBO) gl.deleteFramebuffer(this.emissionFBO);
-      this.volumeGrid = [512, 512, 104];
+      this.volumeGrid = grid;
       this.updateVolumeExtent();
       this.emissionWidth = this.volumeGrid[0] * 8;
       this.emissionHeight = this.volumeGrid[1] * (this.volumeGrid[2] / 8);

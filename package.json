@@ -13,6 +13,7 @@
     "test:response-browser": "node tests/response-browser.cjs",
     "test:background-browser": "node tests/background-browser.cjs",
     "test:material-browser": "node tests/material-browser.cjs",
+    "test:volume-browser": "node tests/volume-browser.cjs",
     "test:camera-browser": "node tests/camera-browser.cjs",
     "test:clipping-browser": "node tests/clipping-browser.cjs",
     "test:stars-browser": "node tests/stars-browser.cjs",
