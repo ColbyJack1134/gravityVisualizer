@@ -4,9 +4,15 @@ A black hole audio visualizer for Wallpaper Engine and the browser.
 
 [Wallpaper](https://steamcommunity.com/sharedfiles/filedetails/?id=3802507065) [Browser demo](https://colbyjack1134.github.io/gravityVisualizer/) [Video demo](https://youtu.be/2KeiIyUf-os)
 
-![White particles](assets/screenshots/white.jpg)
+![Idle](assets/previews/idle.gif)
 
-![HSV colors reacting to music](assets/screenshots/hsv.jpg)
+![Music](assets/previews/music.gif)
+
+![Custom green gradient](assets/previews/green.gif)
+
+Customizable
+
+![Legacy](assets/previews/legacy.gif)
 
 ## Details
 
