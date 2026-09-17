@@ -434,9 +434,9 @@ summary {
       <label class="range-label" for="camera-roll">Tilt <output id="roll-value">10°</output></label>
       <input id="camera-roll" type="range" min="-30" max="30" value="10">
       <label class="range-label" for="framing">Horizontal position</label>
-      <input id="framing" type="range" min="-35" max="35" value="3">
+      <input id="framing" type="range" min="-35" max="35" value="-1">
       <label class="range-label" for="framing-y">Vertical position</label>
-      <input id="framing-y" type="range" min="-20" max="20" step="0.5" value="10">
+      <input id="framing-y" type="range" min="-20" max="20" step="0.5" value="5">
       <details class="camera-advanced"><summary>View angle & distance</summary>
         <label class="range-label" for="elevation">Elevation <output id="elevation-value">5°</output></label>
         <input id="elevation" type="range" min="5" max="80" value="5">
@@ -1610,8 +1610,8 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
       this.orbitAngle = 0;
       this.motionStrength = 0.55;
       this.roll = (10 * Math.PI) / 180;
-      this.framing = 0.03;
-      this.framingY = 0.1;
+      this.framing = -0.01;
+      this.framingY = 0.05;
       this.overscan = 1.2;
       this.cacheBuilds = 0;
       this.paused = false;

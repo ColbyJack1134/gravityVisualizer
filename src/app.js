@@ -32,8 +32,8 @@
       this.orbitAngle = 0;
       this.motionStrength = 0.55;
       this.roll = (10 * Math.PI) / 180;
-      this.framing = 0.03;
-      this.framingY = 0.1;
+      this.framing = -0.01;
+      this.framingY = 0.05;
       this.overscan = 1.2;
       this.cacheBuilds = 0;
       this.paused = false;

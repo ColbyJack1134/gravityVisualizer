@@ -59,7 +59,7 @@ const project = require('../wallpaper/project.json');
     });
     assert.equal(defaults.stats.cacheBuilds, 1, 'Early settings must precede the first cache allocation');
     assert.equal(defaults.stats.particles, 65536); assert.equal(defaults.stats.spin, 0);
-    assert.deepEqual(defaults.framing, [0.03, 0.1]); assert.equal(defaults.fps, 30);
+    assert.deepEqual(defaults.framing, [-0.01, 0.05]); assert.equal(defaults.fps, 30);
     assert.equal(defaults.material, 0.3); assert.equal(defaults.exposure, 1.7);
     assert.deepEqual(defaults.brightness.map(v => Math.round(v * 100)), [65, 140]); assert.equal(defaults.radius, 26.4);
     assert.equal(defaults.dimming, .5);
