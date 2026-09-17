@@ -129,6 +129,10 @@
           {
             "value": "custom",
             "label": "Custom gradient"
+          },
+          {
+            "value": "weighted",
+            "label": "Weighted gradient"
           }
         ]
       },
@@ -273,16 +277,182 @@
         "precision": 2,
         "condition": "colormode.value == 'custom' && customanimate.value"
       },
+      "weightedcount": {
+        "order": 28,
+        "text": "Weighted colors",
+        "type": "slider",
+        "value": 4,
+        "min": 2,
+        "max": 6,
+        "step": 1,
+        "editable": true,
+        "fraction": false,
+        "precision": 0,
+        "condition": "colormode.value == 'weighted'"
+      },
+      "weightedcolor1": {
+        "order": 29,
+        "text": "Weighted color 1",
+        "type": "color",
+        "value": "1.000000000 0.764705882 0.541176471",
+        "condition": "colormode.value == 'weighted' && weightedcount.value >= 1"
+      },
+      "weightedweight1": {
+        "text": "Color 1 weight",
+        "type": "slider",
+        "value": 15,
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "editable": true,
+        "fraction": false,
+        "precision": 0,
+        "condition": "colormode.value == 'weighted' && weightedcount.value >= 1",
+        "order": 30
+      },
+      "weightedcolor2": {
+        "order": 31,
+        "text": "Weighted color 2",
+        "type": "color",
+        "value": "1.000000000 0.878431373 0.741176471",
+        "condition": "colormode.value == 'weighted' && weightedcount.value >= 2"
+      },
+      "weightedweight2": {
+        "text": "Color 2 weight",
+        "type": "slider",
+        "value": 15,
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "editable": true,
+        "fraction": false,
+        "precision": 0,
+        "condition": "colormode.value == 'weighted' && weightedcount.value >= 2",
+        "order": 32
+      },
+      "weightedcolor3": {
+        "order": 33,
+        "text": "Weighted color 3",
+        "type": "color",
+        "value": "1.000000000 0.956862745 0.917647059",
+        "condition": "colormode.value == 'weighted' && weightedcount.value >= 3"
+      },
+      "weightedweight3": {
+        "text": "Color 3 weight",
+        "type": "slider",
+        "value": 60,
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "editable": true,
+        "fraction": false,
+        "precision": 0,
+        "condition": "colormode.value == 'weighted' && weightedcount.value >= 3",
+        "order": 34
+      },
+      "weightedcolor4": {
+        "order": 35,
+        "text": "Weighted color 4",
+        "type": "color",
+        "value": "0.792156863 0.862745098 1.000000000",
+        "condition": "colormode.value == 'weighted' && weightedcount.value >= 4"
+      },
+      "weightedweight4": {
+        "text": "Color 4 weight",
+        "type": "slider",
+        "value": 10,
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "editable": true,
+        "fraction": false,
+        "precision": 0,
+        "condition": "colormode.value == 'weighted' && weightedcount.value >= 4",
+        "order": 36
+      },
+      "weightedcolor5": {
+        "order": 37,
+        "text": "Weighted color 5",
+        "type": "color",
+        "value": "1.000000000 0.956862745 0.917647059",
+        "condition": "colormode.value == 'weighted' && weightedcount.value >= 5"
+      },
+      "weightedweight5": {
+        "text": "Color 5 weight",
+        "type": "slider",
+        "value": 0,
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "editable": true,
+        "fraction": false,
+        "precision": 0,
+        "condition": "colormode.value == 'weighted' && weightedcount.value >= 5",
+        "order": 38
+      },
+      "weightedcolor6": {
+        "order": 39,
+        "text": "Weighted color 6",
+        "type": "color",
+        "value": "1.000000000 0.956862745 0.917647059",
+        "condition": "colormode.value == 'weighted' && weightedcount.value >= 6"
+      },
+      "weightedweight6": {
+        "text": "Color 6 weight",
+        "type": "slider",
+        "value": 0,
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "editable": true,
+        "fraction": false,
+        "precision": 0,
+        "condition": "colormode.value == 'weighted' && weightedcount.value >= 6",
+        "order": 40
+      },
+      "weightedoffset": {
+        "order": 41,
+        "text": "Weighted offset",
+        "type": "slider",
+        "value": 0,
+        "min": 0,
+        "max": 100,
+        "step": 0.1,
+        "editable": true,
+        "fraction": true,
+        "precision": 1,
+        "condition": "colormode.value == 'weighted'"
+      },
+      "weightedanimate": {
+        "order": 42,
+        "text": "Animate weighted gradient",
+        "type": "bool",
+        "value": false,
+        "condition": "colormode.value == 'weighted'"
+      },
+      "weightedspeed": {
+        "order": 43,
+        "text": "Weighted speed (cycles/min)",
+        "type": "slider",
+        "value": 0.5,
+        "min": -3,
+        "max": 3,
+        "step": 0.05,
+        "editable": true,
+        "fraction": true,
+        "precision": 2,
+        "condition": "colormode.value == 'weighted' && weightedanimate.value"
+      },
       "groupidlecolors": {
         "type": "group",
         "text": "Idle colors",
-        "order": 28
+        "order": 44
       },
       "idlecolormode": {
-        "order": 29,
+        "order": 45,
         "text": "Color mode",
         "type": "combo",
-        "value": "solid",
+        "value": "weighted",
         "options": [
           {
             "value": "hsv",
@@ -295,18 +465,22 @@
           {
             "value": "custom",
             "label": "Custom gradient"
+          },
+          {
+            "value": "weighted",
+            "label": "Weighted gradient"
           }
         ]
       },
       "idlesolidcolor": {
-        "order": 30,
+        "order": 46,
         "text": "Particle color",
         "type": "color",
         "value": "1 1 1",
         "condition": "idlecolormode.value == 'solid'"
       },
       "idlesaturation": {
-        "order": 31,
+        "order": 47,
         "text": "Saturation",
         "type": "slider",
         "value": 100,
@@ -319,7 +493,7 @@
         "condition": "idlecolormode.value == 'hsv'"
       },
       "idlehsvoffset": {
-        "order": 32,
+        "order": 48,
         "text": "HSV offset",
         "type": "slider",
         "value": 0,
@@ -332,14 +506,14 @@
         "condition": "idlecolormode.value == 'hsv'"
       },
       "idlehsvanimate": {
-        "order": 33,
+        "order": 49,
         "text": "Animate HSV gradient",
         "type": "bool",
         "value": true,
         "condition": "idlecolormode.value == 'hsv'"
       },
       "idlehsvspeed": {
-        "order": 34,
+        "order": 50,
         "text": "HSV speed (cycles/min)",
         "type": "slider",
         "value": 0.5,
@@ -352,7 +526,7 @@
         "condition": "idlecolormode.value == 'hsv' && idlehsvanimate.value"
       },
       "idlecustomcount": {
-        "order": 35,
+        "order": 51,
         "text": "Gradient colors",
         "type": "slider",
         "value": 6,
@@ -365,49 +539,49 @@
         "condition": "idlecolormode.value == 'custom'"
       },
       "idlecustomcolor1": {
-        "order": 36,
+        "order": 52,
         "text": "Gradient color 1",
         "type": "color",
         "value": "0.137254902 0.819607843 0.51372549",
         "condition": "idlecolormode.value == 'custom' && idlecustomcount.value >= 1"
       },
       "idlecustomcolor2": {
-        "order": 37,
+        "order": 53,
         "text": "Gradient color 2",
         "type": "color",
         "value": "0.11372549 0.792156863 0.592156863",
         "condition": "idlecolormode.value == 'custom' && idlecustomcount.value >= 2"
       },
       "idlecustomcolor3": {
-        "order": 38,
+        "order": 54,
         "text": "Gradient color 3",
         "type": "color",
         "value": "0.090196078 0.760784314 0.670588235",
         "condition": "idlecolormode.value == 'custom' && idlecustomcount.value >= 3"
       },
       "idlecustomcolor4": {
-        "order": 39,
+        "order": 55,
         "text": "Gradient color 4",
         "type": "color",
         "value": "0.070588235 0.733333333 0.752941176",
         "condition": "idlecolormode.value == 'custom' && idlecustomcount.value >= 4"
       },
       "idlecustomcolor5": {
-        "order": 40,
+        "order": 56,
         "text": "Gradient color 5",
         "type": "color",
         "value": "0.047058824 0.701960784 0.831372549",
         "condition": "idlecolormode.value == 'custom' && idlecustomcount.value >= 5"
       },
       "idlecustomcolor6": {
-        "order": 41,
+        "order": 57,
         "text": "Gradient color 6",
         "type": "color",
         "value": "0.023529412 0.674509804 0.909803922",
         "condition": "idlecolormode.value == 'custom' && idlecustomcount.value >= 6"
       },
       "idlecustomoffset": {
-        "order": 42,
+        "order": 58,
         "text": "Custom offset",
         "type": "slider",
         "value": 0,
@@ -420,14 +594,14 @@
         "condition": "idlecolormode.value == 'custom'"
       },
       "idlecustomanimate": {
-        "order": 43,
+        "order": 59,
         "text": "Animate custom gradient",
         "type": "bool",
         "value": true,
         "condition": "idlecolormode.value == 'custom'"
       },
       "idlecustomspeed": {
-        "order": 44,
+        "order": 60,
         "text": "Custom speed (cycles/min)",
         "type": "slider",
         "value": 0.5,
@@ -439,13 +613,179 @@
         "precision": 2,
         "condition": "idlecolormode.value == 'custom' && idlecustomanimate.value"
       },
+      "idleweightedcount": {
+        "order": 61,
+        "text": "Weighted colors",
+        "type": "slider",
+        "value": 4,
+        "min": 2,
+        "max": 6,
+        "step": 1,
+        "editable": true,
+        "fraction": false,
+        "precision": 0,
+        "condition": "idlecolormode.value == 'weighted'"
+      },
+      "idleweightedcolor1": {
+        "order": 62,
+        "text": "Weighted color 1",
+        "type": "color",
+        "value": "1.000000000 0.764705882 0.541176471",
+        "condition": "idlecolormode.value == 'weighted' && idleweightedcount.value >= 1"
+      },
+      "idleweightedweight1": {
+        "text": "Color 1 weight",
+        "type": "slider",
+        "value": 15,
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "editable": true,
+        "fraction": false,
+        "precision": 0,
+        "condition": "idlecolormode.value == 'weighted' && idleweightedcount.value >= 1",
+        "order": 63
+      },
+      "idleweightedcolor2": {
+        "order": 64,
+        "text": "Weighted color 2",
+        "type": "color",
+        "value": "1.000000000 0.878431373 0.741176471",
+        "condition": "idlecolormode.value == 'weighted' && idleweightedcount.value >= 2"
+      },
+      "idleweightedweight2": {
+        "text": "Color 2 weight",
+        "type": "slider",
+        "value": 15,
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "editable": true,
+        "fraction": false,
+        "precision": 0,
+        "condition": "idlecolormode.value == 'weighted' && idleweightedcount.value >= 2",
+        "order": 65
+      },
+      "idleweightedcolor3": {
+        "order": 66,
+        "text": "Weighted color 3",
+        "type": "color",
+        "value": "1.000000000 0.956862745 0.917647059",
+        "condition": "idlecolormode.value == 'weighted' && idleweightedcount.value >= 3"
+      },
+      "idleweightedweight3": {
+        "text": "Color 3 weight",
+        "type": "slider",
+        "value": 60,
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "editable": true,
+        "fraction": false,
+        "precision": 0,
+        "condition": "idlecolormode.value == 'weighted' && idleweightedcount.value >= 3",
+        "order": 67
+      },
+      "idleweightedcolor4": {
+        "order": 68,
+        "text": "Weighted color 4",
+        "type": "color",
+        "value": "0.792156863 0.862745098 1.000000000",
+        "condition": "idlecolormode.value == 'weighted' && idleweightedcount.value >= 4"
+      },
+      "idleweightedweight4": {
+        "text": "Color 4 weight",
+        "type": "slider",
+        "value": 10,
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "editable": true,
+        "fraction": false,
+        "precision": 0,
+        "condition": "idlecolormode.value == 'weighted' && idleweightedcount.value >= 4",
+        "order": 69
+      },
+      "idleweightedcolor5": {
+        "order": 70,
+        "text": "Weighted color 5",
+        "type": "color",
+        "value": "1.000000000 0.956862745 0.917647059",
+        "condition": "idlecolormode.value == 'weighted' && idleweightedcount.value >= 5"
+      },
+      "idleweightedweight5": {
+        "text": "Color 5 weight",
+        "type": "slider",
+        "value": 0,
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "editable": true,
+        "fraction": false,
+        "precision": 0,
+        "condition": "idlecolormode.value == 'weighted' && idleweightedcount.value >= 5",
+        "order": 71
+      },
+      "idleweightedcolor6": {
+        "order": 72,
+        "text": "Weighted color 6",
+        "type": "color",
+        "value": "1.000000000 0.956862745 0.917647059",
+        "condition": "idlecolormode.value == 'weighted' && idleweightedcount.value >= 6"
+      },
+      "idleweightedweight6": {
+        "text": "Color 6 weight",
+        "type": "slider",
+        "value": 0,
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "editable": true,
+        "fraction": false,
+        "precision": 0,
+        "condition": "idlecolormode.value == 'weighted' && idleweightedcount.value >= 6",
+        "order": 73
+      },
+      "idleweightedoffset": {
+        "order": 74,
+        "text": "Weighted offset",
+        "type": "slider",
+        "value": 0,
+        "min": 0,
+        "max": 100,
+        "step": 0.1,
+        "editable": true,
+        "fraction": true,
+        "precision": 1,
+        "condition": "idlecolormode.value == 'weighted'"
+      },
+      "idleweightedanimate": {
+        "order": 75,
+        "text": "Animate weighted gradient",
+        "type": "bool",
+        "value": false,
+        "condition": "idlecolormode.value == 'weighted'"
+      },
+      "idleweightedspeed": {
+        "order": 76,
+        "text": "Weighted speed (cycles/min)",
+        "type": "slider",
+        "value": 0.5,
+        "min": -3,
+        "max": 3,
+        "step": 0.05,
+        "editable": true,
+        "fraction": true,
+        "precision": 2,
+        "condition": "idlecolormode.value == 'weighted' && idleweightedanimate.value"
+      },
       "groupbackground": {
         "type": "group",
         "text": "Background",
-        "order": 45
+        "order": 77
       },
       "stardensity": {
-        "order": 46,
+        "order": 78,
         "text": "Star density",
         "type": "slider",
         "value": 100,
@@ -457,7 +797,7 @@
         "precision": 0
       },
       "clouddensity": {
-        "order": 47,
+        "order": 79,
         "text": "Cloud density",
         "type": "slider",
         "value": 100,
@@ -471,10 +811,10 @@
       "groupcamera": {
         "type": "group",
         "text": "Camera",
-        "order": 48
+        "order": 80
       },
       "cameramotion": {
-        "order": 49,
+        "order": 81,
         "text": "Camera movement",
         "type": "combo",
         "value": "gentle",
@@ -494,7 +834,7 @@
         ]
       },
       "movement": {
-        "order": 50,
+        "order": 82,
         "text": "Movement amount",
         "type": "slider",
         "value": 55,
@@ -507,7 +847,7 @@
         "condition": "cameramotion.value != 'fixed'"
       },
       "tilt": {
-        "order": 51,
+        "order": 83,
         "text": "Tilt",
         "type": "slider",
         "value": 15,
@@ -519,7 +859,7 @@
         "precision": 0
       },
       "framing": {
-        "order": 52,
+        "order": 84,
         "text": "Horizontal position",
         "type": "slider",
         "value": 3,
@@ -531,7 +871,7 @@
         "precision": 0
       },
       "framingy": {
-        "order": 53,
+        "order": 85,
         "text": "Vertical position",
         "type": "slider",
         "value": 10,
@@ -543,7 +883,7 @@
         "precision": 1
       },
       "elevation": {
-        "order": 54,
+        "order": 86,
         "text": "Elevation",
         "type": "slider",
         "value": 18,
@@ -555,7 +895,7 @@
         "precision": 0
       },
       "distance": {
-        "order": 55,
+        "order": 87,
         "text": "Distance",
         "type": "slider",
         "value": 37,
@@ -569,16 +909,16 @@
       "groupblackhole": {
         "type": "group",
         "text": "Black hole",
-        "order": 56
+        "order": 88
       },
       "spinning": {
-        "order": 57,
+        "order": 89,
         "text": "Spinning black hole",
         "type": "bool",
         "value": true
       },
       "spin": {
-        "order": 58,
+        "order": 90,
         "text": "Spin",
         "type": "slider",
         "value": 0.5,
@@ -593,10 +933,10 @@
       "groupmaterial": {
         "type": "group",
         "text": "Material and light",
-        "order": 59
+        "order": 91
       },
       "material": {
-        "order": 60,
+        "order": 92,
         "text": "Material",
         "type": "slider",
         "value": 30,
@@ -608,7 +948,7 @@
         "precision": 0
       },
       "exposure": {
-        "order": 61,
+        "order": 93,
         "text": "Exposure",
         "type": "slider",
         "value": 1.7,
@@ -620,7 +960,7 @@
         "precision": 1
       },
       "sharpness": {
-        "order": 62,
+        "order": 94,
         "text": "Sharpness",
         "type": "slider",
         "value": 100,
@@ -632,7 +972,7 @@
         "precision": 0
       },
       "particlefade": {
-        "order": 63,
+        "order": 95,
         "text": "Particle fade (seconds)",
         "type": "slider",
         "value": 3,
@@ -644,7 +984,7 @@
         "precision": 1
       },
       "timescale": {
-        "order": 64,
+        "order": 96,
         "text": "Time scale",
         "type": "slider",
         "value": 10,
@@ -658,10 +998,10 @@
       "groupperformance": {
         "type": "group",
         "text": "Performance",
-        "order": 65
+        "order": 97
       },
       "particles": {
-        "order": 66,
+        "order": 98,
         "text": "Particles",
         "type": "combo",
         "value": "65536",
@@ -693,7 +1033,7 @@
         ]
       },
       "quality": {
-        "order": 67,
+        "order": 99,
         "text": "Quality",
         "type": "combo",
         "value": "balanced",

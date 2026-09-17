@@ -51,7 +51,8 @@ const project = require('../wallpaper/project.json');
       return { stats: r.stats(), framing: [r.framing, r.framingY], fps: r.fpsLimit,
         material: r.material, exposure: r.exposure, sharpness: r.sharpness, fade: r.fadeSeconds,
         animated: r.palette.hsv.animated, colors: r.palette.custom.stops.map(c => c.toUpperCase()), registrations: audioRegistrations,
-        idle: [r.idlePalette.mode, r.idlePalette.solid], rendered: Array.from(r.paletteColors), auto: r.spectrum.autoSensitivity,
+        idle: [r.idlePalette.mode, r.idlePalette.weighted.animated, r.idlePalette.weighted.weights],
+        rendered: Array.from(r.paletteColors), auto: r.spectrum.autoSensitivity,
         showIdleParticles: r.showIdleParticles, silenceThreshold: r.spectrum.silenceThreshold };
     });
     assert.equal(defaults.stats.cacheBuilds, 1, 'Early settings must precede the first cache allocation');
@@ -61,7 +62,8 @@ const project = require('../wallpaper/project.json');
     assert.equal(defaults.sharpness, 1); assert.equal(defaults.fade, 3); assert.equal(defaults.animated, true);
     assert.deepEqual(defaults.colors, ['#23D183', '#1DCA97', '#17C2AB', '#12BBC0', '#0CB3D4', '#06ACE8']);
     assert.equal(defaults.registrations, 1);
-    assert.deepEqual(defaults.idle, ['solid', '#ffffff']); assert.ok(defaults.rendered.every(v => v === 1));
+    assert.deepEqual(defaults.idle, ['weighted', false, [15, 15, 60, 10]]);
+    assert.ok(defaults.rendered.some(v => v < .99));
     assert.equal(defaults.auto, true);
     assert.equal(defaults.showIdleParticles, true);
     assert.equal(defaults.silenceThreshold, 0);
@@ -83,8 +85,23 @@ const project = require('../wallpaper/project.json');
       ...Object.entries(properties).map(([key, p]) => ({ ...p, value: Object.hasOwn(values, key) ? values[key] : p.value })));
     assert.equal(condition('audiogain', { autosensitivity: true }), false);
     assert.equal(condition('audiogain', { autosensitivity: false }), true);
-    assert.equal(condition('idlesolidcolor', {}), true); assert.equal(condition('idlehsvspeed', {}), false);
+    assert.equal(condition('idlesolidcolor', {}), false); assert.equal(condition('idlehsvspeed', {}), false);
+    assert.equal(condition('idleweightedweight3', {}), true);
     assert.equal(condition('idlecustomcolor6', { idlecolormode: 'custom', idlecustomcount: 2 }), false);
+    const audioWeighted=await page.evaluate(()=>JSON.stringify(GravityWallpaper.renderer.palette.weighted));
+    await apply({idleweightedcount:3,idleweightedweight1:20,idleweightedweight2:60,idleweightedweight3:20,
+      idleweightedcolor1:'1 0 0',idleweightedcolor2:'0 1 0',idleweightedcolor3:'0 0 1',idleweightedcolor6:'1 0 1'});
+    assert.deepEqual(await page.evaluate(()=>GravityWallpaper.renderer.idlePalette.weighted.weights),[20,60,20]);
+    assert.deepEqual(await page.evaluate(()=>GravityWallpaper.renderer.idlePalette.weighted.stops),['#ff0000','#00ff00','#0000ff']);
+    await apply({idleweightedweight1:0,idleweightedweight2:100,idleweightedweight3:0});
+    assert.ok(await page.evaluate(()=>{
+      const r=GravityWallpaper.renderer;r.refreshPalette(true);r.deposit();
+      return r.idleSamples.every((v,i)=>v===(i%3===1?1:0));
+    }));
+    await apply({idleweightedcount:6});
+    assert.equal(await page.evaluate(()=>GravityWallpaper.renderer.idlePalette.weighted.stops[5]),'#ff00ff');
+    assert.equal(await page.evaluate(()=>JSON.stringify(GravityWallpaper.renderer.palette.weighted)),audioWeighted);
+    assert.equal(await page.evaluate(()=>GravityWallpaper.renderer.cacheBuilds),defaults.stats.cacheBuilds);
     assert.equal(await page.locator('audio, button, input, select, aside').count(), 0);
     assert.equal(await page.locator('#error').isVisible(), false);
     results.checks.push('Early native settings, exact defaults, one audio listener, and no web controls or media');
@@ -206,7 +223,8 @@ const project = require('../wallpaper/project.json');
 
     await page.setViewportSize({ width: 3840, height: 1080 }); await page.waitForTimeout(250); await ready();
     assert.ok(await page.evaluate(() => GravityWallpaper.renderer.rw * GravityWallpaper.renderer.rh < 261000));
-    await apply({ material: 45, exposure: 2, stardensity: 200, clouddensity: 25 });
+    await apply({ material: 45, exposure: 2, stardensity: 200, clouddensity: 25, paused: true,
+      idlecolormode: 'weighted', idleweightedcount: 3, idleweightedweight1: 20, idleweightedweight2: 60, idleweightedweight3: 20 });
     const snapshot = await page.evaluate(() => [GravityWallpaper.renderer.material, GravityWallpaper.renderer.exposure, GravityWallpaper.renderer.starDensity, GravityWallpaper.renderer.cloudDensity]);
     await page.evaluate(() => { window.loss = GravityWallpaper.renderer.gl.getExtension('WEBGL_lose_context'); loss.loseContext(); });
     await page.waitForFunction(() => GravityWallpaper.renderer.lost);
@@ -216,6 +234,15 @@ const project = require('../wallpaper/project.json');
     assert.equal(await page.evaluate(() => GravityWallpaper.renderer.framingY), 0.115);
     assert.deepEqual(await page.evaluate(() => [GravityWallpaper.renderer.palette.mode, GravityWallpaper.renderer.idlePalette.solid,
       GravityWallpaper.renderer.spectrum.autoSensitivity, GravityWallpaper.renderer.audioGain]), ['hsv', '#ffffff', true, 2.3]);
+    assert.deepEqual(await page.evaluate(() => [GravityWallpaper.renderer.idlePalette.mode,
+      GravityWallpaper.renderer.idlePalette.weighted.weights]), ['weighted', [20, 60, 20]]);
+    assert.ok(await page.evaluate(() => {
+      const r = GravityWallpaper.renderer, gl = r.gl; r.deposit();
+      const framebuffer = r.fbo([r.paletteTexture]), colors = new Float32Array(r.paletteSamples.length);
+      gl.readPixels(0, 0, r.paletteSampleCount, 1, gl.RGBA, gl.FLOAT, colors);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.deleteFramebuffer(framebuffer);
+      return gl.getError() === 0 && colors.every((value, i) => value === r.paletteSamples[i]);
+    }), 'Context recovery restores the weighted palette texture');
     await page.evaluate(() => GravityWallpaper.start());
     assert.equal(await page.evaluate(() => audioRegistrations), 1);
     results.checks.push('Spanning viewport and context restoration preserve settings and the single audio subscription');

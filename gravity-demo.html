@@ -222,6 +222,19 @@ h2 {
 .color-stop button {
   padding: 4px 8px;
 }
+.color-stop .color-share {
+  flex: 0 0 auto;
+  gap: 3px;
+}
+.color-share input {
+  width: 54px;
+  padding: 4px;
+}
+.control-hint {
+  margin: 8px 0;
+  color: #b5b4c0;
+  font-size: 11px;
+}
 .text-button {
   margin-top: 4px;
 }
@@ -390,23 +403,24 @@ summary {
 
     <section class="control-section">
       <h2>Colors</h2>
-      <select id="palette-target" aria-label="Palette"><option value="audio">Audio colors</option><option value="idle">Idle colors</option></select>
-      <select id="color-mode" aria-label="Color mode"><option value="hsv">HSV gradient</option><option value="solid">Solid color</option><option value="custom">Custom gradient</option></select>
+      <select id="palette-target" aria-label="Palette"><option value="idle" selected>Idle colors</option><option value="audio">Audio colors</option></select>
+      <select id="color-mode" aria-label="Color mode"><option value="hsv">HSV gradient</option><option value="solid">Solid color</option><option value="custom">Custom gradient</option><option value="weighted" selected>Weighted gradient</option></select>
       <div id="palette-preview" class="palette-preview" aria-label="Palette from bass to high frequencies"></div>
       <div id="solid-controls" hidden><label class="color-label" for="solid-color">Particle color <input id="solid-color" type="color" value="#aa44ff"></label></div>
-      <div id="hsv-controls">
+      <div id="hsv-controls" hidden>
         <label class="range-label" for="palette-saturation">Saturation <output id="palette-saturation-value">100%</output></label>
         <input id="palette-saturation" type="range" min="0" max="100" value="100">
       </div>
-      <div id="custom-controls" hidden>
+      <div id="custom-controls">
+        <p id="distribution-hint" class="control-hint">Set each color’s share. The others adjust to total 100%; edges blend smoothly.</p>
         <div id="custom-colors"></div><button id="add-color" class="text-button" type="button">+ Add color</button>
       </div>
       <div id="gradient-controls">
         <label class="range-label" for="palette-offset">Offset <output id="palette-offset-value">0%</output></label>
         <input id="palette-offset" type="range" min="0" max="100" step="0.1" value="0">
-        <label class="check-label"><input id="palette-animate" type="checkbox" checked> Animate gradient</label>
+        <label class="check-label"><input id="palette-animate" type="checkbox"> Animate gradient</label>
         <label class="range-label" for="palette-speed">Speed <output id="palette-speed-value">0.50 cycles/min</output></label>
-        <input id="palette-speed" type="range" min="-3" max="3" step="0.05" value="0.5">
+        <input id="palette-speed" type="range" min="-3" max="3" step="0.05" value="0.5" disabled>
       </div>
     </section>
 
@@ -844,6 +858,17 @@ summary {
   const clamp = (x) => Math.max(0, Math.min(1, x));
   const validHex = (value) => /^#[0-9a-f]{6}$/i.test(value);
   const linear = (rgb) => rgb.map((v) => Math.pow(v, 2.2));
+  const stellarColors = ['#ffc38a', '#ffe0bd', '#fff4ea', '#cadcff'];
+  const stellarWeights = [15, 15, 60, 10];
+  function shares(weights, total = 100) {
+    const sum = weights.reduce((a, b) => a + b, 0);
+    const exact = weights.map(w => total * (sum > 0 ? w / sum : 1 / weights.length));
+    const result = exact.map(Math.floor);
+    const order = exact.map((v, i) => i).sort((a, b) => (exact[b] - result[b]) - (exact[a] - result[a]));
+    const remaining = total - result.reduce((a, b) => a + b, 0);
+    for (let i = 0; i < remaining; i++) result[order[i]]++;
+    return result;
+  }
   function hexRGB(hex) {
     return [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
   }
@@ -879,31 +904,43 @@ summary {
         speed: 0.5,
         stops: ['#23D183', '#1DCA97', '#17C2AB', '#12BBC0', '#0CB3D4', '#06ACE8']
       };
+      this.weighted = {
+        offset: 0, animated: false, speed: 0.5,
+        stops: stellarColors.slice(), weights: stellarWeights.slice()
+      };
       this.revision = 0;
     }
     get gradient() {
       return this.mode === 'solid' ? null : this[this.mode];
     }
+    get editableGradient() {
+      return this.mode === 'weighted' ? this.weighted : this.custom;
+    }
     apply(settings) {
       if (settings.mode !== undefined) this.setMode(settings.mode);
       if (typeof settings.solid === 'string') this.setSolid(settings.solid);
       if (Number.isFinite(settings.saturation)) this.setSaturation(settings.saturation);
-      for (const mode of ['hsv', 'custom']) {
+      for (const mode of ['hsv', 'custom', 'weighted']) {
         const changes = settings[mode];
         if (!changes || typeof changes !== 'object') continue;
         const gradient = this[mode];
         if (Number.isFinite(changes.offset)) gradient.offset = wrap(changes.offset);
         if (Number.isFinite(changes.speed)) gradient.speed = Math.max(-3, Math.min(3, changes.speed));
         if (typeof changes.animated === 'boolean') gradient.animated = changes.animated;
-        if (mode === 'custom' && Array.isArray(changes.stops) &&
+        if (mode !== 'hsv' && Array.isArray(changes.stops) &&
             changes.stops.length >= 2 && changes.stops.length <= 6 &&
             changes.stops.every((color) => typeof color === 'string' && validHex(color)))
           gradient.stops = changes.stops.slice();
+        if (mode === 'weighted') {
+          const weights = Array.isArray(changes.weights) && changes.weights.length === gradient.stops.length &&
+            changes.weights.every(v => Number.isFinite(v) && v >= 0) ? changes.weights : gradient.weights;
+          gradient.weights = shares(gradient.stops.map((_, i) => weights[i] ?? 0));
+        }
         this.revision++;
       }
     }
     setMode(mode) {
-      if (['solid', 'hsv', 'custom'].includes(mode)) {
+      if (['solid', 'hsv', 'custom', 'weighted'].includes(mode)) {
         this.mode = mode;
         this.revision++;
       }
@@ -931,22 +968,39 @@ summary {
       if (this.gradient) this.gradient.speed = Math.max(-3, Math.min(3, value));
     }
     setStop(index, hex) {
-      if (index >= 0 && index < this.custom.stops.length && validHex(hex)) {
-        this.custom.stops[index] = hex;
+      if (index >= 0 && index < this.editableGradient.stops.length && validHex(hex)) {
+        this.editableGradient.stops[index] = hex;
         this.revision++;
       }
     }
+    setWeight(index, value) {
+      const weights = this.weighted.weights;
+      if (!Number.isInteger(index) || index < 0 || index >= weights.length || !Number.isFinite(value)) return;
+      const share = Math.round(clamp(value / 100) * 100);
+      const rest = shares(weights.filter((_, i) => i !== index), 100 - share);
+      rest.splice(index, 0, share);
+      this.weighted.weights = rest;
+      this.revision++;
+    }
     addStop() {
-      if (this.custom.stops.length >= 6) return;
-      const stops = this.custom.stops,
+      if (this.editableGradient.stops.length >= 6) return;
+      const stops = this.editableGradient.stops,
         a = linear(hexRGB(stops.at(-1))),
         b = linear(hexRGB(stops[0]));
       stops.push(css(a.map((v, i) => (v + b[i]) / 2)));
+      if (this.mode === 'weighted') {
+        this.weighted.weights.push(0);
+        this.setWeight(stops.length - 1, Math.round(100 / stops.length));
+      }
       this.revision++;
     }
     removeStop(index) {
-      if (this.custom.stops.length > 2 && index >= 0 && index < this.custom.stops.length) {
-        this.custom.stops.splice(index, 1);
+      if (this.editableGradient.stops.length > 2 && index >= 0 && index < this.editableGradient.stops.length) {
+        this.editableGradient.stops.splice(index, 1);
+        if (this.mode === 'weighted') {
+          this.weighted.weights.splice(index, 1);
+          this.weighted.weights = shares(this.weighted.weights);
+        }
         this.revision++;
       }
     }
@@ -958,6 +1012,7 @@ summary {
       }
     }
     writeColors(hues, out) {
+      if (this.mode === 'weighted') return this.writeSamples(hues, out);
       const stops = this.mode === 'custom' ? this.custom.stops.map((c) => linear(hexRGB(c))) : null;
       const solid = this.mode === 'solid' ? linear(hexRGB(this.solid)) : null;
       for (let band = 0; band < hues.length; band++) {
@@ -976,6 +1031,46 @@ summary {
           color = a.map((v, i) => v + (b[i] - v) * fraction);
         }
         out.set(color, band * 3);
+      }
+      return out;
+    }
+    writeSamples(hues, out) {
+      const count = out.length / 3;
+      if (this.mode !== 'weighted') {
+        const bands = this.writeColors(hues, new Float32Array(hues.length * 3));
+        for (let i = 0; i < count; i++) {
+          const band = Math.min(hues.length - 1, Math.floor(i * hues.length / count));
+          for (let c = 0; c < 3; c++) out[i * 3 + c] = bands[band * 3 + c];
+        }
+        return out;
+      }
+      const g = this.weighted;
+      const stops = g.stops.map((c, i) => ({ color: linear(hexRGB(c)), width: g.weights[i] / 100 }))
+        .filter(stop => stop.width > 0);
+      for (let i = 0; i < count; i++) {
+        const position = wrap((i + .5) / count + g.offset);
+        let start = 0;
+        for (let j = 0; j < stops.length; j++) {
+          const current = stops[j], end = start + current.width;
+          if (position < end || j === stops.length - 1) {
+            const previous = stops[(j + stops.length - 1) % stops.length], next = stops[(j + 1) % stops.length];
+            const leading = .2 * Math.min(previous.width, current.width);
+            const trailing = .2 * Math.min(current.width, next.width);
+            let a = current.color, b = a, t = 0;
+            if (position < start + leading) {
+              a = previous.color;
+              t = (position - start + leading) / (2 * leading);
+            } else if (position > end - trailing) {
+              b = next.color;
+              t = (position - end + trailing) / (2 * trailing);
+            }
+            t = clamp(t); t *= t * (3 - 2 * t);
+            for (let channel = 0; channel < 3; channel++)
+              out[i * 3 + channel] = a[channel] + (b[channel] - a[channel]) * t;
+            break;
+          }
+          start = end;
+        }
       }
       return out;
     }
@@ -1186,6 +1281,7 @@ uniform float uBands[24],uAudioDriven,uIdleParticles;
 uniform int uBandCount;
 uniform float uSustainStrength;
 uniform vec3 uBandColors[24];
+uniform sampler2D uPalette;uniform int uWeightedPalette;
 uniform vec3 uVolumeGrid,uVolumeExtent;
 out vec3 vColor;out float vWeight;out vec3 vVelocity;out float vTime;
 flat out vec2 vCenter;flat out float vKernelMass;
@@ -1202,9 +1298,12 @@ void main(){
   vWeight*=smoothstep(inner,inner+.55,r)*(1.-smoothstep(22.,23.,r));
   float heat=pow(uISCO/max(r,uISCO),.65);
   float kind=hash(float(gl_VertexID)+37.2);
-  int band=int(hash(float(gl_VertexID)+81.3)*float(uBandCount));
+  float palettePosition=hash(float(gl_VertexID)+81.3);
+  int band=int(palettePosition*float(uBandCount));
   float level=uBands[band];
-  vColor=uBandColors[band]*(.28+1.9*heat)*mix(.65,1.4,kind);
+  int colorIndex=int(palettePosition*float(textureSize(uPalette,0).x));
+  vec3 tint=uWeightedPalette==1?texelFetch(uPalette,ivec2(colorIndex,0),0).rgb:uBandColors[band];
+  vColor=tint*(.28+1.9*heat)*mix(.65,1.4,kind);
   float amount=clamp(level*uSustainStrength,0.,1.);
   float rank=hash(float(gl_VertexID)+113.9);
   float visibility=smoothstep(rank-.025,rank+.025,mix(-.025,1.025,amount));
@@ -1493,10 +1592,14 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
       this.shakeStrength = 0.7;
       this.palette = new GravityPalette.Palette();
       this.idlePalette = new GravityPalette.Palette();
-      this.idlePalette.apply({ mode: 'solid', solid: '#ffffff' });
+      this.idlePalette.apply({ mode: 'weighted', solid: '#ffffff' });
       this.paletteColors = new Float32Array(GravityAudio.COUNT * 3);
       this.audioColors = new Float32Array(GravityAudio.COUNT * 3);
       this.idleColors = new Float32Array(GravityAudio.COUNT * 3);
+      this.paletteSampleCount = GravityAudio.COUNT * 64;
+      this.audioSamples = new Float32Array(this.paletteSampleCount * 3);
+      this.idleSamples = new Float32Array(this.paletteSampleCount * 3);
+      this.paletteSamples = new Float32Array(this.paletteSampleCount * 4);
       this.paletteRevision = -1;
       this.idlePaletteRevision = -1;
       this.paletteMix = -1;
@@ -1653,6 +1756,8 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
       this.cacheFbos = [];
       this.renderTextures = [];
       this.renderFbos = [];
+      this.paletteTexture = this.texture(this.paletteSampleCount, 1, gl.RGBA32F);
+      this.paletteTextureDirty = true;
       this.allocateParticles();
       this.allocateEmission();
       this.resize(true);
@@ -1986,6 +2091,12 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
       this.gl.uniform1fv(this.loc('uBands[0]'), this.spectrum.levels);
       this.f('uSustainStrength', this.sustainStrength);
       this.gl.uniform3fv(this.loc('uBandColors[0]'), this.paletteColors);
+      this.i('uWeightedPalette', this.palette.mode === 'weighted' || this.idlePalette.mode === 'weighted' ? 1 : 0);
+      this.bind('uPalette', this.paletteTexture, 0);
+      if (this.paletteTextureDirty) {
+        gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, this.paletteSampleCount, 1, gl.RGBA, gl.FLOAT, this.paletteSamples);
+        this.paletteTextureDirty = false;
+      }
       this.f('uFadeSeconds', this.fadeSeconds);
       this.f('uAudioDriven', this.spectrum.driven);
       this.f('uIdleParticles', this.showIdleParticles ? 1 : 0);
@@ -2093,15 +2204,26 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
       const idleChanged = this.idlePaletteRevision !== this.idlePalette.revision;
       if (force || audioChanged) {
         this.palette.writeColors(GravityAudio.hues, this.audioColors);
+        this.palette.writeSamples(GravityAudio.hues, this.audioSamples);
         this.paletteRevision = this.palette.revision;
       }
       if (force || idleChanged) {
         this.idlePalette.writeColors(GravityAudio.hues, this.idleColors);
+        this.idlePalette.writeSamples(GravityAudio.hues, this.idleSamples);
         this.idlePaletteRevision = this.idlePalette.revision;
       }
       if (!force && !audioChanged && !idleChanged && this.paletteMix === this.spectrum.driven) return;
       this.paletteMix = this.spectrum.driven;
       GravityPalette.blend(this.idleColors, this.audioColors, this.paletteMix, this.paletteColors);
+      for (let i = 0; i < this.paletteSampleCount; i++) {
+        for (let c = 0; c < 3; c++) {
+          const index = i * 3 + c;
+          this.paletteSamples[i * 4 + c] = this.idleSamples[index] +
+            (this.audioSamples[index] - this.idleSamples[index]) * this.paletteMix;
+        }
+        this.paletteSamples[i * 4 + 3] = 1;
+      }
+      this.paletteTextureDirty = true;
       this.onPalette?.(force);
     }
     updateAudio(dt) {
@@ -2257,7 +2379,7 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
   class WebDemo extends GravityRenderer {
     constructor() {
       super($('universe'));
-      this.paletteTarget = 'audio';
+      this.paletteTarget = 'idle';
       this.audioContext = null;
       this.audioURL = null;
       this.captureStream = null;
@@ -2295,7 +2417,14 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
           bar.style.background = GravityPalette.css(Array.from(this.audioColors.subarray(i * 3, i * 3 + 3)));
           return GravityPalette.css(Array.from(preview.subarray(i * 3, i * 3 + 3)));
         });
+        if (this.editedPalette.mode === 'weighted') {
+          const samples = this.editedPalette.writeSamples(GravityAudio.hues, new Float32Array(256 * 3));
+          colors.length = 0;
+          for (let i = 0; i < 256; i++) colors.push(GravityPalette.css(Array.from(samples.subarray(i * 3, i * 3 + 3))));
+        }
         $('palette-preview').style.background = 'linear-gradient(to right,' + colors.join(',') + ')';
+        $('palette-preview').setAttribute('aria-label', this.paletteTarget === 'idle'
+          ? 'Idle color distribution' : 'Audio palette from bass to high frequencies');
         if (this.editedPalette.gradient) {
           const percent = this.editedPalette.gradient.offset * 100;
           $('palette-offset').value = percent;
@@ -2345,10 +2474,14 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
     syncPaletteUI() {
       const p = this.editedPalette,
         g = p.gradient;
+      const editor = $('custom-colors');
+      if (editor.dataset.mode !== p.mode || editor.childElementCount !== p.editableGradient.stops.length)
+        this.renderColorStops();
       $('color-mode').value = p.mode;
       $('solid-controls').hidden = p.mode !== 'solid';
       $('hsv-controls').hidden = p.mode !== 'hsv';
-      $('custom-controls').hidden = p.mode !== 'custom';
+      $('custom-controls').hidden = p.mode !== 'custom' && p.mode !== 'weighted';
+      $('distribution-hint').hidden = p.mode !== 'weighted';
       $('gradient-controls').hidden = !g;
       $('solid-color').value = p.solid;
       $('palette-saturation').value = p.saturation * 100;
@@ -2361,12 +2494,17 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
         $('palette-speed').disabled = !g.animated;
         $('palette-speed-value').textContent = g.speed.toFixed(2) + ' cycles/min';
       }
-      $('add-color').disabled = p.custom.stops.length >= 6;
+      $('add-color').disabled = p.editableGradient.stops.length >= 6;
+      for (const input of document.querySelectorAll('[data-stop]'))
+        input.value = p.editableGradient.stops[Number(input.dataset.stop)];
+      for (const input of document.querySelectorAll('[data-weight]'))
+        input.value = p.weighted.weights[Number(input.dataset.weight)];
     }
     renderColorStops() {
       const container = $('custom-colors');
       container.replaceChildren();
-      this.editedPalette.custom.stops.forEach((color, index) => {
+      container.dataset.mode = this.editedPalette.mode;
+      this.editedPalette.editableGradient.stops.forEach((color, index) => {
         const row = document.createElement('div');
         row.className = 'color-stop';
         const label = document.createElement('label');
@@ -2382,10 +2520,26 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
         });
         label.append(input);
         row.append(label);
+        if (this.editedPalette.mode === 'weighted') {
+          const share = document.createElement('label');
+          share.className = 'color-share';
+          const weight = document.createElement('input');
+          weight.type = 'number'; weight.min = '0'; weight.max = '100'; weight.step = '1';
+          weight.value = this.editedPalette.weighted.weights[index];
+          weight.dataset.weight = index;
+          weight.setAttribute('aria-label', 'Gradient color ' + (index + 1) + ' share (%)');
+          weight.addEventListener('change', () => {
+            this.editedPalette.setWeight(index, weight.valueAsNumber);
+            this.syncPaletteUI();
+            this.refreshPalette(true);
+          });
+          share.append(weight, '%');
+          row.append(share);
+        }
         const remove = document.createElement('button');
         remove.textContent = '×';
         remove.type = 'button';
-        remove.disabled = this.editedPalette.custom.stops.length <= 2;
+        remove.disabled = this.editedPalette.editableGradient.stops.length <= 2;
         remove.setAttribute('aria-label', 'Remove gradient color ' + (index + 1));
         remove.addEventListener('click', () => {
           this.editedPalette.removeStop(index);
@@ -2604,6 +2758,7 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
       });
       $('color-mode').addEventListener('change', (e) => {
         this.editedPalette.setMode(e.target.value);
+        this.renderColorStops();
         this.syncPaletteUI();
         this.refreshPalette(true);
       });

@@ -23,26 +23,37 @@
     if (solid) palette.solid = solid;
     if (typeof values[prefix + 'saturation'] === 'number' && Number.isFinite(values[prefix + 'saturation']))
       palette.saturation = values[prefix + 'saturation'] / 100;
-    for (const mode of ['hsv', 'custom']) {
+    for (const mode of ['hsv', 'custom', 'weighted']) {
       const changes = {};
       if (typeof values[prefix + mode + 'offset'] === 'number') changes.offset = values[prefix + mode + 'offset'] / 100;
       if (typeof values[prefix + mode + 'speed'] === 'number') changes.speed = values[prefix + mode + 'speed'];
       if (typeof values[prefix + mode + 'animate'] === 'boolean') changes.animated = values[prefix + mode + 'animate'];
       if (Object.keys(changes).length) palette[mode] = changes;
     }
-    let colorsChanged = false;
-    if (Number.isFinite(values[prefix + 'customcount'])) {
-      state.count = Math.max(2, Math.min(6, Math.round(values[prefix + 'customcount'])));
-      colorsChanged = true;
-    }
-    for (let i = 0; i < 6; i++) {
-      const hex = color(values[prefix + 'customcolor' + (i + 1)]);
-      if (hex) {
-        state.stops[i] = hex;
+    for (const mode of ['custom', 'weighted']) {
+      const gradient = state[mode];
+      let colorsChanged = false;
+      if (Number.isFinite(values[prefix + mode + 'count'])) {
+        gradient.count = Math.max(2, Math.min(6, Math.round(values[prefix + mode + 'count'])));
         colorsChanged = true;
       }
+      for (let i = 0; i < 6; i++) {
+        const hex = color(values[prefix + mode + 'color' + (i + 1)]);
+        if (hex) {
+          gradient.stops[i] = hex;
+          colorsChanged = true;
+        }
+        const weight = values[prefix + mode + 'weight' + (i + 1)];
+        if (mode === 'weighted' && Number.isFinite(weight)) {
+          gradient.weights[i] = Math.max(0, Math.min(100, weight));
+          colorsChanged = true;
+        }
+      }
+      if (colorsChanged) {
+        palette[mode] = { ...palette[mode], stops: gradient.stops.slice(0, gradient.count) };
+        if (mode === 'weighted') palette[mode].weights = gradient.weights.slice(0, gradient.count);
+      }
     }
-    if (colorsChanged) palette.custom = { ...palette.custom, stops: state.stops.slice(0, state.count) };
     return palette;
   }
   const host = {
@@ -113,8 +124,15 @@
         this.renderer.onError = showError;
         this.paletteStops = {};
         for (const key of ['palette', 'idlePalette']) {
-          const stops = this.renderer[key].custom.stops.slice();
-          this.paletteStops[key] = { stops, count: stops.length };
+          this.paletteStops[key] = {};
+          for (const mode of ['custom', 'weighted']) {
+            const g = this.renderer[key][mode];
+            this.paletteStops[key][mode] = {
+              count: g.stops.length,
+              stops: Array.from({ length: 6 }, (_, i) => g.stops[i] ?? g.stops.at(-1)),
+              weights: Array.from({ length: 6 }, (_, i) => g.weights?.[i] ?? 0)
+            };
+          }
         }
         this.flush();
         this.renderer.applySettings({ fpsLimit: this.fps });

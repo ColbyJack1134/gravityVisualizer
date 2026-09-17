@@ -4,7 +4,7 @@
   class WebDemo extends GravityRenderer {
     constructor() {
       super($('universe'));
-      this.paletteTarget = 'audio';
+      this.paletteTarget = 'idle';
       this.audioContext = null;
       this.audioURL = null;
       this.captureStream = null;
@@ -42,7 +42,14 @@
           bar.style.background = GravityPalette.css(Array.from(this.audioColors.subarray(i * 3, i * 3 + 3)));
           return GravityPalette.css(Array.from(preview.subarray(i * 3, i * 3 + 3)));
         });
+        if (this.editedPalette.mode === 'weighted') {
+          const samples = this.editedPalette.writeSamples(GravityAudio.hues, new Float32Array(256 * 3));
+          colors.length = 0;
+          for (let i = 0; i < 256; i++) colors.push(GravityPalette.css(Array.from(samples.subarray(i * 3, i * 3 + 3))));
+        }
         $('palette-preview').style.background = 'linear-gradient(to right,' + colors.join(',') + ')';
+        $('palette-preview').setAttribute('aria-label', this.paletteTarget === 'idle'
+          ? 'Idle color distribution' : 'Audio palette from bass to high frequencies');
         if (this.editedPalette.gradient) {
           const percent = this.editedPalette.gradient.offset * 100;
           $('palette-offset').value = percent;
@@ -92,10 +99,14 @@
     syncPaletteUI() {
       const p = this.editedPalette,
         g = p.gradient;
+      const editor = $('custom-colors');
+      if (editor.dataset.mode !== p.mode || editor.childElementCount !== p.editableGradient.stops.length)
+        this.renderColorStops();
       $('color-mode').value = p.mode;
       $('solid-controls').hidden = p.mode !== 'solid';
       $('hsv-controls').hidden = p.mode !== 'hsv';
-      $('custom-controls').hidden = p.mode !== 'custom';
+      $('custom-controls').hidden = p.mode !== 'custom' && p.mode !== 'weighted';
+      $('distribution-hint').hidden = p.mode !== 'weighted';
       $('gradient-controls').hidden = !g;
       $('solid-color').value = p.solid;
       $('palette-saturation').value = p.saturation * 100;
@@ -108,12 +119,17 @@
         $('palette-speed').disabled = !g.animated;
         $('palette-speed-value').textContent = g.speed.toFixed(2) + ' cycles/min';
       }
-      $('add-color').disabled = p.custom.stops.length >= 6;
+      $('add-color').disabled = p.editableGradient.stops.length >= 6;
+      for (const input of document.querySelectorAll('[data-stop]'))
+        input.value = p.editableGradient.stops[Number(input.dataset.stop)];
+      for (const input of document.querySelectorAll('[data-weight]'))
+        input.value = p.weighted.weights[Number(input.dataset.weight)];
     }
     renderColorStops() {
       const container = $('custom-colors');
       container.replaceChildren();
-      this.editedPalette.custom.stops.forEach((color, index) => {
+      container.dataset.mode = this.editedPalette.mode;
+      this.editedPalette.editableGradient.stops.forEach((color, index) => {
         const row = document.createElement('div');
         row.className = 'color-stop';
         const label = document.createElement('label');
@@ -129,10 +145,26 @@
         });
         label.append(input);
         row.append(label);
+        if (this.editedPalette.mode === 'weighted') {
+          const share = document.createElement('label');
+          share.className = 'color-share';
+          const weight = document.createElement('input');
+          weight.type = 'number'; weight.min = '0'; weight.max = '100'; weight.step = '1';
+          weight.value = this.editedPalette.weighted.weights[index];
+          weight.dataset.weight = index;
+          weight.setAttribute('aria-label', 'Gradient color ' + (index + 1) + ' share (%)');
+          weight.addEventListener('change', () => {
+            this.editedPalette.setWeight(index, weight.valueAsNumber);
+            this.syncPaletteUI();
+            this.refreshPalette(true);
+          });
+          share.append(weight, '%');
+          row.append(share);
+        }
         const remove = document.createElement('button');
         remove.textContent = '×';
         remove.type = 'button';
-        remove.disabled = this.editedPalette.custom.stops.length <= 2;
+        remove.disabled = this.editedPalette.editableGradient.stops.length <= 2;
         remove.setAttribute('aria-label', 'Remove gradient color ' + (index + 1));
         remove.addEventListener('click', () => {
           this.editedPalette.removeStop(index);
@@ -351,6 +383,7 @@
       });
       $('color-mode').addEventListener('change', (e) => {
         this.editedPalette.setMode(e.target.value);
+        this.renderColorStops();
         this.syncPaletteUI();
         this.refreshPalette(true);
       });

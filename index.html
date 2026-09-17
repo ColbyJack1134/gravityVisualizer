@@ -46,23 +46,24 @@
 
     <section class="control-section">
       <h2>Colors</h2>
-      <select id="palette-target" aria-label="Palette"><option value="audio">Audio colors</option><option value="idle">Idle colors</option></select>
-      <select id="color-mode" aria-label="Color mode"><option value="hsv">HSV gradient</option><option value="solid">Solid color</option><option value="custom">Custom gradient</option></select>
+      <select id="palette-target" aria-label="Palette"><option value="idle" selected>Idle colors</option><option value="audio">Audio colors</option></select>
+      <select id="color-mode" aria-label="Color mode"><option value="hsv">HSV gradient</option><option value="solid">Solid color</option><option value="custom">Custom gradient</option><option value="weighted" selected>Weighted gradient</option></select>
       <div id="palette-preview" class="palette-preview" aria-label="Palette from bass to high frequencies"></div>
       <div id="solid-controls" hidden><label class="color-label" for="solid-color">Particle color <input id="solid-color" type="color" value="#aa44ff"></label></div>
-      <div id="hsv-controls">
+      <div id="hsv-controls" hidden>
         <label class="range-label" for="palette-saturation">Saturation <output id="palette-saturation-value">100%</output></label>
         <input id="palette-saturation" type="range" min="0" max="100" value="100">
       </div>
-      <div id="custom-controls" hidden>
+      <div id="custom-controls">
+        <p id="distribution-hint" class="control-hint">Set each color’s share. The others adjust to total 100%; edges blend smoothly.</p>
         <div id="custom-colors"></div><button id="add-color" class="text-button" type="button">+ Add color</button>
       </div>
       <div id="gradient-controls">
         <label class="range-label" for="palette-offset">Offset <output id="palette-offset-value">0%</output></label>
         <input id="palette-offset" type="range" min="0" max="100" step="0.1" value="0">
-        <label class="check-label"><input id="palette-animate" type="checkbox" checked> Animate gradient</label>
+        <label class="check-label"><input id="palette-animate" type="checkbox"> Animate gradient</label>
         <label class="range-label" for="palette-speed">Speed <output id="palette-speed-value">0.50 cycles/min</output></label>
-        <input id="palette-speed" type="range" min="-3" max="3" step="0.05" value="0.5">
+        <input id="palette-speed" type="range" min="-3" max="3" step="0.05" value="0.5" disabled>
       </div>
     </section>
 

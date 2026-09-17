@@ -213,6 +213,19 @@ h2 {
 .color-stop button {
   padding: 4px 8px;
 }
+.color-stop .color-share {
+  flex: 0 0 auto;
+  gap: 3px;
+}
+.color-share input {
+  width: 54px;
+  padding: 4px;
+}
+.control-hint {
+  margin: 8px 0;
+  color: #b5b4c0;
+  font-size: 11px;
+}
 .text-button {
   margin-top: 4px;
 }

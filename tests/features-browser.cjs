@@ -65,10 +65,67 @@ function interruptedTone(){
     results.checks.push('GPU three-second fade-in/out, invisible relocation, smooth rebirth, speed-change continuity and disable control');
 
     assert.equal(await page.evaluate(()=>GravityDemo.idlePalette.solid),'#ffffff');
-    assert.ok(await page.evaluate(()=>GravityDemo.paletteColors.every(v=>v===1)));
+    assert.equal(await page.evaluate(()=>GravityDemo.idlePalette.mode),'weighted');
+    assert.ok(await page.evaluate(()=>GravityDemo.paletteColors.some(v=>v<.99)));
     await page.locator('#palette-target').selectOption('idle');
     await page.evaluate(()=>{GravityDemo.syncUI();});
     const builds=await page.evaluate(()=>GravityDemo.cacheBuilds);
+    assert.equal(await page.locator('#color-mode').inputValue(),'weighted');
+    assert.equal(await page.locator('[data-weight]').count(),4);
+    await page.locator('[data-weight="2"]').fill('70');
+    await page.locator('[data-weight="2"]').dispatchEvent('change');
+    const shares=await page.locator('[data-weight]').evaluateAll(inputs=>inputs.map(input=>Number(input.value)));
+    assert.equal(shares[2],70);assert.equal(shares.reduce((a,b)=>a+b),100);
+    await page.locator('#add-color').click();assert.equal(await page.locator('[data-weight]').count(),5);
+    await page.locator('#custom-colors button').last().click();assert.equal(await page.locator('[data-weight]').count(),4);
+    results.weighted=await page.evaluate(()=>{
+      const d=GravityDemo,gl=d.gl,original=d.programs.deposit;
+      const saved={mode:d.idlePalette.mode,weighted:structuredClone(d.idlePalette.weighted)};
+      const program=d.program(GravityShaders.depositVertex,GravityShaders.depositFragment,['vColor']);
+      const feedback=gl.createTransformFeedback(),buffer=gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER,buffer);gl.bufferData(gl.ARRAY_BUFFER,d.count*3*4,gl.DYNAMIC_READ);gl.bindBuffer(gl.ARRAY_BUFFER,null);
+      d.programs.deposit=program;
+      const capture=()=>{
+        d.refreshPalette(true);d.deposit();
+        gl.bindVertexArray(d.particleVAOs[d.particleIndex]);gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK,feedback);
+        gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER,0,buffer);gl.enable(gl.RASTERIZER_DISCARD);
+        gl.beginTransformFeedback(gl.POINTS);gl.drawArrays(gl.POINTS,0,d.count);gl.endTransformFeedback();
+        gl.disable(gl.RASTERIZER_DISCARD);gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER,0,null);
+        gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK,null);gl.bindVertexArray(null);
+        const colors=new Float32Array(d.count*3);gl.bindBuffer(gl.ARRAY_BUFFER,buffer);
+        gl.getBufferSubData(gl.ARRAY_BUFFER,0,colors);gl.bindBuffer(gl.ARRAY_BUFFER,null);
+        const brightness=.7+(1.725-.7)*d.spectrum.driven;
+        return colors.map(v=>v/brightness);
+      };
+      const population=colors=>{
+        const count=[0,0,0];
+        for(let i=0;i<colors.length;i+=3){
+          let channel=0;for(let c=1;c<3;c++)if(colors[i+c]>colors[i+channel])channel=c;
+          count[channel]++;
+        }
+        return count.map(n=>n/d.count);
+      };
+      d.spectrum.driven=0;
+      d.idlePalette.apply({mode:'weighted',weighted:{stops:['#ff0000','#00ff00','#0000ff'],weights:[20,60,20],offset:0}});
+      const normal=population(capture());
+      d.idlePalette.apply({weighted:{weights:[1,98,1]}});const rare=population(capture());
+      d.idlePalette.apply({weighted:{weights:[0,100,0]}});const only=population(capture());
+      const idle=capture();d.spectrum.driven=1;const active=capture();d.spectrum.driven=.5;const middle=capture();
+      let blendError=0;
+      for(let i=0;i<middle.length;i++)blendError=Math.max(blendError,Math.abs(middle[i]-(idle[i]+active[i])*.5));
+      d.spectrum.driven=1;d.idlePalette.setMode('solid');const legacy=capture();
+      let audioError=0;
+      for(let i=0;i<legacy.length;i++)audioError=Math.max(audioError,Math.abs(legacy[i]-active[i]));
+      d.idlePalette.apply(saved);d.spectrum.driven=0;d.refreshPalette(true);d.programs.deposit=original;
+      gl.deleteProgram(program.p);gl.deleteBuffer(buffer);gl.deleteTransformFeedback(feedback);
+      return {normal,rare,only,blendError,audioError,error:gl.getError()};
+    });
+    results.weighted.normal.forEach((v,i)=>assert.ok(Math.abs(v-[.2,.6,.2][i])<.008));
+    results.weighted.rare.forEach((v,i)=>assert.ok(Math.abs(v-[.01,.98,.01][i])<.003));
+    assert.deepEqual(results.weighted.only,[0,1,0]);
+    assert.ok(results.weighted.blendError<1e-5&&results.weighted.audioError<1e-5);
+    assert.equal(results.weighted.error,0);
+    results.checks.push('Weighted percentages and rare colors reach individual GPU particles; zero weights, audio isolation and crossfade remain correct');
     const pixels=()=>page.evaluate(()=>{
       const d=GravityDemo,gl=d.gl;d.deposit();d.shade();d.present();const bytes=new Uint8Array(d.canvas.width*d.canvas.height*4);
       gl.readPixels(0,0,d.canvas.width,d.canvas.height,gl.RGBA,gl.UNSIGNED_BYTE,bytes);

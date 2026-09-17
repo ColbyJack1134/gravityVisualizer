@@ -45,10 +45,14 @@
       this.shakeStrength = 0.7;
       this.palette = new GravityPalette.Palette();
       this.idlePalette = new GravityPalette.Palette();
-      this.idlePalette.apply({ mode: 'solid', solid: '#ffffff' });
+      this.idlePalette.apply({ mode: 'weighted', solid: '#ffffff' });
       this.paletteColors = new Float32Array(GravityAudio.COUNT * 3);
       this.audioColors = new Float32Array(GravityAudio.COUNT * 3);
       this.idleColors = new Float32Array(GravityAudio.COUNT * 3);
+      this.paletteSampleCount = GravityAudio.COUNT * 64;
+      this.audioSamples = new Float32Array(this.paletteSampleCount * 3);
+      this.idleSamples = new Float32Array(this.paletteSampleCount * 3);
+      this.paletteSamples = new Float32Array(this.paletteSampleCount * 4);
       this.paletteRevision = -1;
       this.idlePaletteRevision = -1;
       this.paletteMix = -1;
@@ -205,6 +209,8 @@
       this.cacheFbos = [];
       this.renderTextures = [];
       this.renderFbos = [];
+      this.paletteTexture = this.texture(this.paletteSampleCount, 1, gl.RGBA32F);
+      this.paletteTextureDirty = true;
       this.allocateParticles();
       this.allocateEmission();
       this.resize(true);
@@ -538,6 +544,12 @@
       this.gl.uniform1fv(this.loc('uBands[0]'), this.spectrum.levels);
       this.f('uSustainStrength', this.sustainStrength);
       this.gl.uniform3fv(this.loc('uBandColors[0]'), this.paletteColors);
+      this.i('uWeightedPalette', this.palette.mode === 'weighted' || this.idlePalette.mode === 'weighted' ? 1 : 0);
+      this.bind('uPalette', this.paletteTexture, 0);
+      if (this.paletteTextureDirty) {
+        gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, this.paletteSampleCount, 1, gl.RGBA, gl.FLOAT, this.paletteSamples);
+        this.paletteTextureDirty = false;
+      }
       this.f('uFadeSeconds', this.fadeSeconds);
       this.f('uAudioDriven', this.spectrum.driven);
       this.f('uIdleParticles', this.showIdleParticles ? 1 : 0);
@@ -645,15 +657,26 @@
       const idleChanged = this.idlePaletteRevision !== this.idlePalette.revision;
       if (force || audioChanged) {
         this.palette.writeColors(GravityAudio.hues, this.audioColors);
+        this.palette.writeSamples(GravityAudio.hues, this.audioSamples);
         this.paletteRevision = this.palette.revision;
       }
       if (force || idleChanged) {
         this.idlePalette.writeColors(GravityAudio.hues, this.idleColors);
+        this.idlePalette.writeSamples(GravityAudio.hues, this.idleSamples);
         this.idlePaletteRevision = this.idlePalette.revision;
       }
       if (!force && !audioChanged && !idleChanged && this.paletteMix === this.spectrum.driven) return;
       this.paletteMix = this.spectrum.driven;
       GravityPalette.blend(this.idleColors, this.audioColors, this.paletteMix, this.paletteColors);
+      for (let i = 0; i < this.paletteSampleCount; i++) {
+        for (let c = 0; c < 3; c++) {
+          const index = i * 3 + c;
+          this.paletteSamples[i * 4 + c] = this.idleSamples[index] +
+            (this.audioSamples[index] - this.idleSamples[index]) * this.paletteMix;
+        }
+        this.paletteSamples[i * 4 + 3] = 1;
+      }
+      this.paletteTextureDirty = true;
       this.onPalette?.(force);
     }
     updateAudio(dt) {

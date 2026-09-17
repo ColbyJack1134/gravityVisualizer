@@ -42,3 +42,58 @@ idle.advance(6,true); audio.advance(6,true);
 close(idle.custom.offset,.2); close(audio.hsv.offset,.7);
 assert.deepEqual(audio.custom.stops,['#23D183','#1DCA97','#17C2AB','#12BBC0','#0CB3D4','#06ACE8']);
 console.log('PASS: independent idle/audio palettes and linear-light crossfade endpoints.');
+
+const weighted = new C.Palette();
+weighted.apply({mode:'weighted',weighted:{stops:['#ff0000','#00ff00','#0000ff'],weights:[20,60,20]}});
+const sample = (p, n = 10000) => p.writeSamples(A.hues, new Float32Array(n * 3));
+const population = samples => {
+  const counts = [0,0,0];
+  for (let i=0;i<samples.length;i+=3) {
+    const channels=Array.from(samples.subarray(i,i+3));
+    counts[channels.indexOf(Math.max(...channels))]++;
+  }
+  return counts;
+};
+assert.deepEqual(population(sample(weighted)),[2000,6000,2000]);
+weighted.setWeight(1,70);
+assert.deepEqual(weighted.weighted.weights,[15,70,15]);
+assert.deepEqual(population(sample(weighted)),[1500,7000,1500]);
+weighted.apply({weighted:{weights:[1,98,1]}});
+assert.deepEqual(population(sample(weighted)),[100,9800,100],'Small color shares must survive beyond the 24 audio bands');
+weighted.setWeight(0,100);
+assert.deepEqual(weighted.weighted.weights,[100,0,0]);
+assert.deepEqual(population(sample(weighted)),[10000,0,0]);
+weighted.setWeight(0,0);
+assert.deepEqual(weighted.weighted.weights,[0,50,50]);
+assert.deepEqual(population(sample(weighted)),[0,5000,5000],'Zero-weight colors must not leak into transitions');
+weighted.apply({weighted:{weights:[0,0,0]}});
+assert.equal(weighted.weighted.weights.reduce((a,b)=>a+b),100);
+assert.ok(sample(weighted).every(Number.isFinite));
+const validWeights=weighted.weighted.weights.slice();
+weighted.apply({weighted:{weights:[-1,Infinity,NaN]}});
+assert.deepEqual(weighted.weighted.weights,validWeights);
+weighted.setWeight(-1,50);weighted.setWeight(1,NaN);
+assert.deepEqual(weighted.weighted.weights,validWeights);
+weighted.apply({weighted:{weights:[20,60,20]}});
+const stationary=sample(weighted,1000);
+weighted.advance(30);
+assert.deepEqual(sample(weighted,1000),stationary,'The stellar preset must not cycle colors while idle');
+weighted.setAnimated(true);weighted.setSpeed(1);weighted.advance(30);
+const rotated=sample(weighted,1000);
+for(let i=0;i<1000;i++)for(let c=0;c<3;c++)close(rotated[i*3+c],stationary[((i+500)%1000)*3+c]);
+weighted.advance(30,true);close(weighted.weighted.offset,.5);
+weighted.setSpeed(-1);weighted.advance(15);close(weighted.weighted.offset,.25);
+for(let i=0;i<10;i++)weighted.addStop();
+assert.equal(weighted.weighted.stops.length,6);
+assert.equal(weighted.weighted.weights.reduce((a,b)=>a+b),100);
+for(let i=0;i<10;i++)weighted.removeStop(0);
+assert.equal(weighted.weighted.stops.length,2);
+assert.equal(weighted.weighted.weights.reduce((a,b)=>a+b),100);
+assert.deepEqual(weighted.custom.stops,new C.Palette().custom.stops);
+for(const mode of ['solid','hsv','custom']) {
+  const q=new C.Palette();q.setMode(mode);q.setOffset(.37);
+  const bands=colors(q), samples=sample(q,A.COUNT*64);
+  for(let i=0;i<A.COUNT*64;i++)for(let c=0;c<3;c++)
+    close(samples[i*3+c],bands[Math.floor(i/64)*3+c]);
+}
+console.log('PASS: weighted color shares, rare colors, zero weights, normalization, independent stops and cyclic sampling.');
