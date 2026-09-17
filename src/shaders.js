@@ -69,8 +69,12 @@ float stepSize(vec3 x,vec3 p,float a,float horizon,float cap){
 in vec2 uv;
 uniform vec3 uCamera,uRight,uUp,uForward;
 uniform float uAspect,uTanFov,uSpin,uHorizon,uISCO,uObserverEnergy;
-uniform vec2 uRaySize;uniform float uRayRow;
-vec3 rayDirection(){vec2 q=(gl_FragCoord.xy+vec2(0.,uRayRow))/uRaySize*2.-1.;return normalize(uForward+q.x*uAspect*uTanFov*uRight+q.y*uTanFov*uUp);}
+uniform vec2 uRaySize,uCacheFraming;uniform float uRayRow,uCacheRoll;
+vec3 rayDirection(){
+  vec2 q=((gl_FragCoord.xy+vec2(0.,uRayRow))/uRaySize*2.-1.)*vec2(uAspect,1.)-2.*uCacheFraming;
+  float c=cos(uCacheRoll),s=sin(uCacheRoll);q=mat2(c,-s,s,c)*q;
+  return normalize(uForward+q.x*uTanFov*uRight+q.y*uTanFov*uUp);
+}
 `;
   const volumePath = `
 uniform float uVolumeScale;
@@ -276,12 +280,12 @@ vec3 background(vec3 direction){
 `;
   const viewCode = `
 uniform float uOrbitAngle,uRoll,uViewAspect,uOverscan;
-uniform vec2 uFraming;
+uniform vec2 uFraming,uCacheFraming;
 vec3 orbit(vec3 v){float c=cos(uOrbitAngle),s=sin(uOrbitAngle);return vec3(c*v.x-s*v.y,s*v.x+c*v.y,v.z);}
 vec2 viewUV(vec2 p){
   vec2 q=(p-.5)*vec2(uViewAspect,1.)-uFraming;
   float c=cos(uRoll),s=sin(uRoll);q=mat2(c,-s,s,c)*q;
-  return .5+q/vec2(uViewAspect,1.)/uOverscan;
+  return .5+(q+uCacheFraming)/vec2(uViewAspect,1.)/uOverscan;
 }
 `;
   const volumeShade =

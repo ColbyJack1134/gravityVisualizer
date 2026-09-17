@@ -9,12 +9,14 @@ const out=path.resolve('test-results');fs.mkdirSync(out,{recursive:true});
 const cross=(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]];
 
 // Smaller steps and double precision provide a reference independent of GLSL execution.
-function referenceRay(camera,spin,u,v,aspect,overscan=1.2){
+function referenceRay(camera,spin,u,v,aspect,overscan=1.2,roll=0,framing=[0,0]){
   const {theta,phi,distance}=camera;
   let x=[distance*Math.sin(theta)*Math.cos(phi),distance*Math.sin(theta)*Math.sin(phi),distance*Math.cos(theta)];
   const forward=P.normalize(x.map(q=>-q)),right=P.normalize(cross(forward,[0,0,1])),up=P.normalize(cross(right,forward));
   const fov=Math.tan(28*Math.PI/180)*overscan;
-  const n=P.normalize(forward.map((q,i)=>q+(2*u-1)*aspect*fov*right[i]+(2*v-1)*fov*up[i]));
+  const qx=(2*u-1)*aspect-2*framing[0]/overscan,qy=(2*v-1)-2*framing[1]/overscan;
+  const rx=Math.cos(roll)*qx+Math.sin(roll)*qy,ry=-Math.sin(roll)*qx+Math.cos(roll)*qy;
+  const n=P.normalize(forward.map((q,i)=>q+rx*fov*right[i]+ry*fov*up[i]));
   let p=P.photon(x,n,spin);
   for(let i=0;i<20000;i++){
     const r=P.metric(x,spin).r;
@@ -57,6 +59,7 @@ function tone(){
     const url=process.env.GRAVITY_URL||pathToFileURL(path.resolve('gravity-demo.html')).href;
     await page.goto(url+'?ui=1&motion=fixed');await ready();
     assert.deepEqual(await page.evaluate(()=>[GravityDemo.spin,GravityDemo.exposure,GravityDemo.speed,GravityDemo.material]),[.5,1.7,10,.3]);
+    await page.evaluate(()=>GravityDemo.applySettings({roll:0,framing:0,framingY:0}));await ready();
     const sizes=benchmark?[{width:1920,height:1080},{width:3840,height:1080}]:[{width:1920,height:1080}];
     for(const size of sizes){
       await page.setViewportSize(size);await page.waitForTimeout(250);
@@ -177,7 +180,7 @@ function tone(){
       const fps=await page.evaluate(()=>GravityDemo.measuredFPS);assert.ok(fps<32);results.checks.push(`30 FPS cap (${fps.toFixed(1)} measured)`);
     }
     if(!benchmark){
-      await page.evaluate(()=>GravityDemo.applySettings({quality:'native',elevation:18,distance:37,spinning:true,paused:true}));await ready();
+      await page.evaluate(()=>GravityDemo.applySettings({quality:'native',elevation:18,distance:37,spinning:true,paused:true,roll:Math.PI/12,framing:.03,framingY:.1}));await ready();
       const native=await page.evaluate(()=>{
         const d=GravityDemo,gl=d.gl,samples=[];
         for(const tile of d.rayTiles){
@@ -190,13 +193,13 @@ function tone(){
         }
         gl.bindFramebuffer(gl.READ_FRAMEBUFFER,null);
         return {output:[d.canvas.width,d.canvas.height],render:[d.rw,d.rh],tiles:d.rayTiles.length,
-          camera:d.camera,spin:d.a(),overscan:d.overscan,samples,rays:d.diagnostics(),error:gl.getError()};
+          camera:d.camera,spin:d.a(),overscan:d.overscan,roll:d.cacheRoll,framing:d.cacheFraming,samples,rays:d.diagnostics(),error:gl.getError()};
       });
       assert.deepEqual(native.output,[1920,1080]);assert.deepEqual(native.render,[2304,1296]);
       assert.ok(native.tiles>1);assert.equal(native.error,0);assert.equal(native.rays.invalid,0);assert.equal(native.rays.other,0);
       assert.equal(Object.values(native.rays).reduce((sum,count)=>sum+count,0),2304*1296);
       for(const sample of native.samples){
-        const ref=referenceRay(native.camera,native.spin,sample.u,sample.v,1920/1080,native.overscan);
+        const ref=referenceRay(native.camera,native.spin,sample.u,sample.v,1920/1080,native.overscan,native.roll,native.framing);
         assert.equal(Math.round(sample.data[3]),ref.status,'Cache boundary ray classification');
         if(ref.status===2)assert.ok(P.length(ref.direction.map((v,i)=>v-sample.data[i]))<.003,'Cache boundary ray direction');
       }

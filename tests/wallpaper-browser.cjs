@@ -130,6 +130,7 @@ const project = require('../wallpaper/project.json');
     await apply({ stardensity: 0, clouddensity: 0, framing: 0, framingy: 0, sharpness: 0,
       particlefade: 0, audiobalance: 0, bassshake: 0, hsvanimate: false, paused: true,
       colormode: 'solid', solidcolor: '1 0 0', cameramotion: 'fixed' });
+    await ready();
     const zero = await page.evaluate(() => {
       const r = GravityWallpaper.renderer;
       r.deposit(); r.shade(); r.present();
@@ -139,7 +140,7 @@ const project = require('../wallpaper/project.json');
         animated: r.palette.hsv.animated, paused: r.paused, colors: Array.from(r.audioColors), builds: r.cacheBuilds };
     });
     assert.ok(zero.values.every(v => v === 0)); assert.equal(zero.stars, 0); assert.equal(zero.clouds, 0);
-    assert.equal(zero.animated, false); assert.equal(zero.paused, true); assert.equal(zero.builds, 1);
+    assert.equal(zero.animated, false); assert.equal(zero.paused, true); assert.equal(zero.builds, 2);
     zero.colors.forEach((v, i) => assert.equal(v, i % 3 === 0 ? 1 : 0));
     const hsvOffset = await page.evaluate(() => GravityWallpaper.renderer.palette.hsv.offset);
     await apply({ colormode: 'custom', customcount: 2, customcolor1: '0 1 0', customcolor6: '1 0 1', customoffset: 50, customanimate: false, customspeed: -1 });
@@ -149,7 +150,7 @@ const project = require('../wallpaper/project.json');
     assert.equal(await page.evaluate(() => GravityWallpaper.renderer.palette.custom.offset), 0.5);
     await apply({ colormode: 'hsv' });
     assert.equal(await page.evaluate(() => GravityWallpaper.renderer.palette.hsv.offset), hsvOffset);
-    assert.equal(await page.evaluate(() => GravityWallpaper.renderer.cacheBuilds), 1);
+    assert.equal(await page.evaluate(() => GravityWallpaper.renderer.cacheBuilds), 2);
     results.checks.push('Partial and zero/false settings reach GPU uniforms; colors, retained stops and independent offsets reuse rays');
 
     const audioPalette = await page.evaluate(() => JSON.stringify(GravityWallpaper.renderer.palette));
@@ -173,12 +174,12 @@ const project = require('../wallpaper/project.json');
     blends.forEach((colors, row) => colors.forEach((value, i) =>
       assert.ok(Math.abs(value - (i % 3 === 0 ? row / 2 : i % 3 === 2 ? 1 - row / 2 : 0)) < 1e-6)));
     await apply({ colormode: 'hsv', idlesolidcolor: '1 1 1' });
-    assert.equal(await page.evaluate(() => GravityWallpaper.renderer.cacheBuilds), 1);
+    assert.equal(await page.evaluate(() => GravityWallpaper.renderer.cacheBuilds), 2);
     results.checks.push('Independent native idle/audio palettes, retained hidden stops, and linear-light blends reach GPU uniforms without retracing');
 
     await apply({ spinning: false, elevation: 25, distance: 45, particles: '16384', quality: 'draft' });
     await ready();
-    assert.equal(await page.evaluate(() => GravityWallpaper.renderer.cacheBuilds), 2, 'One property batch retraces once');
+    assert.equal(await page.evaluate(() => GravityWallpaper.renderer.cacheBuilds), 3, 'One property batch retraces once');
     assert.equal(await page.evaluate(() => GravityWallpaper.renderer.count), 16384);
     assert.equal(await page.evaluate(() => GravityWallpaper.renderer.a()), 0);
     await apply({ exposure: NaN, distance: Infinity, particles: 'invalid', quality: 'invalid', solidcolor: 'not a color' });

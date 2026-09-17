@@ -1157,8 +1157,12 @@ float stepSize(vec3 x,vec3 p,float a,float horizon,float cap){
 in vec2 uv;
 uniform vec3 uCamera,uRight,uUp,uForward;
 uniform float uAspect,uTanFov,uSpin,uHorizon,uISCO,uObserverEnergy;
-uniform vec2 uRaySize;uniform float uRayRow;
-vec3 rayDirection(){vec2 q=(gl_FragCoord.xy+vec2(0.,uRayRow))/uRaySize*2.-1.;return normalize(uForward+q.x*uAspect*uTanFov*uRight+q.y*uTanFov*uUp);}
+uniform vec2 uRaySize,uCacheFraming;uniform float uRayRow,uCacheRoll;
+vec3 rayDirection(){
+  vec2 q=((gl_FragCoord.xy+vec2(0.,uRayRow))/uRaySize*2.-1.)*vec2(uAspect,1.)-2.*uCacheFraming;
+  float c=cos(uCacheRoll),s=sin(uCacheRoll);q=mat2(c,-s,s,c)*q;
+  return normalize(uForward+q.x*uTanFov*uRight+q.y*uTanFov*uUp);
+}
 `;
   const volumePath = `
 uniform float uVolumeScale;
@@ -1364,12 +1368,12 @@ vec3 background(vec3 direction){
 `;
   const viewCode = `
 uniform float uOrbitAngle,uRoll,uViewAspect,uOverscan;
-uniform vec2 uFraming;
+uniform vec2 uFraming,uCacheFraming;
 vec3 orbit(vec3 v){float c=cos(uOrbitAngle),s=sin(uOrbitAngle);return vec3(c*v.x-s*v.y,s*v.x+c*v.y,v.z);}
 vec2 viewUV(vec2 p){
   vec2 q=(p-.5)*vec2(uViewAspect,1.)-uFraming;
   float c=cos(uRoll),s=sin(uRoll);q=mat2(c,-s,s,c)*q;
-  return .5+q/vec2(uViewAspect,1.)/uOverscan;
+  return .5+(q+uCacheFraming)/vec2(uViewAspect,1.)/uOverscan;
 }
 `;
   const volumeShade =
@@ -1716,6 +1720,7 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
       const oldSpin = this.a(), oldCount = this.count, oldQuality = this.quality;
       const oldTheta = this.camera.theta, oldDistance = this.camera.distance;
       const oldRadius = this.cloudRadius, oldThickness = this.cloudThickness;
+      const oldRoll = this.roll, oldFraming = this.framing, oldFramingY = this.framingY;
       const ranges = {
         spin: [0.05, 0.95], material: [0.1, 1], exposure: [0.3, 3], sharpness: [0, 1],
         starDefinition: [0, 1], brightnessMin: [0, 4], brightnessMax: [0, 4], cloudRadius: [11, 33],
@@ -1766,7 +1771,8 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
           if (this.paused) this.updateParticles(0, this.fadeSeconds);
         }
         if (oldSpin !== this.a() || oldQuality !== this.quality ||
-            oldTheta !== this.camera.theta || oldDistance !== this.camera.distance || oldRadius !== this.cloudRadius) this.prepareCache();
+            oldTheta !== this.camera.theta || oldDistance !== this.camera.distance || oldRadius !== this.cloudRadius ||
+            oldRoll !== this.roll || oldFraming !== this.framing || oldFramingY !== this.framingY) this.prepareCache();
       }
       this.onSettings?.();
     }
@@ -1982,6 +1988,8 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
       this.v3('uUp', up);
       this.f('uAspect', this.canvas.width / this.canvas.height);
       this.f('uTanFov', Math.tan((28 * Math.PI) / 180) * this.overscan);
+      this.f('uCacheRoll', this.cacheRoll);
+      this.v2('uCacheFraming', this.cacheFraming.map(v => v / this.overscan));
       this.f('uSpin', this.a());
       this.f('uHorizon', P.horizon(this.a()));
       this.f('uISCO', P.isco(this.a()));
@@ -1993,6 +2001,16 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
     prepareCache(resizeTargets = false) {
       if (this.lost || this.failed) return;
       this.cacheBuilds++;
+      const aspect = this.canvas.width / this.canvas.height;
+      this.cacheRoll = this.roll * Math.min(1, 1.8 / aspect);
+      this.cacheFraming = [this.framing, this.framingY];
+      const angle = .035 * Math.min(1, 1.8 / aspect) + .0025;
+      const s = Math.sin(angle), c = 1 - Math.cos(angle);
+      const x = Math.abs(this.framing), y = Math.abs(this.framingY);
+      // Keep animated corners inside the filtered camera margin.
+      const marginX = aspect / 2 + s / 2 + c * x + s * y + .036 + s * .018;
+      const marginY = .5 + s * aspect / 2 + s * x + c * y + .018 + s * .036;
+      this.overscan = Math.max(1.2, 2 * marginX / aspect / .93, 2 * marginY / .93);
       const gl = this.gl;
       const [rw, rh] = this.renderSize();
       if (rw !== this.rw || rh !== this.rh || resizeTargets) {
@@ -2330,10 +2348,11 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
       );
       this.f(
         'uRoll',
-        (this.roll + 0.035 * Math.sin(this.cameraTime * 0.13)) * Math.min(1, 1.8 / aspect) + shake[2]
+        (this.roll + 0.035 * Math.sin(this.cameraTime * 0.13)) * Math.min(1, 1.8 / aspect) + shake[2] - this.cacheRoll
       );
       this.f('uViewAspect', aspect);
       this.f('uOverscan', this.overscan);
+      this.v2('uCacheFraming', this.cacheFraming);
       this.v2('uFraming', [
         this.framing + 0.028 * Math.sin(this.cameraTime * 0.09) + shake[0],
         this.framingY + 0.012 * Math.sin(this.cameraTime * 0.12) + shake[1]
@@ -2944,8 +2963,7 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
         'brightness-min': ['brightnessMin', 0.01], 'brightness-max': ['brightnessMax', 0.01],
         'radial-dimming': ['radialDimming', 0.01],
         'particle-fade': ['fadeSeconds', 1], speed: ['speed', 1],
-        'camera-amount': ['motionStrength', 0.01], 'camera-roll': ['roll', Math.PI / 180],
-        framing: ['framing', 0.01], 'framing-y': ['framingY', 0.01],
+        'camera-amount': ['motionStrength', 0.01],
         'audio-balance': ['balance', 0.01], 'sustained-light': ['sustainStrength', 0.01],
         'star-density': ['starDensity', 0.01], 'cloud-density': ['cloudDensity', 0.01],
         'audio-gain': ['audioGain', 1], 'bass-shake': ['shakeStrength', 0.01],
@@ -2961,12 +2979,14 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
       let geometryChanges = {};
       const geometry = {
         elevation: ['elevation', 1, '°'], distance: ['distance', 1, ''],
+        'camera-roll': ['roll', Math.PI / 180, '°'], framing: ['framing', .01, ''], 'framing-y': ['framingY', .01, ''],
         'cloud-radius': ['cloudRadius', .22, '%'], 'cloud-thickness': ['cloudThickness', .01, '%']
       };
       for (const [name, [key, scale, suffix]] of Object.entries(geometry))
         $(name).addEventListener('input', (event) => {
           geometryChanges[key] = Number(event.target.value) * scale;
-          $(name + '-value').textContent = event.target.value + suffix;
+          const output = $(name + '-value');
+          if (output) output.textContent = event.target.value + suffix;
           clearTimeout(geometryTimeout);
           geometryTimeout = setTimeout(() => {
             this.applySettings(geometryChanges);

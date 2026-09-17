@@ -142,6 +142,7 @@
       const oldSpin = this.a(), oldCount = this.count, oldQuality = this.quality;
       const oldTheta = this.camera.theta, oldDistance = this.camera.distance;
       const oldRadius = this.cloudRadius, oldThickness = this.cloudThickness;
+      const oldRoll = this.roll, oldFraming = this.framing, oldFramingY = this.framingY;
       const ranges = {
         spin: [0.05, 0.95], material: [0.1, 1], exposure: [0.3, 3], sharpness: [0, 1],
         starDefinition: [0, 1], brightnessMin: [0, 4], brightnessMax: [0, 4], cloudRadius: [11, 33],
@@ -192,7 +193,8 @@
           if (this.paused) this.updateParticles(0, this.fadeSeconds);
         }
         if (oldSpin !== this.a() || oldQuality !== this.quality ||
-            oldTheta !== this.camera.theta || oldDistance !== this.camera.distance || oldRadius !== this.cloudRadius) this.prepareCache();
+            oldTheta !== this.camera.theta || oldDistance !== this.camera.distance || oldRadius !== this.cloudRadius ||
+            oldRoll !== this.roll || oldFraming !== this.framing || oldFramingY !== this.framingY) this.prepareCache();
       }
       this.onSettings?.();
     }
@@ -408,6 +410,8 @@
       this.v3('uUp', up);
       this.f('uAspect', this.canvas.width / this.canvas.height);
       this.f('uTanFov', Math.tan((28 * Math.PI) / 180) * this.overscan);
+      this.f('uCacheRoll', this.cacheRoll);
+      this.v2('uCacheFraming', this.cacheFraming.map(v => v / this.overscan));
       this.f('uSpin', this.a());
       this.f('uHorizon', P.horizon(this.a()));
       this.f('uISCO', P.isco(this.a()));
@@ -419,6 +423,16 @@
     prepareCache(resizeTargets = false) {
       if (this.lost || this.failed) return;
       this.cacheBuilds++;
+      const aspect = this.canvas.width / this.canvas.height;
+      this.cacheRoll = this.roll * Math.min(1, 1.8 / aspect);
+      this.cacheFraming = [this.framing, this.framingY];
+      const angle = .035 * Math.min(1, 1.8 / aspect) + .0025;
+      const s = Math.sin(angle), c = 1 - Math.cos(angle);
+      const x = Math.abs(this.framing), y = Math.abs(this.framingY);
+      // Keep animated corners inside the filtered camera margin.
+      const marginX = aspect / 2 + s / 2 + c * x + s * y + .036 + s * .018;
+      const marginY = .5 + s * aspect / 2 + s * x + c * y + .018 + s * .036;
+      this.overscan = Math.max(1.2, 2 * marginX / aspect / .93, 2 * marginY / .93);
       const gl = this.gl;
       const [rw, rh] = this.renderSize();
       if (rw !== this.rw || rh !== this.rh || resizeTargets) {
@@ -756,10 +770,11 @@
       );
       this.f(
         'uRoll',
-        (this.roll + 0.035 * Math.sin(this.cameraTime * 0.13)) * Math.min(1, 1.8 / aspect) + shake[2]
+        (this.roll + 0.035 * Math.sin(this.cameraTime * 0.13)) * Math.min(1, 1.8 / aspect) + shake[2] - this.cacheRoll
       );
       this.f('uViewAspect', aspect);
       this.f('uOverscan', this.overscan);
+      this.v2('uCacheFraming', this.cacheFraming);
       this.v2('uFraming', [
         this.framing + 0.028 * Math.sin(this.cameraTime * 0.09) + shake[0],
         this.framingY + 0.012 * Math.sin(this.cameraTime * 0.12) + shake[1]

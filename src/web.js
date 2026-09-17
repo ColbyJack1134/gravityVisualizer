@@ -425,8 +425,7 @@
         'brightness-min': ['brightnessMin', 0.01], 'brightness-max': ['brightnessMax', 0.01],
         'radial-dimming': ['radialDimming', 0.01],
         'particle-fade': ['fadeSeconds', 1], speed: ['speed', 1],
-        'camera-amount': ['motionStrength', 0.01], 'camera-roll': ['roll', Math.PI / 180],
-        framing: ['framing', 0.01], 'framing-y': ['framingY', 0.01],
+        'camera-amount': ['motionStrength', 0.01],
         'audio-balance': ['balance', 0.01], 'sustained-light': ['sustainStrength', 0.01],
         'star-density': ['starDensity', 0.01], 'cloud-density': ['cloudDensity', 0.01],
         'audio-gain': ['audioGain', 1], 'bass-shake': ['shakeStrength', 0.01],
@@ -442,12 +441,14 @@
       let geometryChanges = {};
       const geometry = {
         elevation: ['elevation', 1, '°'], distance: ['distance', 1, ''],
+        'camera-roll': ['roll', Math.PI / 180, '°'], framing: ['framing', .01, ''], 'framing-y': ['framingY', .01, ''],
         'cloud-radius': ['cloudRadius', .22, '%'], 'cloud-thickness': ['cloudThickness', .01, '%']
       };
       for (const [name, [key, scale, suffix]] of Object.entries(geometry))
         $(name).addEventListener('input', (event) => {
           geometryChanges[key] = Number(event.target.value) * scale;
-          $(name + '-value').textContent = event.target.value + suffix;
+          const output = $(name + '-value');
+          if (output) output.textContent = event.target.value + suffix;
           clearTimeout(geometryTimeout);
           geometryTimeout = setTimeout(() => {
             this.applySettings(geometryChanges);
