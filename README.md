@@ -8,9 +8,9 @@ A black hole audio visualizer for Wallpaper Engine and the browser.
 
 ![Music](assets/previews/music.gif)
 
-![Custom green gradient](assets/previews/green.gif)
-
 Customizable
+
+![Custom green gradient](assets/previews/green.gif)
 
 ![Legacy](assets/previews/legacy.gif)
 
