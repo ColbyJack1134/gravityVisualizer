@@ -327,8 +327,8 @@
       if (this.emission) gl.deleteTexture(this.emission);
       if (this.velocity) gl.deleteTexture(this.velocity);
       if (this.emissionFBO) gl.deleteFramebuffer(this.emissionFBO);
-      this.volumeGrid = [512, 512, 64];
-      this.volumeExtent = [24, 24, 4.8];
+      this.volumeGrid = [512, 512, 104];
+      this.volumeExtent = this.volumeGrid.map(cells => cells * (24 / 512));
       this.emissionWidth = this.volumeGrid[0] * 8;
       this.emissionHeight = this.volumeGrid[1] * (this.volumeGrid[2] / 8);
       this.emission = this.texture(this.emissionWidth, this.emissionHeight, gl.RGBA16F, true);
@@ -525,7 +525,7 @@
       this.use(this.programs.deposit);
       this.f('uSpin', this.a());
       this.f('uISCO', P.isco(this.a()));
-      this.f('uParticleWeight', (8 * 65536) / this.count);
+      this.f('uParticleWeight', (12.8 * 65536) / this.count);
       this.i('uBandCount', this.spectrum.levels.length);
       this.gl.uniform1fv(this.loc('uBands[0]'), this.spectrum.levels);
       this.f('uSustainStrength', this.sustainStrength);

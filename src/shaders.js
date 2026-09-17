@@ -293,11 +293,24 @@ uniform vec3 uVolumeGrid,uVolumeExtent;
 vec4 volume(sampler2D atlas,vec3 position){
   vec3 q=(position/(uVolumeExtent*2.)+.5)*uVolumeGrid-.5;
   if(any(lessThan(q,vec3(0.)))||any(greaterThan(q,uVolumeGrid-1.)))return vec4(0.);
-  float z=floor(q.z);vec2 tile0=vec2(mod(z,8.),floor(z/8.));
-  float z1=min(z+1.,uVolumeGrid.z-1.);vec2 tile1=vec2(mod(z1,8.),floor(z1/8.));
+  // Cubic reconstruction keeps particle profiles smooth across cell boundaries.
+  vec3 base=floor(q),f=q-base;
+  vec3 w0=pow(1.-f,vec3(3.))/6.,w3=f*f*f/6.;
+  vec3 w1=(4.-6.*f*f+3.*f*f*f)/6.,w2=1.-w0-w1-w3;
+  vec2 g0=w0.xy+w1.xy,g1=w2.xy+w3.xy;
+  vec2 a=clamp(base.xy-.5+w1.xy/g0,vec2(.5),uVolumeGrid.xy-.5);
+  vec2 b=clamp(base.xy+1.5+w3.xy/g1,vec2(.5),uVolumeGrid.xy-.5);
   vec2 dims=vec2(uVolumeGrid.x*8.,uVolumeGrid.y*(uVolumeGrid.z/8.));
-  vec2 local=clamp(q.xy+.5,vec2(.5),uVolumeGrid.xy-.5);
-  return mix(texture(atlas,(tile0*uVolumeGrid.xy+local)/dims),texture(atlas,(tile1*uVolumeGrid.xy+local)/dims),fract(q.z));
+  vec4 wz=vec4(w0.z,w1.z,w2.z,w3.z),sum=vec4(0.);
+  for(int k=0;k<4;k++){
+    float z=clamp(base.z-1.+float(k),0.,uVolumeGrid.z-1.);
+    vec2 tile=vec2(mod(z,8.),floor(z/8.))*uVolumeGrid.xy;
+    sum+=wz[k]*(texture(atlas,(tile+a)/dims)*g0.x*g0.y
+      +texture(atlas,(tile+vec2(b.x,a.y))/dims)*g1.x*g0.y
+      +texture(atlas,(tile+vec2(a.x,b.y))/dims)*g0.x*g1.y
+      +texture(atlas,(tile+b)/dims)*g1.x*g1.y);
+  }
+  return sum;
 }
 void main(){
   vec2 lookup=vec2(uv.x,(gl_FragCoord.y-uCacheRow)/float(textureSize(uPathX,0).y));
@@ -312,9 +325,9 @@ void main(){
     float r,f;vec3 l,dr,df;metric(path.xyz,uSpin,r,f,l,dr,df);
     vec3 direction=normalize(p-f*(-1.+dot(l,p))*l);
     vec3 cells=abs(direction)*path.w*uVolumeGrid/(uVolumeExtent*2.);
-    // Sample each crossed cell so compact tracers do not flicker between segments.
-    int samples=clamp(int(ceil(max(cells.x,max(cells.y,cells.z)))),1,6);
-    for(int j=0;j<6;j++){
+    // Bound spacing in all directions, including diagonal rays.
+    int samples=clamp(int(ceil(length(cells)*.625)),1,4);
+    for(int j=0;j<4;j++){
       if(j>=samples||trans<.012)break;
       vec3 position=path.xyz+direction*((float(j)+.5)/float(samples)-.5)*path.w;
       vec4 e=volume(uEmission,position);

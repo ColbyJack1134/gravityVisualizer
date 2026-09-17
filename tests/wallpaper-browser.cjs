@@ -193,9 +193,10 @@ const project = require('../wallpaper/project.json');
     assert.ok(advanced > 0 && advanced < 5, 'Resume must not integrate the suspended interval');
     for (const fps of [15, 30]) {
       await page.evaluate(fps => wallpaperPropertyListener.applyGeneralProperties({ fps }), fps);
-      const before = await page.evaluate(() => GravityWallpaper.renderer.frames);
+      const before = await page.evaluate(() => ({ frames: GravityWallpaper.renderer.frames, time: performance.now() }));
       await page.waitForTimeout(1100);
-      const measured = (await page.evaluate(() => GravityWallpaper.renderer.frames) - before) / 1.1;
+      const after = await page.evaluate(() => ({ frames: GravityWallpaper.renderer.frames, time: performance.now() }));
+      const measured = (after.frames - before.frames) * 1000 / (after.time - before.time);
       assert.ok(measured <= fps + 2 && measured >= fps * 0.7, `Frame cap ${fps}: measured ${measured}`);
     }
     await page.evaluate(() => wallpaperPropertyListener.applyGeneralProperties({ fps: 0 }));
