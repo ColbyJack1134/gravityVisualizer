@@ -23,7 +23,7 @@ const {chromium} = require('playwright');
     await page.goto((process.env.GRAVITY_URL || pathToFileURL(path.resolve('gravity-demo.html')).href) + '?motion=fixed&ui=1');
     await ready();
     assert.deepEqual(await page.evaluate(() => [GravityDemo.brightnessMin, GravityDemo.brightnessMax, GravityDemo.cloudRadius]), [.65, 1.4, 22]);
-    assert.equal(await page.locator('#radial-dimming').inputValue(), '100');
+    assert.equal(await page.locator('#radial-dimming').inputValue(), '50');
     for (const [id, section] of [['brightness-min', 'Star appearance'], ['brightness-max', 'Star appearance'], ['radial-dimming', 'Star appearance'], ['cloud-radius', 'Material & light']])
       assert.equal(await page.locator('#' + id).evaluate(el => el.closest('section').querySelector('h2').textContent), section);
     await page.evaluate(() => {

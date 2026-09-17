@@ -489,8 +489,8 @@ summary {
       <label class="range-label" for="brightness-max">Maximum brightness <output id="brightness-max-value">140%</output></label>
       <input id="brightness-max" type="range" min="0" max="400" step="5" value="140">
       <p class="control-hint">Base intensity. Shading and overlap still affect visible brightness.</p>
-      <label class="range-label" for="radial-dimming">Radial dimming <output id="radial-dimming-value">100%</output></label>
-      <input id="radial-dimming" type="range" min="0" max="100" step="5" value="100">
+      <label class="range-label" for="radial-dimming">Radial dimming <output id="radial-dimming-value">50%</output></label>
+      <input id="radial-dimming" type="range" min="0" max="100" step="5" value="50">
       <p class="control-hint">Dims stars farther from the black hole. 0% turns this off.</p>
     </section>
 
@@ -1576,7 +1576,7 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
       this.starDefinition = 0.7;
       this.brightnessMin = 0.65;
       this.brightnessMax = 1.4;
-      this.radialDimming = 1;
+      this.radialDimming = 0.5;
       this.starDensity = 1;
       this.cloudDensity = 1;
       this.speed = 10;

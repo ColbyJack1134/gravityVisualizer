@@ -61,7 +61,7 @@ const project = require('../wallpaper/project.json');
     assert.deepEqual(defaults.framing, [0.03, 0.1]); assert.equal(defaults.fps, 30);
     assert.equal(defaults.material, 0.3); assert.equal(defaults.exposure, 1.7);
     assert.deepEqual(defaults.brightness.map(v => Math.round(v * 100)), [65, 140]); assert.equal(defaults.radius, 22);
-    assert.equal(defaults.dimming, 1);
+    assert.equal(defaults.dimming, .5);
     for (const percent of [0, 50, 100]) {
       await apply({radialdimming: percent});
       assert.equal(await page.evaluate(() => {
