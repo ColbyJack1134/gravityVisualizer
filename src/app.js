@@ -30,6 +30,7 @@
       this.particleStride = 10;
       this.camera = { ...defaultCamera };
       this.cameraMotion = 'gentle';
+      this.continuousTracing = false;
       this.floatingCamera = false;
       this.floatingTime = 0;
       this.cameraTime = 0;
@@ -146,6 +147,8 @@
       const oldSpin = this.a(), oldCount = this.count, oldQuality = this.quality;
       const oldTheta = this.camera.theta, oldDistance = this.camera.distance;
       const oldFloating = this.floatingCamera;
+      const oldTracing = this.continuousTracing;
+      const view = this.cameraView();
       const oldRadius = this.cloudRadius, oldThickness = this.cloudThickness;
       const oldDetail = this.starDetail;
       const oldRoll = this.roll, oldFraming = this.framing, oldFramingY = this.framingY;
@@ -167,8 +170,11 @@
         if (Number.isFinite(settings.brightnessMin)) this.brightnessMax = this.brightnessMin;
         else this.brightnessMin = this.brightnessMax;
       }
-      for (const key of ['spinning', 'paused', 'showIdleParticles', 'floatingCamera'])
+      for (const key of ['spinning', 'paused', 'showIdleParticles', 'continuousTracing', 'floatingCamera'])
         if (typeof settings[key] === 'boolean') this[key] = settings[key];
+      if (!this.continuousTracing) this.floatingCamera = false;
+      if (oldFloating && !this.floatingCamera)
+        this.camera = { ...view, phi: view.phi - this.orbitAngle };
       if (oldFloating !== this.floatingCamera) this.floatingTime = 0;
       if ([16384, 32768, 65536, 131072, 262144, 524288].includes(settings.count))
         this.count = settings.count;
@@ -202,8 +208,8 @@
           this.allocateParticles();
           if (this.paused) this.updateParticles(0, this.fadeSeconds);
         }
-        if (oldFloating !== this.floatingCamera || oldSpin !== this.a() || oldQuality !== this.quality ||
-            oldTheta !== this.camera.theta || oldDistance !== this.camera.distance || oldRadius !== this.cloudRadius ||
+        if (oldTracing !== this.continuousTracing || oldSpin !== this.a() || oldQuality !== this.quality ||
+            (!this.continuousTracing && (oldTheta !== this.camera.theta || oldDistance !== this.camera.distance)) || oldRadius !== this.cloudRadius ||
             oldRoll !== this.roll || oldFraming !== this.framing || oldFramingY !== this.framingY) this.prepareCache();
       }
       this.onSettings?.();
@@ -412,7 +418,8 @@
       return this.spinning ? this.spin : 0;
     }
     cameraView() {
-      if (!this.floatingCamera) return this.camera;
+      if (!this.continuousTracing) return this.camera;
+      if (!this.floatingCamera) return { ...this.camera, phi: this.camera.phi + this.orbitAngle };
       const phase = this.floatingTime * .055, amount = this.motionStrength;
       return {
         theta: this.camera.theta - amount * (.7 * Math.sin(phase) + .18 * Math.sin(phase * 2)),
@@ -469,7 +476,7 @@
         this.allocateRenderTargets();
       }
       this.destroy(this.cacheTextures, this.cacheFbos);
-      if (this.floatingCamera) {
+      if (this.continuousTracing) {
         if (!this.programs.continuous) this.programs.continuous = this.program(S.fullscreen, S.continuousTrace);
         this.job = null;
         this.rayTiles = [];
@@ -699,7 +706,7 @@
     }
     shade() {
       const gl = this.gl;
-      if (this.floatingCamera) {
+      if (this.continuousTracing) {
         gl.bindFramebuffer(gl.FRAMEBUFFER, this.hdrFbo);
         gl.viewport(0, 0, this.rw, this.rh);
         this.use(this.programs.continuous);

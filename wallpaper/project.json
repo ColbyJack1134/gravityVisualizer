@@ -833,6 +833,19 @@
           }
         ]
       },
+      "continuoustracing": {
+        "order": 81.1,
+        "text": "Continuous tracing (intensive)",
+        "type": "bool",
+        "value": false
+      },
+      "floatingcamera": {
+        "order": 81.2,
+        "text": "Floating camera",
+        "type": "bool",
+        "value": false,
+        "condition": "continuoustracing.value == true"
+      },
       "movement": {
         "order": 82,
         "text": "Movement amount",

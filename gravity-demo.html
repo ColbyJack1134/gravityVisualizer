@@ -94,6 +94,16 @@ h2 {
   width: 100%;
   height: 100%;
 }
+#universe.camera-interactive {
+  cursor: grab;
+  touch-action: none;
+}
+#universe.camera-interactive:active {
+  cursor: grabbing;
+}
+.camera-suboption {
+  margin-left: 20px;
+}
 .controls {
   position: fixed;
   left: 24px;
@@ -428,7 +438,8 @@ summary {
 
     <section class="control-section">
       <h2>Camera</h2>
-      <label class="check-label"><input id="floating-camera" type="checkbox"> Floating camera</label>
+      <label class="check-label"><input id="continuous-tracing" type="checkbox"> Continuous tracing (intensive)</label>
+      <label class="check-label camera-suboption"><input id="floating-camera" type="checkbox" disabled> Floating camera</label>
       <select id="camera-motion" aria-label="Camera movement"><option value="gentle">Slow orbit</option><option value="music">Music-driven orbit</option><option value="fixed">Hold this view</option></select>
       <label class="range-label" for="camera-amount">Movement</label>
       <input id="camera-amount" type="range" min="0" max="100" value="55">
@@ -1656,6 +1667,7 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
       this.particleStride = 10;
       this.camera = { ...defaultCamera };
       this.cameraMotion = 'gentle';
+      this.continuousTracing = false;
       this.floatingCamera = false;
       this.floatingTime = 0;
       this.cameraTime = 0;
@@ -1772,6 +1784,8 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
       const oldSpin = this.a(), oldCount = this.count, oldQuality = this.quality;
       const oldTheta = this.camera.theta, oldDistance = this.camera.distance;
       const oldFloating = this.floatingCamera;
+      const oldTracing = this.continuousTracing;
+      const view = this.cameraView();
       const oldRadius = this.cloudRadius, oldThickness = this.cloudThickness;
       const oldDetail = this.starDetail;
       const oldRoll = this.roll, oldFraming = this.framing, oldFramingY = this.framingY;
@@ -1793,8 +1807,11 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
         if (Number.isFinite(settings.brightnessMin)) this.brightnessMax = this.brightnessMin;
         else this.brightnessMin = this.brightnessMax;
       }
-      for (const key of ['spinning', 'paused', 'showIdleParticles', 'floatingCamera'])
+      for (const key of ['spinning', 'paused', 'showIdleParticles', 'continuousTracing', 'floatingCamera'])
         if (typeof settings[key] === 'boolean') this[key] = settings[key];
+      if (!this.continuousTracing) this.floatingCamera = false;
+      if (oldFloating && !this.floatingCamera)
+        this.camera = { ...view, phi: view.phi - this.orbitAngle };
       if (oldFloating !== this.floatingCamera) this.floatingTime = 0;
       if ([16384, 32768, 65536, 131072, 262144, 524288].includes(settings.count))
         this.count = settings.count;
@@ -1828,8 +1845,8 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
           this.allocateParticles();
           if (this.paused) this.updateParticles(0, this.fadeSeconds);
         }
-        if (oldFloating !== this.floatingCamera || oldSpin !== this.a() || oldQuality !== this.quality ||
-            oldTheta !== this.camera.theta || oldDistance !== this.camera.distance || oldRadius !== this.cloudRadius ||
+        if (oldTracing !== this.continuousTracing || oldSpin !== this.a() || oldQuality !== this.quality ||
+            (!this.continuousTracing && (oldTheta !== this.camera.theta || oldDistance !== this.camera.distance)) || oldRadius !== this.cloudRadius ||
             oldRoll !== this.roll || oldFraming !== this.framing || oldFramingY !== this.framingY) this.prepareCache();
       }
       this.onSettings?.();
@@ -2038,7 +2055,8 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
       return this.spinning ? this.spin : 0;
     }
     cameraView() {
-      if (!this.floatingCamera) return this.camera;
+      if (!this.continuousTracing) return this.camera;
+      if (!this.floatingCamera) return { ...this.camera, phi: this.camera.phi + this.orbitAngle };
       const phase = this.floatingTime * .055, amount = this.motionStrength;
       return {
         theta: this.camera.theta - amount * (.7 * Math.sin(phase) + .18 * Math.sin(phase * 2)),
@@ -2095,7 +2113,7 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
         this.allocateRenderTargets();
       }
       this.destroy(this.cacheTextures, this.cacheFbos);
-      if (this.floatingCamera) {
+      if (this.continuousTracing) {
         if (!this.programs.continuous) this.programs.continuous = this.program(S.fullscreen, S.continuousTrace);
         this.job = null;
         this.rayTiles = [];
@@ -2325,7 +2343,7 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
     }
     shade() {
       const gl = this.gl;
-      if (this.floatingCamera) {
+      if (this.continuousTracing) {
         gl.bindFramebuffer(gl.FRAMEBUFFER, this.hdrFbo);
         gl.viewport(0, 0, this.rw, this.rh);
         this.use(this.programs.continuous);
@@ -2675,6 +2693,7 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
       };
       this.onError = showError;
       this.bindUI();
+      this.bindCameraInput();
       this.createSpectrumUI();
       this.renderColorStops();
       this.readParameters();
@@ -2821,6 +2840,45 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
         container.append(row);
       });
     }
+    bindCameraInput() {
+      let drag = null;
+      const canvas = this.canvas;
+      const move = (dx, dy, zoom = 1) => {
+        if (!this.continuousTracing || this.lost || this.failed) return;
+        if (this.floatingCamera || this.cameraMotion !== 'fixed')
+          this.applySettings({ floatingCamera: false, cameraMotion: 'fixed' });
+        this.camera.phi -= dx * .005;
+        this.camera.theta = Math.max(-Math.PI / 2, Math.min(3 * Math.PI / 2, this.camera.theta - dy * .005));
+        this.camera.distance = Math.max(32, Math.min(85, this.camera.distance * zoom));
+        this.syncUI();
+      };
+      canvas.addEventListener('pointerdown', event => {
+        if (!this.continuousTracing || event.button !== 0 || drag) return;
+        drag = { id: event.pointerId, x: event.clientX, y: event.clientY };
+        canvas.setPointerCapture(event.pointerId);
+      });
+      canvas.addEventListener('pointermove', event => {
+        if (!drag || drag.id !== event.pointerId) return;
+        const dx = event.clientX - drag.x, dy = event.clientY - drag.y;
+        drag.x = event.clientX; drag.y = event.clientY;
+        if (dx || dy) move(dx, dy);
+      });
+      const release = event => {
+        if (!drag || drag.id !== event.pointerId) return;
+        if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
+        drag = null;
+      };
+      canvas.addEventListener('pointerup', release);
+      canvas.addEventListener('pointercancel', release);
+      canvas.addEventListener('lostpointercapture', () => { drag = null; });
+      canvas.addEventListener('wheel', event => {
+        if (!this.continuousTracing || event.ctrlKey) return;
+        event.preventDefault();
+        const scale = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? canvas.clientHeight : 1;
+        const delta = Math.max(-200, Math.min(200, event.deltaY * scale));
+        if (delta) move(0, 0, Math.exp(delta * .001));
+      }, { passive: false });
+    }
     syncUI() {
       for (const b of document.querySelectorAll('[data-metric]')) {
         const on = (b.dataset.metric === 'spin') === this.spinning;
@@ -2853,7 +2911,10 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
       $('speed').value = this.speed;
       $('speed-value').textContent = this.speed + '×';
       $('camera-motion').value = this.cameraMotion;
+      $('continuous-tracing').checked = this.continuousTracing;
       $('floating-camera').checked = this.floatingCamera;
+      $('floating-camera').disabled = !this.continuousTracing;
+      this.canvas.classList.toggle('camera-interactive', this.continuousTracing);
       $('framing').value = this.framing * 100;
       $('framing-y').value = this.framingY * 100;
       for (const [id, value] of [
@@ -3084,8 +3145,11 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
         $(id).addEventListener('input', (event) => this.applySettings({ [key]: Number(event.target.value) * scale }));
       $('camera-motion').addEventListener('change', (event) =>
         this.applySettings({ cameraMotion: event.target.value }));
+      $('continuous-tracing').addEventListener('change', (event) =>
+        this.applySettings({ continuousTracing: event.target.checked }));
       $('floating-camera').addEventListener('change', (event) =>
-        this.applySettings({ floatingCamera: event.target.checked }));
+        this.applySettings({ floatingCamera: event.target.checked,
+          ...(event.target.checked ? { cameraMotion: 'gentle' } : {}) }));
       $('star-appearance').addEventListener('change', (event) =>
         this.applySettings({ starAppearance: event.target.value }));
       $('star-detail').addEventListener('change', (event) =>

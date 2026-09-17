@@ -76,7 +76,8 @@
 
     <section class="control-section">
       <h2>Camera</h2>
-      <label class="check-label"><input id="floating-camera" type="checkbox"> Floating camera</label>
+      <label class="check-label"><input id="continuous-tracing" type="checkbox"> Continuous tracing (intensive)</label>
+      <label class="check-label camera-suboption"><input id="floating-camera" type="checkbox" disabled> Floating camera</label>
       <select id="camera-motion" aria-label="Camera movement"><option value="gentle">Slow orbit</option><option value="music">Music-driven orbit</option><option value="fixed">Hold this view</option></select>
       <label class="range-label" for="camera-amount">Movement</label>
       <input id="camera-amount" type="range" min="0" max="100" value="55">

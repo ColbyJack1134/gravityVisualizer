@@ -66,6 +66,7 @@
     fps: 30,
     paused: false,
     registered: false,
+    floatingCamera: false,
     applyUserProperties(properties) {
       if (!properties || typeof properties !== 'object') return;
       for (const [key, property] of Object.entries(properties)) {
@@ -103,6 +104,10 @@
       for (const [property, field] of [['starappearance', 'starAppearance'], ['stardetail', 'starDetail'], ['coresizing', 'coreSizing']])
         if (values[property] !== undefined) settings[field] = values[property];
       if (values.cameramotion !== undefined) settings.cameraMotion = values.cameramotion;
+      if (typeof values.floatingcamera === 'boolean') this.floatingCamera = values.floatingcamera;
+      if (typeof values.continuoustracing === 'boolean') settings.continuousTracing = values.continuoustracing;
+      if (typeof values.floatingcamera === 'boolean' || typeof values.continuoustracing === 'boolean')
+        settings.floatingCamera = this.floatingCamera;
       if (typeof values.autosensitivity === 'boolean') settings.autoSensitivity = values.autosensitivity;
       if (typeof values.showidleparticles === 'boolean') settings.showIdleParticles = values.showidleparticles;
       for (const [key, prefix] of [['palette', ''], ['idlePalette', 'idle']]) {

@@ -85,6 +85,16 @@ h2 {
   width: 100%;
   height: 100%;
 }
+#universe.camera-interactive {
+  cursor: grab;
+  touch-action: none;
+}
+#universe.camera-interactive:active {
+  cursor: grabbing;
+}
+.camera-suboption {
+  margin-left: 20px;
+}
 .controls {
   position: fixed;
   left: 24px;

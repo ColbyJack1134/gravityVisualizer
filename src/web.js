@@ -29,6 +29,7 @@
       };
       this.onError = showError;
       this.bindUI();
+      this.bindCameraInput();
       this.createSpectrumUI();
       this.renderColorStops();
       this.readParameters();
@@ -175,6 +176,45 @@
         container.append(row);
       });
     }
+    bindCameraInput() {
+      let drag = null;
+      const canvas = this.canvas;
+      const move = (dx, dy, zoom = 1) => {
+        if (!this.continuousTracing || this.lost || this.failed) return;
+        if (this.floatingCamera || this.cameraMotion !== 'fixed')
+          this.applySettings({ floatingCamera: false, cameraMotion: 'fixed' });
+        this.camera.phi -= dx * .005;
+        this.camera.theta = Math.max(-Math.PI / 2, Math.min(3 * Math.PI / 2, this.camera.theta - dy * .005));
+        this.camera.distance = Math.max(32, Math.min(85, this.camera.distance * zoom));
+        this.syncUI();
+      };
+      canvas.addEventListener('pointerdown', event => {
+        if (!this.continuousTracing || event.button !== 0 || drag) return;
+        drag = { id: event.pointerId, x: event.clientX, y: event.clientY };
+        canvas.setPointerCapture(event.pointerId);
+      });
+      canvas.addEventListener('pointermove', event => {
+        if (!drag || drag.id !== event.pointerId) return;
+        const dx = event.clientX - drag.x, dy = event.clientY - drag.y;
+        drag.x = event.clientX; drag.y = event.clientY;
+        if (dx || dy) move(dx, dy);
+      });
+      const release = event => {
+        if (!drag || drag.id !== event.pointerId) return;
+        if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
+        drag = null;
+      };
+      canvas.addEventListener('pointerup', release);
+      canvas.addEventListener('pointercancel', release);
+      canvas.addEventListener('lostpointercapture', () => { drag = null; });
+      canvas.addEventListener('wheel', event => {
+        if (!this.continuousTracing || event.ctrlKey) return;
+        event.preventDefault();
+        const scale = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? canvas.clientHeight : 1;
+        const delta = Math.max(-200, Math.min(200, event.deltaY * scale));
+        if (delta) move(0, 0, Math.exp(delta * .001));
+      }, { passive: false });
+    }
     syncUI() {
       for (const b of document.querySelectorAll('[data-metric]')) {
         const on = (b.dataset.metric === 'spin') === this.spinning;
@@ -207,7 +247,10 @@
       $('speed').value = this.speed;
       $('speed-value').textContent = this.speed + '×';
       $('camera-motion').value = this.cameraMotion;
+      $('continuous-tracing').checked = this.continuousTracing;
       $('floating-camera').checked = this.floatingCamera;
+      $('floating-camera').disabled = !this.continuousTracing;
+      this.canvas.classList.toggle('camera-interactive', this.continuousTracing);
       $('framing').value = this.framing * 100;
       $('framing-y').value = this.framingY * 100;
       for (const [id, value] of [
@@ -438,8 +481,11 @@
         $(id).addEventListener('input', (event) => this.applySettings({ [key]: Number(event.target.value) * scale }));
       $('camera-motion').addEventListener('change', (event) =>
         this.applySettings({ cameraMotion: event.target.value }));
+      $('continuous-tracing').addEventListener('change', (event) =>
+        this.applySettings({ continuousTracing: event.target.checked }));
       $('floating-camera').addEventListener('change', (event) =>
-        this.applySettings({ floatingCamera: event.target.checked }));
+        this.applySettings({ floatingCamera: event.target.checked,
+          ...(event.target.checked ? { cameraMotion: 'gentle' } : {}) }));
       $('star-appearance').addEventListener('change', (event) =>
         this.applySettings({ starAppearance: event.target.value }));
       $('star-detail').addEventListener('change', (event) =>
