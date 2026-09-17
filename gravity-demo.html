@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#08090c">
-  <title>Gravity Visualizer</title>
+  <title>Gravity [Audio Visualizer]</title>
   <link rel="icon" href="data:,">
   <style>
 :root {
@@ -476,9 +476,9 @@ summary {
     <section class="control-section">
       <h2>Star appearance</h2>
       <label for="star-appearance">Style<select id="star-appearance"><option value="compact" selected>Compact</option><option value="soft">Soft</option></select></label>
-      <label for="star-detail">Star detail<select id="star-detail"><option value="standard" selected>Standard</option><option value="fine">Fine</option></select></label>
+      <label for="star-detail">Star detail<select id="star-detail"><option value="standard">Standard</option><option value="fine" selected>Fine</option></select></label>
       <div id="star-definition-controls">
-        <label for="core-sizing">Core sizing<select id="core-sizing"><option value="fixed" selected>Fixed</option><option value="adaptive">Adaptive</option></select></label>
+        <label for="core-sizing">Core sizing<select id="core-sizing"><option value="fixed">Fixed</option><option value="adaptive" selected>Adaptive</option></select></label>
         <label class="range-label" for="star-definition">Core strength <output id="star-definition-value">70%</output></label>
         <input id="star-definition" type="range" min="0" max="100" value="70">
       </div>
@@ -1606,8 +1606,8 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
       this.sharpness = 1;
       this.starAppearance = 'compact';
       this.starDefinition = 0.7;
-      this.starDetail = 'standard';
-      this.coreSizing = 'fixed';
+      this.starDetail = 'fine';
+      this.coreSizing = 'adaptive';
       this.brightnessMin = 0.65;
       this.brightnessMax = 1.4;
       this.radialDimming = 0.25;

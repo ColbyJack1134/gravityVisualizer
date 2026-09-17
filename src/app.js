@@ -15,8 +15,8 @@
       this.sharpness = 1;
       this.starAppearance = 'compact';
       this.starDefinition = 0.7;
-      this.starDetail = 'standard';
-      this.coreSizing = 'fixed';
+      this.starDetail = 'fine';
+      this.coreSizing = 'adaptive';
       this.brightnessMin = 0.65;
       this.brightnessMax = 1.4;
       this.radialDimming = 0.25;

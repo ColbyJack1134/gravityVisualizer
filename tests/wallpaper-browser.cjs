@@ -67,7 +67,7 @@ const project = require('../wallpaper/project.json');
     assert.deepEqual(await page.evaluate(() => {
       const r = GravityWallpaper.renderer;
       return [r.starDetail, r.coreSizing, r.starAppearance, Math.round(r.starDefinition * 100), r.volumeGrid];
-    }), ['standard', 'fixed', 'compact', 70, [512, 512, 16]]);
+    }), ['fine', 'adaptive', 'compact', 70, [768, 768, 16]]);
     assert.equal(defaults.tilt, 10); assert.equal(defaults.elevation, 5); assert.equal(defaults.stats.cameraDistance, 37);
     for (const percent of [25, 0, 50, 100]) {
       await apply({radialdimming: percent});

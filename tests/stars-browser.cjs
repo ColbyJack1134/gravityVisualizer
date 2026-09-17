@@ -24,10 +24,12 @@ const { chromium } = require('playwright');
       null, { timeout: 180000 });
     assert.equal(await page.evaluate(() => GravityDemo.failed), false);
     assert.equal(await page.locator('#star-appearance').inputValue(), 'compact');
-    assert.equal(await page.locator('#star-detail').inputValue(), 'standard');
-    assert.equal(await page.locator('#core-sizing').inputValue(), 'fixed');
+    assert.equal(await page.locator('#star-detail').inputValue(), 'fine');
+    assert.equal(await page.locator('#core-sizing').inputValue(), 'adaptive');
     assert.deepEqual(await page.locator('#star-appearance option').allTextContents(), ['Compact', 'Soft']);
     assert.equal(await page.locator('#star-definition-controls').isVisible(), true);
+    await page.locator('#star-detail').selectOption('standard');
+    await page.locator('#core-sizing').selectOption('fixed');
     await page.evaluate(() => {
       const d = GravityDemo, gl = d.gl;
       d.setSuspended(true);

@@ -1,5 +1,5 @@
 {
-  "title": "Gravity Visualizer",
+  "title": "Gravity [Audio Visualizer]",
   "description": "A rotating black hole and orbiting particles that respond to live audio.\n\nVideo demo: https://youtu.be/2KeiIyUf-os",
   "type": "web",
   "file": "index.html",
@@ -1003,7 +1003,7 @@
         "order": 97,
         "text": "Star detail",
         "type": "combo",
-        "value": "standard",
+        "value": "fine",
         "options": [
           {
             "value": "standard",
@@ -1019,7 +1019,7 @@
         "order": 98,
         "text": "Core sizing",
         "type": "combo",
-        "value": "fixed",
+        "value": "adaptive",
         "options": [
           {
             "value": "fixed",
