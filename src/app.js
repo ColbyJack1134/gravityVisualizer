@@ -11,6 +11,10 @@
       this.material = 0.3;
       this.exposure = 1.7;
       this.sharpness = 1;
+      this.starAppearance = 'soft';
+      this.starDefinition = 0.7;
+      this.glintStrength = 0.35;
+      this.glintLength = 0.4;
       this.starDensity = 1;
       this.cloudDensity = 1;
       this.speed = 10;
@@ -132,6 +136,7 @@
       const oldTheta = this.camera.theta, oldDistance = this.camera.distance;
       const ranges = {
         spin: [0.05, 0.95], material: [0.1, 1], exposure: [0.3, 3], sharpness: [0, 1],
+        starDefinition: [0, 1], glintStrength: [0, 1], glintLength: [0, 1],
         starDensity: [0, 5], cloudDensity: [0, 5], speed: [1, 24], fadeSeconds: [0, 6],
         motionStrength: [0, 1], roll: [-Math.PI / 6, Math.PI / 6],
         framing: [-0.35, 0.35], framingY: [-0.2, 0.2], audioGain: [0.3, 3],
@@ -149,6 +154,8 @@
         this.quality = settings.quality;
       if (['gentle', 'music', 'fixed'].includes(settings.cameraMotion))
         this.cameraMotion = settings.cameraMotion;
+      if (['soft', 'compact', 'glints'].includes(settings.starAppearance))
+        this.starAppearance = settings.starAppearance;
       if (typeof settings.elevation === 'number' && Number.isFinite(settings.elevation))
         this.camera.theta = ((90 - Math.max(5, Math.min(80, settings.elevation))) * Math.PI) / 180;
       if (typeof settings.distance === 'number' && Number.isFinite(settings.distance))
@@ -184,6 +191,7 @@
         update: this.program(S.particleUpdate, S.emptyFragment, ['vPosition', 'vMomentum', 'vLifecycle']),
         deposit: this.program(S.depositVertex, S.depositFragment),
         shade: this.program(S.fullscreen, S.volumeShade),
+        stars: this.program(S.fullscreen, S.starAppearance),
         blur: this.program(S.fullscreen, S.blur),
         composite: this.program(S.fullscreen, S.composite)
       };
@@ -430,6 +438,8 @@
       this.destroy(this.renderTextures, this.renderFbos);
       this.hdr = this.texture(this.rw, this.rh, gl.RGBA16F, true);
       this.hdrFbo = this.fbo([this.hdr]);
+      this.starImage = null;
+      this.displayImage = this.hdr;
       this.bw = Math.max(8, Math.floor(this.rw / 3));
       this.bh = Math.max(8, Math.floor(this.rh / 3));
       this.bloom = [
@@ -584,12 +594,34 @@
       this.v2('uDirection', [1 / this.bw, 0]);
       this.quad();
     }
+    styleStars() {
+      const gl = this.gl;
+      this.displayImage = this.hdr;
+      const glints = this.starAppearance === 'glints' && this.glintStrength > 0;
+      if (this.starAppearance === 'soft' || (this.starDefinition === 0 && !glints)) return;
+      if (!this.starImage) {
+        this.starImage = this.texture(this.rw, this.rh, gl.RGBA16F, true);
+        this.starFbo = this.fbo([this.starImage]);
+        this.renderTextures.push(this.starImage);
+        this.renderFbos.push(this.starFbo);
+      }
+      gl.bindFramebuffer(gl.FRAMEBUFFER, this.starFbo);
+      gl.viewport(0, 0, this.rw, this.rh);
+      this.use(this.programs.stars);
+      this.bind('uImage', this.hdr, 0);
+      this.f('uDefinition', this.starDefinition);
+      this.v2('uCoreRadius', [3 * this.canvas.height / this.canvas.width / 1080 / this.overscan,
+        3 / 1080 / this.overscan]);
+      this.quad();
+      this.displayImage = this.starImage;
+    }
     present() {
       const gl = this.gl;
+      this.styleStars();
       gl.bindFramebuffer(gl.FRAMEBUFFER, null);
       gl.viewport(0, 0, this.canvas.width, this.canvas.height);
       this.use(this.programs.composite);
-      this.bind('uImage', this.hdr, 0);
+      this.bind('uImage', this.displayImage, 0);
       this.bind('uBloom', this.bloom[0], 1);
       // Transform filtered radiance, not discrete ray-cache coordinates.
       const aspect = this.canvas.width / this.canvas.height;
@@ -609,6 +641,8 @@
       this.f('uExposure', this.exposure);
       this.f('uGlow', 0.1);
       this.f('uSharpness', this.sharpness);
+      this.f('uGlintStrength', this.starAppearance === 'glints' ? this.glintStrength : 0);
+      this.f('uGlintLength', this.glintLength);
       this.quad();
     }
     refreshPalette(force = false) {

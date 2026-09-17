@@ -166,6 +166,9 @@
       $('exposure-value').textContent = this.exposure.toFixed(1) + '×';
       $('sharpness').value = Math.round(this.sharpness * 100);
       $('sharpness-value').textContent = Math.round(this.sharpness * 100) + '%';
+      $('star-appearance').value = this.starAppearance;
+      $('star-definition-controls').hidden = this.starAppearance === 'soft';
+      $('glint-controls').hidden = this.starAppearance !== 'glints';
       $('particle-fade').value = this.fadeSeconds;
       $('particle-fade-value').textContent = this.fadeSeconds.toFixed(1) + ' s';
       this.syncPaletteUI();
@@ -177,6 +180,9 @@
       for (const [id, value] of [
         ['audio-balance', this.spectrum.balance],
         ['sustained-light', this.sustainStrength],
+        ['star-definition', this.starDefinition],
+        ['glint-strength', this.glintStrength],
+        ['glint-length', this.glintLength],
         ['star-density', this.starDensity],
         ['cloud-density', this.cloudDensity]
       ]) {
@@ -381,6 +387,8 @@
       });
       const controls = {
         material: ['material', 0.01], exposure: ['exposure', 1], sharpness: ['sharpness', 0.01],
+        'star-definition': ['starDefinition', 0.01], 'glint-strength': ['glintStrength', 0.01],
+        'glint-length': ['glintLength', 0.01],
         'particle-fade': ['fadeSeconds', 1], speed: ['speed', 1],
         'camera-amount': ['motionStrength', 0.01], 'camera-roll': ['roll', Math.PI / 180],
         framing: ['framing', 0.01], 'framing-y': ['framingY', 0.01],
@@ -393,6 +401,8 @@
         $(id).addEventListener('input', (event) => this.applySettings({ [key]: Number(event.target.value) * scale }));
       $('camera-motion').addEventListener('change', (event) =>
         this.applySettings({ cameraMotion: event.target.value }));
+      $('star-appearance').addEventListener('change', (event) =>
+        this.applySettings({ starAppearance: event.target.value }));
       let cameraTimeout;
       let cameraChanges = {};
       for (const name of ['elevation', 'distance'])

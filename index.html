@@ -117,6 +117,21 @@
       <input id="speed" type="range" min="1" max="24" step="1" value="10">
     </section>
 
+    <section class="control-section">
+      <h2>Star appearance</h2>
+      <label for="star-appearance">Style<select id="star-appearance"><option value="soft" selected>Soft (original)</option><option value="compact">Compact stars</option><option value="glints">Photographic glints</option></select></label>
+      <div id="star-definition-controls" hidden>
+        <label class="range-label" for="star-definition">Core strength <output id="star-definition-value">70%</output></label>
+        <input id="star-definition" type="range" min="0" max="100" value="70">
+      </div>
+      <div id="glint-controls" hidden>
+        <label class="range-label" for="glint-strength">Glint strength <output id="glint-strength-value">35%</output></label>
+        <input id="glint-strength" type="range" min="0" max="100" value="35">
+        <label class="range-label" for="glint-length">Glint length <output id="glint-length-value">40%</output></label>
+        <input id="glint-length" type="range" min="0" max="100" value="40">
+      </div>
+    </section>
+
     <details class="performance-settings">
       <summary>Performance</summary>
       <label for="particles">Particles<select id="particles"><option value="16384">16,384</option><option value="32768">32,768</option><option value="65536" selected>65,536</option><option value="131072">131,072</option><option value="262144">262,144</option><option value="524288">524,288</option></select></label>
