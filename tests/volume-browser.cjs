@@ -17,13 +17,14 @@ const { chromium } = require('playwright');
     await page.waitForFunction(() => window.GravityDemo?.cacheReady || window.GravityDemo?.failed, null, { timeout: 180000 });
     assert.equal(await page.evaluate(() => GravityDemo.failed), false);
     await page.evaluate(() => { GravityDemo.setSuspended(true); GravityDemo.paused = true; });
-    for (const thickness of [0, .01, .15, .5, 1]) for (const radius of [11, 33]) for (const spin of [0, .95]) {
-      const row = await page.evaluate(({ thickness, radius, spin }) => {
+    for (const detail of ['standard', 'fine']) for (const thickness of [0, .01, .15, .5, 1]) for (const radius of [11, 33]) for (const spin of [0, .95]) {
+      const row = await page.evaluate(({ detail, thickness, radius, spin }) => {
         const d = GravityDemo, gl = d.gl;
-        d.applySettings({ cloudThickness: thickness, cloudRadius: radius, spinning: spin !== 0, spin });
+        d.applySettings({ starDetail: detail, cloudThickness: thickness, cloudRadius: radius, spinning: spin !== 0, spin });
         const particles = new Float32Array(d.count * d.particleStride);
         let maxZ = 0;
         for (let frame = 0; frame < 1000; frame++) {
+          d.simTime += .4;
           d.updateParticles(.4, .04);
           if (frame % 40 !== 39) continue;
           gl.bindBuffer(gl.ARRAY_BUFFER, d.particleBuffers[d.particleIndex]);
@@ -32,18 +33,18 @@ const { chromium } = require('playwright');
             maxZ = Math.max(maxZ, Math.abs(particles[i + 2]));
         }
         gl.bindBuffer(gl.ARRAY_BUFFER, null);
-        return { thickness, radius, spin, maxZ, grid: d.volumeGrid, extent: d.volumeExtent,
+        return { detail, thickness, radius, spin, maxZ, grid: d.volumeGrid, extent: d.volumeExtent,
           cell: 2 * d.volumeExtent[0] / d.volumeGrid[0], error: gl.getError() };
-      }, { thickness, radius, spin });
+      }, { detail, thickness, radius, spin });
       rows.push(row);
       assert.equal(row.error, 0);
       assert.ok(Number.isFinite(row.maxZ));
-      if (row.grid[2] < 104)
+      if (row.grid[2] < (detail === 'fine' ? 160 : 104))
         assert.ok(row.maxZ + 4 * row.cell < row.extent[2], 'Cropped layers must contain the full particle and reconstruction kernels');
     }
     const comparison = await page.evaluate(() => {
       const d = GravityDemo, gl = d.gl;
-      d.applySettings({ cloudThickness: .01, cloudRadius: 26.4, spinning: false });
+      d.applySettings({ starDetail: 'standard', cloudThickness: .01, cloudRadius: 26.4, spinning: false });
       while (d.job) d.advanceTrace();
       for (let i = 0; i < 200; i++) d.updateParticles(.2, .02);
       const capture = () => {

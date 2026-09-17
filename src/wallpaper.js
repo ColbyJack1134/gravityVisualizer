@@ -11,6 +11,7 @@
     cloudradius: ['cloudRadius', 0.22], brightnessmin: ['brightnessMin', 0.01], brightnessmax: ['brightnessMax', 0.01],
     radialdimming: ['radialDimming', 0.01],
     cloudthickness: ['cloudThickness', 0.01],
+    stardefinition: ['starDefinition', 0.01],
     particlefade: ['fadeSeconds', 1], timescale: ['speed', 1], particles: ['count', 1]
   };
   function color(value) {
@@ -99,6 +100,8 @@
       for (const key of ['spinning', 'paused'])
         if (typeof values[key] === 'boolean') settings[key] = values[key];
       if (values.quality !== undefined) settings.quality = values.quality;
+      for (const [property, field] of [['starappearance', 'starAppearance'], ['stardetail', 'starDetail'], ['coresizing', 'coreSizing']])
+        if (values[property] !== undefined) settings[field] = values[property];
       if (values.cameramotion !== undefined) settings.cameraMotion = values.cameramotion;
       if (typeof values.autosensitivity === 'boolean') settings.autoSensitivity = values.autosensitivity;
       if (typeof values.showidleparticles === 'boolean') settings.showIdleParticles = values.showidleparticles;

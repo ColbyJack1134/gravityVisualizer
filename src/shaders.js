@@ -327,8 +327,9 @@ void accumulate(vec4 path,vec3 p,inout vec3 sum,inout float trans){
   vec3 direction=normalize(p-f*(-1.+dot(l,p))*l);
   vec3 cells=abs(direction)*path.w*uVolumeGrid/(uVolumeExtent*2.);
   // Bound spacing in all directions, including diagonal rays.
-  int samples=clamp(int(ceil(length(cells)*.625)),1,4);
-  for(int j=0;j<4;j++){
+  bool fine=uVolumeGrid.x>512.;
+  int samples=clamp(int(ceil(length(cells)*(fine?.75:.625))),1,fine?8:4);
+  for(int j=0;j<8;j++){
     if(j>=samples||trans<.012)break;
     vec3 position=path.xyz+direction*((float(j)+.5)/float(samples)-.5)*path.w;
     vec4 e=volume(uEmission,position);
@@ -381,20 +382,30 @@ void main(){
     header +
     `
 in vec2 uv;out vec4 color;uniform sampler2D uImage;
-uniform float uDefinition;uniform vec2 uCoreRadius;
+uniform float uDefinition;uniform vec2 uCoreRadius;uniform bool uAdaptiveCore;
+float neighborhood(vec2 radius,out vec4 axial){
+  float left=texture(uImage,uv-vec2(radius.x,0.)).a;
+  float right=texture(uImage,uv+vec2(radius.x,0.)).a;
+  float down=texture(uImage,uv-vec2(0.,radius.y)).a;
+  float up=texture(uImage,uv+vec2(0.,radius.y)).a;
+  axial=vec4(left,right,down,up);
+  float nw=texture(uImage,uv+vec2(-1.,1.)*radius).a;
+  float ne=texture(uImage,uv+radius).a;
+  float sw=texture(uImage,uv-radius).a;
+  float se=texture(uImage,uv+vec2(1.,-1.)*radius).a;
+  return (left+right+down+up+nw+ne+sw+se)/8.;
+}
 void main(){
   vec4 c=texture(uImage,uv);
-  float left=texture(uImage,uv-vec2(uCoreRadius.x,0.)).a;
-  float right=texture(uImage,uv+vec2(uCoreRadius.x,0.)).a;
-  float down=texture(uImage,uv-vec2(0.,uCoreRadius.y)).a;
-  float up=texture(uImage,uv+vec2(0.,uCoreRadius.y)).a;
-  float nw=texture(uImage,uv+vec2(-1.,1.)*uCoreRadius).a;
-  float ne=texture(uImage,uv+uCoreRadius).a;
-  float sw=texture(uImage,uv-uCoreRadius).a;
-  float se=texture(uImage,uv+vec2(1.,-1.)*uCoreRadius).a;
-  float surround=left+right+down+up+nw+ne+sw+se;
+  vec4 axial;
+  float contrast=(c.a-neighborhood(uCoreRadius,axial))/max(c.a,.0005);
+  if(uAdaptiveCore){
+    // Log curvature estimates core width across the light profile.
+    vec2 curvature=log(max(c.a*c.a,1e-12)/max(axial.xz*axial.yw,vec2(1e-12)));
+    float scale=clamp(sqrt(.8/max(.5*(curvature.x+curvature.y),.05)),1.,4.);
+    contrast=(c.a-neighborhood(uCoreRadius*scale,axial))/max(c.a,.0005);
+  }
   float peak=max(c.r,max(c.g,c.b));
-  float contrast=(c.a-surround/8.)/max(c.a,.0005);
   float detail=.5*(contrast+sqrt(contrast*contrast+.04));
   float gain=mix(1.,.45+2.75*detail,uDefinition);
   c.rgb*=1.+clamp(c.a/max(peak,1e-7),0.,1.)*(gain-1.);

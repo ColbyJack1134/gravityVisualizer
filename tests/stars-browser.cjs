@@ -24,6 +24,8 @@ const { chromium } = require('playwright');
       null, { timeout: 180000 });
     assert.equal(await page.evaluate(() => GravityDemo.failed), false);
     assert.equal(await page.locator('#star-appearance').inputValue(), 'compact');
+    assert.equal(await page.locator('#star-detail').inputValue(), 'standard');
+    assert.equal(await page.locator('#core-sizing').inputValue(), 'fixed');
     assert.deepEqual(await page.locator('#star-appearance option').allTextContents(), ['Compact', 'Soft']);
     assert.equal(await page.locator('#star-definition-controls').isVisible(), true);
     await page.evaluate(() => {
@@ -64,6 +66,12 @@ const { chromium } = require('playwright');
     await slider('star-definition', 75);
     await page.evaluate(() => starProbe.capture('compact'));
     assert.ok(await page.evaluate(() => starProbe.difference('soft', 'compact')) > 100000);
+    await page.locator('#core-sizing').selectOption('adaptive');
+    await page.evaluate(() => starProbe.capture('adaptive'));
+    assert.ok(await page.evaluate(() => starProbe.difference('compact', 'adaptive')) > 10000);
+    await page.locator('#core-sizing').selectOption('fixed');
+    await page.evaluate(() => starProbe.capture('fixed'));
+    assert.ok(await page.evaluate(() => starProbe.same('compact', 'fixed')));
     await slider('star-definition', 0);
     await page.evaluate(() => starProbe.capture('zero'));
     assert.ok(await page.evaluate(() => starProbe.same('soft', 'zero')));
@@ -72,11 +80,20 @@ const { chromium } = require('playwright');
     assert.ok(await page.evaluate(() => starProbe.same('soft', 'restored')));
     assert.ok(await page.evaluate(() => starProbe.state().every((v, i) => v === starProbe.physics[i])));
     assert.equal(await page.evaluate(() => GravityDemo.cacheBuilds === starProbe.cache), true);
+    await page.locator('#star-detail').selectOption('fine');
+    await page.evaluate(() => { GravityDemo.deposit(); GravityDemo.shade(); starProbe.capture('fine'); });
+    assert.deepEqual(await page.evaluate(() => GravityDemo.volumeGrid), [768, 768, 16]);
+    assert.ok(await page.evaluate(() => starProbe.difference('soft', 'fine')) > 100000);
+    await page.locator('#star-detail').selectOption('standard');
+    await page.evaluate(() => { GravityDemo.deposit(); GravityDemo.shade(); starProbe.capture('standard'); });
+    assert.ok(await page.evaluate(() => starProbe.same('soft', 'standard')));
+    assert.ok(await page.evaluate(() => starProbe.state().every((v, i) => v === starProbe.physics[i])));
+    assert.equal(await page.evaluate(() => GravityDemo.cacheBuilds === starProbe.cache), true);
 
     const profiles = await page.evaluate(() => {
       const d = GravityDemo, gl = d.gl;
       const saved = Object.fromEntries(['overscan', 'roll', 'cameraTime', 'framing', 'framingY',
-        'sharpness', 'starDefinition'].map(key => [key, d[key]]));
+        'sharpness', 'starDefinition', 'coreSizing'].map(key => [key, d[key]]));
       Object.assign(d, { overscan: 1, roll: 0, cameraTime: 0, framing: 0, framingY: 0,
         sharpness: 1, starDefinition: 1 });
       const data = new Float32Array(d.rw * d.rh * 4), rows = [];
@@ -109,8 +126,9 @@ const { chromium } = require('playwright');
             (Math.floor(i / 4 / readSize) - cy) ** 2);
         return { light, peak, width: Math.sqrt(spread / light), cx };
       }
-      for (const sigma of [0.9, 1.8]) for (const mode of ['soft', 'compact']) {
-        d.starAppearance = mode;
+      for (const sigma of [0.9, 1.8, 4.5]) for (const mode of ['soft', 'compact', 'adaptive']) {
+        d.starAppearance = mode === 'soft' ? 'soft' : 'compact';
+        d.coreSizing = mode === 'adaptive' ? 'adaptive' : 'fixed';
         const values = [];
         for (let step = 0; step <= 16; step++) {
           source(sigma, step / 16);
@@ -120,7 +138,7 @@ const { chromium } = require('playwright');
       }
       source(1.8, .5, false);
       d.starAppearance = 'soft'; profile(); const background = pixels.slice();
-      d.starAppearance = 'compact'; profile();
+      d.starAppearance = 'compact'; d.coreSizing = 'adaptive'; profile();
       const backgroundDifference = pixels.reduce((sum, v, i) => sum + Math.abs(v - background[i]), 0);
       Object.assign(d, saved);
       d.deposit(); d.shade();
@@ -139,10 +157,14 @@ const { chromium } = require('playwright');
         const soft = profiles.rows.find(v => v.sigma === row.sigma && v.mode === 'soft');
         assert.ok(row.values[8].width < soft.values[8].width, 'Compact must tighten the light profile');
       }
+      if (row.mode === 'adaptive' && row.sigma === 4.5) {
+        const fixed = profiles.rows.find(v => v.sigma === row.sigma && v.mode === 'compact');
+        assert.ok(row.values[8].width < fixed.values[8].width * .95, 'Adaptive sizing must tighten large cores');
+      }
     }
     assert.equal(profiles.backgroundDifference, 0, 'Foreground styles must preserve background-only light');
     await page.evaluate(() => {
-      GravityDemo.applySettings({ starAppearance: 'compact', starDefinition: .65 });
+      GravityDemo.applySettings({ starAppearance: 'compact', starDefinition: .65, coreSizing: 'adaptive', starDetail: 'fine' });
       GravityDemo.setSuspended(false);
       window.contextRecovery = GravityDemo.gl.getExtension('WEBGL_lose_context');
       contextRecovery.loseContext();
@@ -153,8 +175,8 @@ const { chromium } = require('playwright');
     assert.deepEqual(await page.evaluate(() => {
       const d = GravityDemo;
       d.present();
-      return [d.starAppearance, d.starDefinition, d.gl.getError()];
-    }), ['compact', .65, 0]);
+      return [d.starAppearance, d.starDefinition, d.coreSizing, d.starDetail, d.volumeGrid, d.gl.getError()];
+    }), ['compact', .65, 'adaptive', 'fine', [768, 768, 16], 0]);
     assert.equal(await page.locator('#star-appearance').inputValue(), 'compact');
     assert.deepEqual(errors, []);
     fs.writeFileSync('test-results/stars-browser-results.json', JSON.stringify(profiles, null, 2));

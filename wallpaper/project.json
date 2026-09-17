@@ -983,6 +983,68 @@
         "fraction": true,
         "precision": 1
       },
+      "starappearance": {
+        "order": 96,
+        "text": "Star style",
+        "type": "combo",
+        "value": "compact",
+        "options": [
+          {
+            "value": "compact",
+            "label": "Compact"
+          },
+          {
+            "value": "soft",
+            "label": "Soft"
+          }
+        ]
+      },
+      "stardetail": {
+        "order": 97,
+        "text": "Star detail",
+        "type": "combo",
+        "value": "standard",
+        "options": [
+          {
+            "value": "standard",
+            "label": "Standard"
+          },
+          {
+            "value": "fine",
+            "label": "Fine"
+          }
+        ]
+      },
+      "coresizing": {
+        "order": 98,
+        "text": "Core sizing",
+        "type": "combo",
+        "value": "fixed",
+        "options": [
+          {
+            "value": "fixed",
+            "label": "Fixed"
+          },
+          {
+            "value": "adaptive",
+            "label": "Adaptive"
+          }
+        ],
+        "condition": "starappearance.value == 'compact'"
+      },
+      "stardefinition": {
+        "order": 99,
+        "text": "Core strength (%)",
+        "type": "slider",
+        "value": 70,
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "editable": true,
+        "fraction": false,
+        "precision": 0,
+        "condition": "starappearance.value == 'compact'"
+      },
       "brightnessmin": {
         "text": "Minimum star brightness (%)",
         "type": "slider",
@@ -993,7 +1055,7 @@
         "editable": true,
         "fraction": false,
         "precision": 0,
-        "order": 96
+        "order": 100
       },
       "brightnessmax": {
         "text": "Maximum star brightness (%)",
@@ -1005,7 +1067,7 @@
         "editable": true,
         "fraction": false,
         "precision": 0,
-        "order": 97
+        "order": 101
       },
       "radialdimming": {
         "text": "Radial dimming (%)",
@@ -1017,10 +1079,10 @@
         "editable": true,
         "fraction": false,
         "precision": 0,
-        "order": 98
+        "order": 102
       },
       "sharpness": {
-        "order": 99,
+        "order": 103,
         "text": "Sharpness",
         "type": "slider",
         "value": 100,
@@ -1032,7 +1094,7 @@
         "precision": 0
       },
       "particlefade": {
-        "order": 100,
+        "order": 104,
         "text": "Particle fade (seconds)",
         "type": "slider",
         "value": 3,
@@ -1044,7 +1106,7 @@
         "precision": 1
       },
       "timescale": {
-        "order": 101,
+        "order": 105,
         "text": "Time scale",
         "type": "slider",
         "value": 10,
@@ -1058,10 +1120,10 @@
       "groupperformance": {
         "type": "group",
         "text": "Performance",
-        "order": 102
+        "order": 106
       },
       "particles": {
-        "order": 103,
+        "order": 107,
         "text": "Particles",
         "type": "combo",
         "value": "65536",
@@ -1093,7 +1155,7 @@
         ]
       },
       "quality": {
-        "order": 104,
+        "order": 108,
         "text": "Quality",
         "type": "combo",
         "value": "balanced",

@@ -60,10 +60,14 @@ const project = require('../wallpaper/project.json');
     assert.equal(defaults.stats.cacheBuilds, 1, 'Early settings must precede the first cache allocation');
     assert.equal(defaults.stats.particles, 65536); assert.equal(defaults.stats.spin, 0);
     assert.deepEqual(defaults.framing, [-0.01, 0.05]); assert.equal(defaults.fps, 30);
-    assert.equal(defaults.material, 0.7); assert.equal(defaults.exposure, 1.7);
+    assert.equal(Math.round(defaults.material * 100), 70); assert.equal(defaults.exposure, 1.7);
     assert.deepEqual(defaults.brightness.map(v => Math.round(v * 100)), [65, 140]); assert.equal(defaults.radius, 26.4);
     assert.equal(defaults.dimming, .25);
     assert.equal(defaults.thickness, .01);
+    assert.deepEqual(await page.evaluate(() => {
+      const r = GravityWallpaper.renderer;
+      return [r.starDetail, r.coreSizing, r.starAppearance, Math.round(r.starDefinition * 100), r.volumeGrid];
+    }), ['standard', 'fixed', 'compact', 70, [512, 512, 16]]);
     assert.equal(defaults.tilt, 10); assert.equal(defaults.elevation, 5); assert.equal(defaults.stats.cameraDistance, 37);
     for (const percent of [25, 0, 50, 100]) {
       await apply({radialdimming: percent});
@@ -81,6 +85,14 @@ const project = require('../wallpaper/project.json');
       assert.equal(uniforms, percent / 100);
     }
     assert.equal(await page.evaluate(() => GravityWallpaper.renderer.cacheBuilds), defaults.stats.cacheBuilds);
+    await apply({stardetail: 'fine', coresizing: 'adaptive', starappearance: 'compact', stardefinition: 80});
+    assert.deepEqual(await page.evaluate(() => {
+      const r = GravityWallpaper.renderer; r.deposit(); r.shade(); r.present();
+      return [r.starDetail, r.coreSizing, r.starAppearance, r.starDefinition, r.volumeGrid, r.gl.getError()];
+    }), ['fine', 'adaptive', 'compact', .8, [768, 768, 160], 0]);
+    await apply({stardetail: 'standard', coresizing: 'fixed', starappearance: 'soft', stardefinition: 70});
+    assert.equal(await page.evaluate(() => GravityWallpaper.renderer.starAppearance), 'soft');
+    await apply({starappearance: 'compact'});
     assert.equal(defaults.sharpness, 1); assert.equal(defaults.fade, 3); assert.equal(defaults.animated, true);
     assert.deepEqual(defaults.colors, ['#23D183', '#1DCA97', '#17C2AB', '#12BBC0', '#0CB3D4', '#06ACE8']);
     assert.equal(defaults.registrations, 1);

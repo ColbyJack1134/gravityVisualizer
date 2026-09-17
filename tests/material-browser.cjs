@@ -10,8 +10,11 @@ const spread=values=>Math.max(...values)/Math.min(...values)-1;
     await page.goto((process.env.GRAVITY_URL||pathToFileURL(path.resolve('gravity-demo.html')).href)+'?motion=fixed');
     await page.waitForFunction(()=>window.GravityDemo?.cacheReady||window.GravityDemo?.failed,null,{timeout:180000});
     assert.equal(await page.evaluate(()=>GravityDemo.failed),false);
-    const result=await page.evaluate(()=>{
+    const results=[];
+    for(const detail of ['standard','fine']){
+    const result=await page.evaluate(detail=>{
       const d=GravityDemo,gl=d.gl,P=GravityPhysics,S=GravityShaders;cancelAnimationFrame(d.raf);
+      d.applySettings({starDetail:detail,cloudRadius:22});
       d.paused=true;d.material=1;d.spectrum.driven=0;
       // Probe the production kernel without duplicating its math.
       const fragment=S.depositFragment.replace('vec4(vVelocity*g,vTime*g)','vec4(0.,0.,0.,g)');
@@ -26,7 +29,8 @@ const spread=values=>Math.max(...values)/Math.min(...values)-1;
         const draw=gl.drawArraysInstanced;let instances=0;
         gl.drawArraysInstanced=(mode,first,count,n)=>{instances=n;};
         try{d.deposit();}finally{gl.drawArraysInstanced=draw;}
-        d.f('uParticleWeight',strength);gl.bindVertexArray(d.particleVAOs[d.particleIndex]);
+        if(strength!==null)d.f('uParticleWeight',strength);
+        gl.bindVertexArray(d.particleVAOs[d.particleIndex]);
         gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK,feedback);gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER,0,buffer);
         gl.enable(gl.RASTERIZER_DISCARD);gl.beginTransformFeedback(gl.POINTS);gl.drawArraysInstanced(gl.POINTS,id,1,instances);
         gl.endTransformFeedback();gl.disable(gl.RASTERIZER_DISCARD);gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER,0,null);gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK,null);
@@ -43,6 +47,7 @@ const spread=values=>Math.max(...values)/Math.min(...values)-1;
         }
         return {sum,weight,color:attrs[1]+attrs[2]+attrs[3],normalized:sum/weight};
       }
+      const physicalMass=deposit([12,0,.075],0,0,null).sum*(2*d.volumeExtent[0]/d.volumeGrid[0])**3;
       const phaseRows=[];
       for(const id of [0,1,37])for(let axis=0;axis<3;axis++){
         const values=[];
@@ -114,14 +119,17 @@ const spread=values=>Math.max(...values)/Math.min(...values)-1;
           rayRows.push({direction,axis:'xyz'[axis],values});
         }
       }
-      return {renderer:d.rendererName,phaseRows,clock,rayRows,cells:d.volumeExtent.map((v,i)=>2*v/d.volumeGrid[i]),glError:gl.getError()};
-    });
+      gl.deleteTransformFeedback(feedback);gl.deleteBuffer(buffer);
+      for(const texture of [tx,tp,sky,image])gl.deleteTexture(texture);gl.deleteFramebuffer(fbo);
+      return {detail,physicalMass,renderer:d.rendererName,phaseRows,clock,rayRows,cells:d.volumeExtent.map((v,i)=>2*v/d.volumeGrid[i]),glError:gl.getError()};
+    },detail);
+    fs.mkdirSync('test-results',{recursive:true});fs.writeFileSync(`test-results/material-${detail}.json`,JSON.stringify(result,null,2));
     for(const row of result.phaseRows)assert.ok(spread(row.values.map(v=>v.normalized))<.002,`Particle ${row.id} loses light crossing ${row.axis} cells`);
     assert.ok(spread(result.clock.map(v=>v.sum))<.00001,'Audio-off material must not flicker as the simulation clock advances');
     assert.ok(spread(result.cells)<.00001,'Volume cells must have equal physical dimensions');
     for(const row of result.rayRows){
       assert.ok(row.values.every(v=>v.light>.01),'Probe must produce visible particle light');
-      assert.ok(spread(row.values.map(v=>v.normalized))<.03,`Ray samples miss a moving particle along ${row.axis}`);
+      assert.ok(spread(row.values.map(v=>v.normalized))<.03,`${detail}: ray samples miss a moving particle along ${row.axis} from ${row.direction}`);
       assert.ok(spread(row.values.map(v=>v.normalizedPeak))<.12,`Particle core pulses crossing ${row.axis} cells from view ${row.direction}`);
       assert.ok(row.values.every(v=>Math.max(v.widthX,v.widthY)/Math.min(v.widthX,v.widthY)<1.03),'An isolated particle must remain round');
     }
@@ -130,8 +138,13 @@ const spread=values=>Math.max(...values)/Math.min(...values)-1;
     result.depositionVariation=Math.max(...result.phaseRows.map(r=>spread(r.values.map(v=>v.normalized))));
     result.rayVariation=Math.max(...result.rayRows.map(r=>spread(r.values.map(v=>v.normalized))));
     result.peakVariation=Math.max(...result.rayRows.map(r=>spread(r.values.map(v=>v.normalizedPeak))));
-    fs.mkdirSync('test-results',{recursive:true});fs.writeFileSync('test-results/material-browser-results.json',JSON.stringify(result,null,2));
+    results.push(result);
     console.log('PASS: subcell energy conservation, clock invariance, moving-particle brightness and roundness from four views.',
-      {depositionVariation:result.depositionVariation,rayVariation:result.rayVariation,peakVariation:result.peakVariation});
+      {detail,depositionVariation:result.depositionVariation,rayVariation:result.rayVariation,peakVariation:result.peakVariation});
+    }
+    assert.ok(Math.abs(results[1].physicalMass/results[0].physicalMass-1)<.002,'Fine cells must preserve total deposited mass');
+    for(let i=0;i<results[0].rayRows.length;i++)
+      assert.ok(results[1].rayRows[i].values[8].widthX<results[0].rayRows[i].values[8].widthX*.8,'Fine detail must shrink particle footprints');
+    fs.mkdirSync('test-results',{recursive:true});fs.writeFileSync('test-results/material-browser-results.json',JSON.stringify(results,null,2));
   }finally{await context.close();await browser.close();}
 })().catch(e=>{console.error(e);process.exitCode=1;});

@@ -198,6 +198,8 @@
       $('sharpness').value = Math.round(this.sharpness * 100);
       $('sharpness-value').textContent = Math.round(this.sharpness * 100) + '%';
       $('star-appearance').value = this.starAppearance;
+      $('star-detail').value = this.starDetail;
+      $('core-sizing').value = this.coreSizing;
       $('star-definition-controls').hidden = this.starAppearance === 'soft';
       $('particle-fade').value = this.fadeSeconds;
       $('particle-fade-value').textContent = this.fadeSeconds.toFixed(1) + ' s';
@@ -437,6 +439,10 @@
         this.applySettings({ cameraMotion: event.target.value }));
       $('star-appearance').addEventListener('change', (event) =>
         this.applySettings({ starAppearance: event.target.value }));
+      $('star-detail').addEventListener('change', (event) =>
+        this.applySettings({ starDetail: event.target.value }));
+      $('core-sizing').addEventListener('change', (event) =>
+        this.applySettings({ coreSizing: event.target.value }));
       let geometryTimeout;
       let geometryChanges = {};
       const geometry = {

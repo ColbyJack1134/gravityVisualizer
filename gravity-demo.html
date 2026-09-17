@@ -476,7 +476,9 @@ summary {
     <section class="control-section">
       <h2>Star appearance</h2>
       <label for="star-appearance">Style<select id="star-appearance"><option value="compact" selected>Compact</option><option value="soft">Soft</option></select></label>
+      <label for="star-detail">Star detail<select id="star-detail"><option value="standard" selected>Standard</option><option value="fine">Fine</option></select></label>
       <div id="star-definition-controls">
+        <label for="core-sizing">Core sizing<select id="core-sizing"><option value="fixed" selected>Fixed</option><option value="adaptive">Adaptive</option></select></label>
         <label class="range-label" for="star-definition">Core strength <output id="star-definition-value">70%</output></label>
         <input id="star-definition" type="range" min="0" max="100" value="70">
       </div>
@@ -1415,8 +1417,9 @@ void accumulate(vec4 path,vec3 p,inout vec3 sum,inout float trans){
   vec3 direction=normalize(p-f*(-1.+dot(l,p))*l);
   vec3 cells=abs(direction)*path.w*uVolumeGrid/(uVolumeExtent*2.);
   // Bound spacing in all directions, including diagonal rays.
-  int samples=clamp(int(ceil(length(cells)*.625)),1,4);
-  for(int j=0;j<4;j++){
+  bool fine=uVolumeGrid.x>512.;
+  int samples=clamp(int(ceil(length(cells)*(fine?.75:.625))),1,fine?8:4);
+  for(int j=0;j<8;j++){
     if(j>=samples||trans<.012)break;
     vec3 position=path.xyz+direction*((float(j)+.5)/float(samples)-.5)*path.w;
     vec4 e=volume(uEmission,position);
@@ -1469,20 +1472,30 @@ void main(){
     header +
     `
 in vec2 uv;out vec4 color;uniform sampler2D uImage;
-uniform float uDefinition;uniform vec2 uCoreRadius;
+uniform float uDefinition;uniform vec2 uCoreRadius;uniform bool uAdaptiveCore;
+float neighborhood(vec2 radius,out vec4 axial){
+  float left=texture(uImage,uv-vec2(radius.x,0.)).a;
+  float right=texture(uImage,uv+vec2(radius.x,0.)).a;
+  float down=texture(uImage,uv-vec2(0.,radius.y)).a;
+  float up=texture(uImage,uv+vec2(0.,radius.y)).a;
+  axial=vec4(left,right,down,up);
+  float nw=texture(uImage,uv+vec2(-1.,1.)*radius).a;
+  float ne=texture(uImage,uv+radius).a;
+  float sw=texture(uImage,uv-radius).a;
+  float se=texture(uImage,uv+vec2(1.,-1.)*radius).a;
+  return (left+right+down+up+nw+ne+sw+se)/8.;
+}
 void main(){
   vec4 c=texture(uImage,uv);
-  float left=texture(uImage,uv-vec2(uCoreRadius.x,0.)).a;
-  float right=texture(uImage,uv+vec2(uCoreRadius.x,0.)).a;
-  float down=texture(uImage,uv-vec2(0.,uCoreRadius.y)).a;
-  float up=texture(uImage,uv+vec2(0.,uCoreRadius.y)).a;
-  float nw=texture(uImage,uv+vec2(-1.,1.)*uCoreRadius).a;
-  float ne=texture(uImage,uv+uCoreRadius).a;
-  float sw=texture(uImage,uv-uCoreRadius).a;
-  float se=texture(uImage,uv+vec2(1.,-1.)*uCoreRadius).a;
-  float surround=left+right+down+up+nw+ne+sw+se;
+  vec4 axial;
+  float contrast=(c.a-neighborhood(uCoreRadius,axial))/max(c.a,.0005);
+  if(uAdaptiveCore){
+    // Log curvature estimates core width across the light profile.
+    vec2 curvature=log(max(c.a*c.a,1e-12)/max(axial.xz*axial.yw,vec2(1e-12)));
+    float scale=clamp(sqrt(.8/max(.5*(curvature.x+curvature.y),.05)),1.,4.);
+    contrast=(c.a-neighborhood(uCoreRadius*scale,axial))/max(c.a,.0005);
+  }
   float peak=max(c.r,max(c.g,c.b));
-  float contrast=(c.a-surround/8.)/max(c.a,.0005);
   float detail=.5*(contrast+sqrt(contrast*contrast+.04));
   float gain=mix(1.,.45+2.75*detail,uDefinition);
   c.rgb*=1.+clamp(c.a/max(peak,1e-7),0.,1.)*(gain-1.);
@@ -1593,6 +1606,8 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
       this.sharpness = 1;
       this.starAppearance = 'compact';
       this.starDefinition = 0.7;
+      this.starDetail = 'standard';
+      this.coreSizing = 'fixed';
       this.brightnessMin = 0.65;
       this.brightnessMax = 1.4;
       this.radialDimming = 0.25;
@@ -1720,6 +1735,7 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
       const oldSpin = this.a(), oldCount = this.count, oldQuality = this.quality;
       const oldTheta = this.camera.theta, oldDistance = this.camera.distance;
       const oldRadius = this.cloudRadius, oldThickness = this.cloudThickness;
+      const oldDetail = this.starDetail;
       const oldRoll = this.roll, oldFraming = this.framing, oldFramingY = this.framingY;
       const ranges = {
         spin: [0.05, 0.95], material: [0.1, 1], exposure: [0.3, 3], sharpness: [0, 1],
@@ -1749,6 +1765,8 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
         this.cameraMotion = settings.cameraMotion;
       if (['compact', 'soft'].includes(settings.starAppearance))
         this.starAppearance = settings.starAppearance;
+      if (['standard', 'fine'].includes(settings.starDetail)) this.starDetail = settings.starDetail;
+      if (['fixed', 'adaptive'].includes(settings.coreSizing)) this.coreSizing = settings.coreSizing;
       if (typeof settings.elevation === 'number' && Number.isFinite(settings.elevation))
         this.camera.theta = ((90 - Math.max(-180, Math.min(180, settings.elevation))) * Math.PI) / 180;
       if (typeof settings.distance === 'number' && Number.isFinite(settings.distance))
@@ -1766,7 +1784,7 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
       if (Object.hasOwn(settings, 'fpsLimit')) this.resetClock();
       if (this.started && !this.lost && !this.failed) {
         if (oldRadius !== this.cloudRadius) this.updateVolumeExtent();
-        if (oldThickness !== this.cloudThickness) this.allocateEmission();
+        if (oldThickness !== this.cloudThickness || oldDetail !== this.starDetail) this.allocateEmission();
         if (oldSpin !== this.a() || oldCount !== this.count || oldRadius !== this.cloudRadius || oldThickness !== this.cloudThickness) {
           this.allocateParticles();
           if (this.paused) this.updateParticles(0, this.fadeSeconds);
@@ -1933,8 +1951,10 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
       this.updateParticles(0);
     }
     volumeDimensions() {
-      const layers = Math.max(16, Math.min(104, Math.ceil((104 * this.cloudThickness + 8) / 8) * 8));
-      return [512, 512, layers];
+      const cells = this.starDetail === 'fine' ? 768 : 512;
+      const fullDepth = Math.ceil(104 * cells / 512 / 8) * 8;
+      const layers = Math.max(16, Math.min(fullDepth, Math.ceil((104 * cells / 512 * this.cloudThickness + 8) / 8) * 8));
+      return [cells, cells, layers];
     }
     allocateEmission() {
       const gl = this.gl;
@@ -1953,7 +1973,7 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
     }
     updateVolumeExtent() {
       this.volumeScale = Math.max(1, this.cloudRadius / 22);
-      this.volumeExtent = this.volumeGrid.map(cells => cells * (24 / 512) * this.volumeScale);
+      this.volumeExtent = this.volumeGrid.map(cells => cells * (24 / this.volumeGrid[0]) * this.volumeScale);
     }
     resize(force = false) {
       const dpr = devicePixelRatio || 1,
@@ -2223,8 +2243,8 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
       this.f('uCloudRadius', this.cloudRadius);
       this.v2('uBrightnessRange', [this.brightnessMin, this.brightnessMax]);
       this.f('uRadialDimming', this.radialDimming);
-      // Keep particle mass fixed as volume cells grow.
-      this.f('uParticleWeight', (12.8 * 65536) / (this.count * this.volumeScale ** 3));
+      // Preserve particle mass when cell size changes.
+      this.f('uParticleWeight', (12.8 * 65536 / this.count) * (this.volumeGrid[0] / 512 / this.volumeScale) ** 3);
       this.i('uBandCount', this.spectrum.levels.length);
       this.gl.uniform1fv(this.loc('uBands[0]'), this.spectrum.levels);
       this.f('uSustainStrength', this.sustainStrength);
@@ -2335,6 +2355,7 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
       this.use(this.programs.stars);
       this.bind('uImage', this.hdr, 0);
       this.f('uDefinition', this.starDefinition);
+      this.i('uAdaptiveCore', this.coreSizing === 'adaptive' ? 1 : 0);
       this.v2('uCoreRadius', [3 * this.canvas.height / this.canvas.width / 1080 / this.overscan,
         3 / 1080 / this.overscan]);
       this.quad();
@@ -2743,6 +2764,8 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
       $('sharpness').value = Math.round(this.sharpness * 100);
       $('sharpness-value').textContent = Math.round(this.sharpness * 100) + '%';
       $('star-appearance').value = this.starAppearance;
+      $('star-detail').value = this.starDetail;
+      $('core-sizing').value = this.coreSizing;
       $('star-definition-controls').hidden = this.starAppearance === 'soft';
       $('particle-fade').value = this.fadeSeconds;
       $('particle-fade-value').textContent = this.fadeSeconds.toFixed(1) + ' s';
@@ -2982,6 +3005,10 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
         this.applySettings({ cameraMotion: event.target.value }));
       $('star-appearance').addEventListener('change', (event) =>
         this.applySettings({ starAppearance: event.target.value }));
+      $('star-detail').addEventListener('change', (event) =>
+        this.applySettings({ starDetail: event.target.value }));
+      $('core-sizing').addEventListener('change', (event) =>
+        this.applySettings({ coreSizing: event.target.value }));
       let geometryTimeout;
       let geometryChanges = {};
       const geometry = {

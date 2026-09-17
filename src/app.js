@@ -15,6 +15,8 @@
       this.sharpness = 1;
       this.starAppearance = 'compact';
       this.starDefinition = 0.7;
+      this.starDetail = 'standard';
+      this.coreSizing = 'fixed';
       this.brightnessMin = 0.65;
       this.brightnessMax = 1.4;
       this.radialDimming = 0.25;
@@ -142,6 +144,7 @@
       const oldSpin = this.a(), oldCount = this.count, oldQuality = this.quality;
       const oldTheta = this.camera.theta, oldDistance = this.camera.distance;
       const oldRadius = this.cloudRadius, oldThickness = this.cloudThickness;
+      const oldDetail = this.starDetail;
       const oldRoll = this.roll, oldFraming = this.framing, oldFramingY = this.framingY;
       const ranges = {
         spin: [0.05, 0.95], material: [0.1, 1], exposure: [0.3, 3], sharpness: [0, 1],
@@ -171,6 +174,8 @@
         this.cameraMotion = settings.cameraMotion;
       if (['compact', 'soft'].includes(settings.starAppearance))
         this.starAppearance = settings.starAppearance;
+      if (['standard', 'fine'].includes(settings.starDetail)) this.starDetail = settings.starDetail;
+      if (['fixed', 'adaptive'].includes(settings.coreSizing)) this.coreSizing = settings.coreSizing;
       if (typeof settings.elevation === 'number' && Number.isFinite(settings.elevation))
         this.camera.theta = ((90 - Math.max(-180, Math.min(180, settings.elevation))) * Math.PI) / 180;
       if (typeof settings.distance === 'number' && Number.isFinite(settings.distance))
@@ -188,7 +193,7 @@
       if (Object.hasOwn(settings, 'fpsLimit')) this.resetClock();
       if (this.started && !this.lost && !this.failed) {
         if (oldRadius !== this.cloudRadius) this.updateVolumeExtent();
-        if (oldThickness !== this.cloudThickness) this.allocateEmission();
+        if (oldThickness !== this.cloudThickness || oldDetail !== this.starDetail) this.allocateEmission();
         if (oldSpin !== this.a() || oldCount !== this.count || oldRadius !== this.cloudRadius || oldThickness !== this.cloudThickness) {
           this.allocateParticles();
           if (this.paused) this.updateParticles(0, this.fadeSeconds);
@@ -355,8 +360,10 @@
       this.updateParticles(0);
     }
     volumeDimensions() {
-      const layers = Math.max(16, Math.min(104, Math.ceil((104 * this.cloudThickness + 8) / 8) * 8));
-      return [512, 512, layers];
+      const cells = this.starDetail === 'fine' ? 768 : 512;
+      const fullDepth = Math.ceil(104 * cells / 512 / 8) * 8;
+      const layers = Math.max(16, Math.min(fullDepth, Math.ceil((104 * cells / 512 * this.cloudThickness + 8) / 8) * 8));
+      return [cells, cells, layers];
     }
     allocateEmission() {
       const gl = this.gl;
@@ -375,7 +382,7 @@
     }
     updateVolumeExtent() {
       this.volumeScale = Math.max(1, this.cloudRadius / 22);
-      this.volumeExtent = this.volumeGrid.map(cells => cells * (24 / 512) * this.volumeScale);
+      this.volumeExtent = this.volumeGrid.map(cells => cells * (24 / this.volumeGrid[0]) * this.volumeScale);
     }
     resize(force = false) {
       const dpr = devicePixelRatio || 1,
@@ -645,8 +652,8 @@
       this.f('uCloudRadius', this.cloudRadius);
       this.v2('uBrightnessRange', [this.brightnessMin, this.brightnessMax]);
       this.f('uRadialDimming', this.radialDimming);
-      // Keep particle mass fixed as volume cells grow.
-      this.f('uParticleWeight', (12.8 * 65536) / (this.count * this.volumeScale ** 3));
+      // Preserve particle mass when cell size changes.
+      this.f('uParticleWeight', (12.8 * 65536 / this.count) * (this.volumeGrid[0] / 512 / this.volumeScale) ** 3);
       this.i('uBandCount', this.spectrum.levels.length);
       this.gl.uniform1fv(this.loc('uBands[0]'), this.spectrum.levels);
       this.f('uSustainStrength', this.sustainStrength);
@@ -757,6 +764,7 @@
       this.use(this.programs.stars);
       this.bind('uImage', this.hdr, 0);
       this.f('uDefinition', this.starDefinition);
+      this.i('uAdaptiveCore', this.coreSizing === 'adaptive' ? 1 : 0);
       this.v2('uCoreRadius', [3 * this.canvas.height / this.canvas.width / 1080 / this.overscan,
         3 / 1080 / this.overscan]);
       this.quad();
