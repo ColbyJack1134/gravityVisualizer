@@ -216,7 +216,6 @@
         ['radial-dimming', this.radialDimming],
         ['cloud-radius', this.cloudRadius / 22],
         ['cloud-thickness', this.cloudThickness],
-        ['edge-softness', this.edgeSoftness],
         ['star-density', this.starDensity],
         ['cloud-density', this.cloudDensity]
       ]) {
@@ -425,7 +424,6 @@
         'star-definition': ['starDefinition', 0.01],
         'brightness-min': ['brightnessMin', 0.01], 'brightness-max': ['brightnessMax', 0.01],
         'radial-dimming': ['radialDimming', 0.01],
-        'edge-softness': ['edgeSoftness', 0.01],
         'particle-fade': ['fadeSeconds', 1], speed: ['speed', 1],
         'camera-amount': ['motionStrength', 0.01], 'camera-roll': ['roll', Math.PI / 180],
         framing: ['framing', 0.01], 'framing-y': ['framingY', 0.01],

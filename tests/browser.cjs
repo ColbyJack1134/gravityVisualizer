@@ -104,7 +104,7 @@ function tone(){
       gl.getBufferSubData(gl.ARRAY_BUFFER,0,data);gl.bindBuffer(gl.ARRAY_BUFFER,null);
       const unique=new Set();let z2=0;for(let i=0;i<data.length;i+=d.particleStride){unique.add(data[i]+','+data[i+1]+','+data[i+2]);z2+=data[i+2]*data[i+2];}return {unique:unique.size,count:d.count,zRMS:Math.sqrt(z2/d.count)};
     });
-    assert.ok(unique.unique>unique.count*.99,`${unique.unique} distinct particles`);assert.ok(unique.zRMS>.4,'The tilted material must have actual height');results.checks.push(`${unique.unique} distinct GPU particles; volume height RMS ${unique.zRMS.toFixed(2)} M`);
+    assert.ok(unique.unique>unique.count*.99,`${unique.unique} distinct particles`);assert.ok(unique.zRMS>.05&&unique.zRMS<.25,'The default cloud must retain a little height');results.checks.push(`${unique.unique} distinct GPU particles; volume height RMS ${unique.zRMS.toFixed(2)} M`);
 
     const orbit=await page.evaluate(()=>{
       const d=GravityDemo,P=GravityPhysics,gl=d.gl,originalCount=d.count;d.count=16;d.allocateParticles();const data=new Float32Array(16*d.particleStride);

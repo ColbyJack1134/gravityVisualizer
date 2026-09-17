@@ -10,8 +10,7 @@
       this.spin = 0.5;
       this.material = 0.3;
       this.cloudRadius = 22;
-      this.cloudThickness = 1;
-      this.edgeSoftness = 1;
+      this.cloudThickness = 0.15;
       this.exposure = 1.7;
       this.sharpness = 1;
       this.starAppearance = 'compact';
@@ -147,7 +146,7 @@
         spin: [0.05, 0.95], material: [0.1, 1], exposure: [0.3, 3], sharpness: [0, 1],
         starDefinition: [0, 1], brightnessMin: [0, 4], brightnessMax: [0, 4], cloudRadius: [11, 33],
         radialDimming: [0, 1],
-        cloudThickness: [0, 1], edgeSoftness: [0, 1],
+        cloudThickness: [0, 1],
         starDensity: [0, 5], cloudDensity: [0, 5], speed: [1, 24], fadeSeconds: [0, 6],
         motionStrength: [0, 1], roll: [-Math.PI / 6, Math.PI / 6],
         framing: [-0.35, 0.35], framingY: [-0.2, 0.2], audioGain: [0.3, 3],
@@ -625,7 +624,6 @@
       this.f('uCloudRadius', this.cloudRadius);
       this.v2('uBrightnessRange', [this.brightnessMin, this.brightnessMax]);
       this.f('uRadialDimming', this.radialDimming);
-      this.f('uEdgeSoftness', this.edgeSoftness);
       // Keep particle mass fixed as volume cells grow.
       this.f('uParticleWeight', (12.8 * 65536) / (this.count * this.volumeScale ** 3));
       this.i('uBandCount', this.spectrum.levels.length);

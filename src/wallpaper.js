@@ -10,7 +10,7 @@
     material: ['material', 0.01], exposure: ['exposure', 1], sharpness: ['sharpness', 0.01],
     cloudradius: ['cloudRadius', 0.22], brightnessmin: ['brightnessMin', 0.01], brightnessmax: ['brightnessMax', 0.01],
     radialdimming: ['radialDimming', 0.01],
-    cloudthickness: ['cloudThickness', 0.01], edgesoftness: ['edgeSoftness', 0.01],
+    cloudthickness: ['cloudThickness', 0.01],
     particlefade: ['fadeSeconds', 1], timescale: ['speed', 1], particles: ['count', 1]
   };
   function color(value) {

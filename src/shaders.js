@@ -194,7 +194,7 @@ layout(location=0) in vec4 aPosition;
 layout(location=1) in vec4 aMomentum;
 layout(location=2) in vec2 aLifecycle;
 uniform float uSpin,uISCO,uMaterial,uParticleWeight,uFadeSeconds;
-uniform float uCloudRadius,uRadialDimming,uEdgeSoftness;uniform vec2 uBrightnessRange;
+uniform float uCloudRadius,uRadialDimming;uniform vec2 uBrightnessRange;
 uniform float uBands[24],uAudioDriven,uIdleParticles;
 uniform int uBandCount;
 uniform float uSustainStrength;
@@ -213,9 +213,7 @@ void main(){
     vWeight*=birth*death;
   }
   float inner=uISCO*.86;
-  float cell=2.*uVolumeExtent.x/uVolumeGrid.x;
-  float innerWidth=max(cell,.55*uEdgeSoftness),outerWidth=max(cell,uEdgeSoftness);
-  vWeight*=smoothstep(inner,inner+innerWidth,r)*(1.-smoothstep(uCloudRadius,uCloudRadius+outerWidth,r));
+  vWeight*=smoothstep(inner,inner+.55,r)*(1.-smoothstep(uCloudRadius,uCloudRadius+1.,r));
   float heat=pow(uISCO/max(r,uISCO),.65*uRadialDimming);
   float kind=hash(float(gl_VertexID)+37.2);
   float palettePosition=hash(float(gl_VertexID)+81.3);
