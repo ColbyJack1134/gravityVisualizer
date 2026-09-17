@@ -32,7 +32,12 @@
       this.cameraMotion = 'gentle';
       this.continuousTracing = false;
       this.floatingCamera = false;
-      this.floatingTime = 0;
+      this.orbitPhase = 0;
+      this.orbitTilt = 30;
+      this.orbitRotation = 0;
+      this.orbitNear = 36;
+      this.orbitFar = 48;
+      this.orbitSpeed = 2;
       this.cameraTime = 0;
       this.orbitAngle = 0;
       this.motionStrength = 0.55;
@@ -159,6 +164,7 @@
         cloudThickness: [0, 1],
         starDensity: [0, 5], cloudDensity: [0, 5], speed: [1, 24], fadeSeconds: [0, 6],
         motionStrength: [0, 1], roll: [-Math.PI / 6, Math.PI / 6],
+        orbitTilt: [0, 90], orbitRotation: [0, 360], orbitNear: [32, 85], orbitFar: [32, 85], orbitSpeed: [-12, 12],
         framing: [-0.35, 0.35], framingY: [-0.2, 0.2], audioGain: [0.3, 3],
         sustainStrength: [0, 1], shakeStrength: [0, 1], fpsLimit: [0, 360]
       };
@@ -170,12 +176,15 @@
         if (Number.isFinite(settings.brightnessMin)) this.brightnessMax = this.brightnessMin;
         else this.brightnessMin = this.brightnessMax;
       }
+      if (this.orbitNear > this.orbitFar) {
+        if (Number.isFinite(settings.orbitNear)) this.orbitFar = this.orbitNear;
+        else this.orbitNear = this.orbitFar;
+      }
       for (const key of ['spinning', 'paused', 'showIdleParticles', 'continuousTracing', 'floatingCamera'])
         if (typeof settings[key] === 'boolean') this[key] = settings[key];
       if (!this.continuousTracing) this.floatingCamera = false;
       if (oldFloating && !this.floatingCamera)
         this.camera = { ...view, phi: view.phi - this.orbitAngle };
-      if (oldFloating !== this.floatingCamera) this.floatingTime = 0;
       if ([16384, 32768, 65536, 131072, 262144, 524288].includes(settings.count))
         this.count = settings.count;
       if (['draft', 'balanced', 'high', 'native'].includes(settings.quality))
@@ -420,13 +429,29 @@
     cameraView() {
       if (!this.continuousTracing) return this.camera;
       if (!this.floatingCamera) return { ...this.camera, phi: this.camera.phi + this.orbitAngle };
-      const phase = this.floatingTime * .055, amount = this.motionStrength;
+      const a = (this.orbitNear + this.orbitFar) / 2;
+      const e = (this.orbitFar - this.orbitNear) / (this.orbitFar + this.orbitNear);
+      const mean = Math.atan2(Math.sin(this.orbitPhase), Math.cos(this.orbitPhase));
+      let eccentric = mean;
+      // Kepler's equation gives faster travel near the closest point.
+      for (let i = 0; i < 6; i++)
+        eccentric -= (eccentric - e * Math.sin(eccentric) - mean) / (1 - e * Math.cos(eccentric));
+      const x = a * (Math.cos(eccentric) - e), y = a * Math.sqrt(1 - e * e) * Math.sin(eccentric);
+      const tilt = this.orbitTilt * Math.PI / 180, rotation = (this.orbitRotation - 90) * Math.PI / 180;
       return {
-        theta: this.camera.theta - amount * (.7 * Math.sin(phase) + .18 * Math.sin(phase * 2)),
-        phi: this.camera.phi + this.orbitAngle + .25 * amount * Math.sin(phase * 2),
-        distance: this.camera.distance + Math.min(8, this.camera.distance - 32, 85 - this.camera.distance)
-          * amount * Math.sin(phase * 2)
+        theta: this.orbitTilt === 90 ? Math.PI / 2 - Math.atan2(y, x)
+          : Math.atan2(Math.hypot(x, y * Math.cos(tilt)), y * Math.sin(tilt)),
+        phi: rotation + (this.orbitTilt === 90 ? 0 : Math.atan2(y * Math.cos(tilt), x)),
+        distance: Math.hypot(x, y)
       };
+    }
+    advanceCamera(dt, response = 1) {
+      if (this.paused || this.cameraMotion === 'fixed' || (this.floatingCamera && this.orbitSpeed === 0)) return;
+      this.cameraTime += dt * response;
+      if (this.floatingCamera)
+        this.orbitPhase = (this.orbitPhase + dt * response * this.orbitSpeed * Math.PI / 180) % (2 * Math.PI);
+      else
+        this.orbitAngle = (this.orbitAngle + dt * (0.012 + 0.032 * this.motionStrength) * response) % (2 * Math.PI);
     }
     cameraUniforms(row = 0) {
       const { theta, phi, distance } = this.cameraView();
@@ -926,14 +951,8 @@
         if (!this.paused) {
           this.simTime += dt * this.speed;
           this.updateParticles(dt * this.speed, dt);
-          if (this.cameraMotion !== 'fixed') {
-            const response = this.cameraMotion === 'music' ? 1 + this.audioBass * 1.5 : 1;
-            this.cameraTime += dt * response;
-            if (this.floatingCamera) this.floatingTime += Math.min(frameDelta, .25) * response;
-            this.orbitAngle =
-              (this.orbitAngle + (this.floatingCamera ? Math.min(frameDelta, .25) : dt)
-                * (0.012 + 0.032 * this.motionStrength) * response) % (Math.PI * 2);
-          }
+          this.advanceCamera(this.floatingCamera ? Math.min(frameDelta, .25) : dt,
+            this.cameraMotion === 'music' ? 1 + this.audioBass * 1.5 : 1);
         }
         this.deposit();
         this.shade();
@@ -955,7 +974,7 @@
     reset() {
       this.camera = { ...defaultCamera };
       this.cameraTime = 0;
-      this.floatingTime = 0;
+      this.orbitPhase = 0;
       this.orbitAngle = 0;
       this.allocateParticles();
       this.prepareCache();

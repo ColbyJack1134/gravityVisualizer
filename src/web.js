@@ -250,6 +250,16 @@
       $('continuous-tracing').checked = this.continuousTracing;
       $('floating-camera').checked = this.floatingCamera;
       $('floating-camera').disabled = !this.continuousTracing;
+      $('orbit-controls').hidden = !this.floatingCamera;
+      $('camera-amount').hidden = $('camera-amount-label').hidden = this.floatingCamera;
+      $('manual-camera-controls').hidden = this.floatingCamera;
+      for (const [id, key, suffix] of [
+        ['orbit-tilt', 'orbitTilt', '°'], ['orbit-rotation', 'orbitRotation', '°'],
+        ['orbit-near', 'orbitNear', ''], ['orbit-far', 'orbitFar', ''], ['orbit-speed', 'orbitSpeed', '°/s']
+      ]) {
+        $(id).value = this[key];
+        $(id + '-value').textContent = this[key] + suffix;
+      }
       this.canvas.classList.toggle('camera-interactive', this.continuousTracing);
       $('framing').value = this.framing * 100;
       $('framing-y').value = this.framingY * 100;
@@ -475,7 +485,9 @@
         'audio-balance': ['balance', 0.01], 'sustained-light': ['sustainStrength', 0.01],
         'star-density': ['starDensity', 0.01], 'cloud-density': ['cloudDensity', 0.01],
         'audio-gain': ['audioGain', 1], 'bass-shake': ['shakeStrength', 0.01],
-        'silence-cutoff': ['silenceThreshold', 0.01]
+        'silence-cutoff': ['silenceThreshold', 0.01],
+        'orbit-tilt': ['orbitTilt', 1], 'orbit-rotation': ['orbitRotation', 1],
+        'orbit-near': ['orbitNear', 1], 'orbit-far': ['orbitFar', 1], 'orbit-speed': ['orbitSpeed', 1]
       };
       for (const [id, [key, scale]] of Object.entries(controls))
         $(id).addEventListener('input', (event) => this.applySettings({ [key]: Number(event.target.value) * scale }));

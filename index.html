@@ -78,8 +78,20 @@
       <h2>Camera</h2>
       <label class="check-label"><input id="continuous-tracing" type="checkbox"> Continuous tracing (intensive)</label>
       <label class="check-label camera-suboption"><input id="floating-camera" type="checkbox" disabled> Floating camera</label>
+      <div id="orbit-controls" class="camera-suboption" hidden>
+        <label class="range-label" for="orbit-tilt">Orbit tilt <output id="orbit-tilt-value">30°</output></label>
+        <input id="orbit-tilt" type="range" min="0" max="90" value="30">
+        <label class="range-label" for="orbit-rotation">Orbit rotation <output id="orbit-rotation-value">0°</output></label>
+        <input id="orbit-rotation" type="range" min="0" max="360" value="0">
+        <label class="range-label" for="orbit-near">Closest distance <output id="orbit-near-value">36</output></label>
+        <input id="orbit-near" type="range" min="32" max="85" value="36">
+        <label class="range-label" for="orbit-far">Farthest distance <output id="orbit-far-value">48</output></label>
+        <input id="orbit-far" type="range" min="32" max="85" value="48">
+        <label class="range-label" for="orbit-speed">Orbit speed <output id="orbit-speed-value">2°/s</output></label>
+        <input id="orbit-speed" type="range" min="-12" max="12" step="0.1" value="2">
+      </div>
       <select id="camera-motion" aria-label="Camera movement"><option value="gentle">Slow orbit</option><option value="music">Music-driven orbit</option><option value="fixed">Hold this view</option></select>
-      <label class="range-label" for="camera-amount">Movement</label>
+      <label id="camera-amount-label" class="range-label" for="camera-amount">Movement</label>
       <input id="camera-amount" type="range" min="0" max="100" value="55">
       <label class="range-label" for="camera-roll">Tilt <output id="roll-value">10°</output></label>
       <input id="camera-roll" type="range" min="-30" max="30" value="10">
@@ -87,7 +99,7 @@
       <input id="framing" type="range" min="-35" max="35" value="-1">
       <label class="range-label" for="framing-y">Vertical position</label>
       <input id="framing-y" type="range" min="-20" max="20" step="0.5" value="5">
-      <details class="camera-advanced"><summary>View angle & distance</summary>
+      <details id="manual-camera-controls" class="camera-advanced"><summary>View angle & distance</summary>
         <label class="range-label" for="elevation">Elevation <output id="elevation-value">5°</output></label>
         <input id="elevation" type="range" min="-180" max="180" value="5">
         <label class="range-label" for="distance">Distance <output id="distance-value">40</output></label>

@@ -857,7 +857,72 @@
         "editable": true,
         "fraction": false,
         "precision": 0,
-        "condition": "cameramotion.value != 'fixed'"
+        "condition": "cameramotion.value != 'fixed' && !(continuoustracing.value && floatingcamera.value)"
+      },
+      "orbittilt": {
+        "order": 81.3,
+        "text": "Orbit tilt",
+        "type": "slider",
+        "value": 30,
+        "min": 0,
+        "max": 90,
+        "step": 1,
+        "editable": true,
+        "fraction": false,
+        "precision": 0,
+        "condition": "continuoustracing.value && floatingcamera.value"
+      },
+      "orbitrotation": {
+        "order": 81.4,
+        "text": "Orbit rotation",
+        "type": "slider",
+        "value": 0,
+        "min": 0,
+        "max": 360,
+        "step": 1,
+        "editable": true,
+        "fraction": false,
+        "precision": 0,
+        "condition": "continuoustracing.value && floatingcamera.value"
+      },
+      "orbitnear": {
+        "order": 81.5,
+        "text": "Closest distance",
+        "type": "slider",
+        "value": 36,
+        "min": 32,
+        "max": 85,
+        "step": 1,
+        "editable": true,
+        "fraction": false,
+        "precision": 0,
+        "condition": "continuoustracing.value && floatingcamera.value"
+      },
+      "orbitfar": {
+        "order": 81.6,
+        "text": "Farthest distance",
+        "type": "slider",
+        "value": 48,
+        "min": 32,
+        "max": 85,
+        "step": 1,
+        "editable": true,
+        "fraction": false,
+        "precision": 0,
+        "condition": "continuoustracing.value && floatingcamera.value"
+      },
+      "orbitspeed": {
+        "order": 81.7,
+        "text": "Orbit speed (°/s)",
+        "type": "slider",
+        "value": 2,
+        "min": -12,
+        "max": 12,
+        "step": 0.1,
+        "editable": true,
+        "fraction": true,
+        "precision": 1,
+        "condition": "continuoustracing.value && floatingcamera.value"
       },
       "tilt": {
         "order": 83,
@@ -905,7 +970,8 @@
         "step": 1,
         "editable": true,
         "fraction": false,
-        "precision": 0
+        "precision": 0,
+        "condition": "!(continuoustracing.value && floatingcamera.value)"
       },
       "distance": {
         "order": 87,
@@ -917,7 +983,8 @@
         "step": 1,
         "editable": true,
         "fraction": false,
-        "precision": 0
+        "precision": 0,
+        "condition": "!(continuoustracing.value && floatingcamera.value)"
       },
       "groupblackhole": {
         "type": "group",

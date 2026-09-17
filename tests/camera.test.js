@@ -47,3 +47,37 @@ view(-181); close(90 - d.camera.theta * 180 / Math.PI, -180);
 const theta = d.camera.theta;
 for (const elevation of [NaN, Infinity, -Infinity]) { view(elevation); assert.equal(d.camera.theta, theta); }
 console.log('PASS: full elevation orbit, finite orthonormal camera axes, continuous poles, inverted views and bounds.');
+d.applySettings({continuousTracing: true, floatingCamera: true, cameraMotion: 'gentle', paused: false});
+for (const tilt of [0, 30, 89, 90]) for (const rotation of [0, 75, 360]) {
+  d.applySettings({orbitTilt: tilt, orbitRotation: rotation, orbitNear: 32, orbitFar: 85});
+  const alpha = (rotation - 90) * Math.PI / 180, inclination = tilt * Math.PI / 180;
+  const normal = [Math.sin(alpha) * Math.sin(inclination), -Math.cos(alpha) * Math.sin(inclination), Math.cos(inclination)];
+  for (let step = 0; step <= 48; step++) {
+    d.orbitPhase = step * Math.PI / 24;
+    uniforms = {}; d.cameraUniforms();
+    const position = uniforms.uCamera;
+    close(P.dot(normal, position), 0);
+    const secondFocus = [-53 * Math.cos(alpha), -53 * Math.sin(alpha), 0];
+    close(P.length(position) + distance(position, secondFocus), 117);
+    assert.ok(uniforms.uRight.every(Number.isFinite) && uniforms.uUp.every(Number.isFinite));
+  }
+  d.orbitPhase = 0; close(d.cameraView().distance, 32);
+  d.orbitPhase = Math.PI; close(d.cameraView().distance, 85);
+}
+d.applySettings({orbitTilt: 30, orbitRotation: 0, orbitNear: 36, orbitFar: 48, orbitSpeed: 2});
+d.orbitPhase = .7;
+const originalView = {...d.cameraView()};
+d.advanceCamera(5);
+const phase = d.orbitPhase;
+d.applySettings({orbitSpeed: -2}); close(d.orbitPhase, phase);
+d.advanceCamera(5);
+for (const key of ['theta', 'phi', 'distance']) close(d.cameraView()[key], originalView[key]);
+d.applySettings({orbitSpeed: 0});
+const stopped = [d.orbitPhase, d.cameraTime]; d.advanceCamera(10);
+assert.deepEqual([d.orbitPhase, d.cameraTime], stopped);
+d.applySettings({orbitNear: 60}); close(d.orbitFar, 60);
+d.applySettings({orbitFar: 40}); close(d.orbitNear, 40);
+for (const key of ['orbitTilt', 'orbitRotation', 'orbitNear', 'orbitFar', 'orbitSpeed']) {
+  const saved = d[key]; d.applySettings({[key]: NaN}); close(d[key], saved);
+}
+console.log('PASS: inclined ellipses, distance bounds, polar views, signed speed, reversal without jumps and stopped motion.');

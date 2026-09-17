@@ -5,6 +5,8 @@
     sustainedamount: ['sustainStrength', 0.01], bassshake: ['shakeStrength', 0.01],
     stardensity: ['starDensity', 0.01], clouddensity: ['cloudDensity', 0.01],
     movement: ['motionStrength', 0.01], tilt: ['roll', Math.PI / 180],
+    orbittilt: ['orbitTilt', 1], orbitrotation: ['orbitRotation', 1],
+    orbitnear: ['orbitNear', 1], orbitfar: ['orbitFar', 1], orbitspeed: ['orbitSpeed', 1],
     framing: ['framing', 0.01], framingy: ['framingY', 0.01],
     elevation: ['elevation', 1], distance: ['distance', 1], spin: ['spin', 1],
     material: ['material', 0.01], exposure: ['exposure', 1], sharpness: ['sharpness', 0.01],

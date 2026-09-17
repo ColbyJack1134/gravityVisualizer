@@ -29,8 +29,6 @@ const {chromium} = require('playwright');
       const camera = {...d.camera}, simTime = d.simTime;
       const tracing = document.getElementById('continuous-tracing');
       tracing.checked = true; tracing.dispatchEvent(new Event('change'));
-      const checkbox = document.getElementById('floating-camera');
-      checkbox.checked = true; checkbox.dispatchEvent(new Event('change'));
       d.shade(); d.present();
       const after = new Uint8Array(before.length);
       gl.readPixels(0, 0, d.canvas.width, d.canvas.height, gl.RGBA, gl.UNSIGNED_BYTE, after);
@@ -47,11 +45,25 @@ const {chromium} = require('playwright');
     assert.ok(comparison.cameraUnchanged && comparison.simulationUnchanged);
     assert.ok(comparison.light > 1000 && comparison.relativeError < .05);
     assert.equal(await page.locator('#floating-camera').isDisabled(), false);
+    assert.equal(await page.locator('#orbit-controls').evaluate(el => el.hidden), true);
+    const controls = await page.evaluate(() => {
+      const d = GravityDemo, builds = d.cacheBuilds;
+      const checkbox = document.getElementById('floating-camera');
+      checkbox.checked = true; checkbox.dispatchEvent(new Event('change'));
+      for (const [id, value] of [['orbit-tilt', 45], ['orbit-rotation', 120], ['orbit-near', 38],
+        ['orbit-far', 54], ['orbit-speed', -3.5]]) {
+        const input = document.getElementById(id); input.value = value; input.dispatchEvent(new Event('input'));
+      }
+      return {values: [d.orbitTilt, d.orbitRotation, d.orbitNear, d.orbitFar, d.orbitSpeed], builds: d.cacheBuilds - builds};
+    });
+    assert.deepEqual(controls.values, [45, 120, 38, 54, -3.5]); assert.equal(controls.builds, 0);
+    assert.equal(await page.locator('#orbit-controls').evaluate(el => el.hidden), false);
+    assert.equal(await page.locator('#manual-camera-controls').evaluate(el => el.hidden), true);
     const movement = await page.evaluate(() => {
       const d = GravityDemo, views = [];
       const builds = d.cacheBuilds;
-      for (const time of [0, 12, 30, 60, 90]) {
-        d.floatingTime = time; d.orbitAngle = time * .03;
+      for (const phase of [0, .6, 1.5, 3, 4.5]) {
+        d.orbitPhase = phase;
         views.push(d.cameraView()); d.shade(); d.present();
       }
       return {views, builds: d.cacheBuilds - builds, job: d.job, error: d.gl.getError()};
@@ -64,6 +76,7 @@ const {chromium} = require('playwright');
     const dragged = await page.evaluate(() => ({view: GravityDemo.cameraView(), builds: GravityDemo.cacheBuilds,
       tracing: GravityDemo.continuousTracing, floating: GravityDemo.floatingCamera, motion: GravityDemo.cameraMotion}));
     assert.equal(dragged.tracing, true); assert.equal(dragged.floating, false); assert.equal(dragged.motion, 'fixed');
+    assert.equal(await page.locator('#orbit-controls').evaluate(el => el.hidden), true);
     assert.equal(dragged.builds, beforeDrag.builds);
     assert.ok(Math.abs(dragged.view.phi - (beforeDrag.view.phi - .15)) < 1e-10);
     assert.ok(Math.abs(dragged.view.theta - (beforeDrag.view.theta - .1)) < 1e-10);
@@ -81,7 +94,7 @@ const {chromium} = require('playwright');
     assert.equal(await page.evaluate(() => GravityDemo.camera.distance), moved);
     await page.evaluate(() => {
       GravityDemo.applySettings({continuousTracing: true, floatingCamera: true});
-      GravityDemo.floatingTime = 90;
+      GravityDemo.orbitPhase = 1;
     });
     await page.evaluate(() => {
       const d = GravityDemo;
@@ -93,7 +106,12 @@ const {chromium} = require('playwright');
       const d = GravityDemo;
       d.applySettings({cameraMotion: 'gentle', paused: false}); d.setSuspended(false);
     });
-    await page.waitForFunction(() => GravityDemo.floatingTime > 90.2);
+    await page.waitForFunction(() => GravityDemo.orbitPhase < .99);
+    await page.evaluate(() => GravityDemo.applySettings({orbitSpeed: 0}));
+    const stopped = await page.evaluate(() => GravityDemo.cameraView());
+    await page.waitForTimeout(400);
+    assert.deepEqual(await page.evaluate(() => GravityDemo.cameraView()), stopped);
+    await page.evaluate(() => GravityDemo.applySettings({orbitSpeed: 2}));
     await page.evaluate(() => GravityDemo.applySettings({paused: true}));
     const paused = await page.evaluate(() => GravityDemo.cameraView());
     await page.waitForTimeout(400);
@@ -109,6 +127,8 @@ const {chromium} = require('playwright');
     });
     await page.waitForFunction(() => !GravityDemo.lost && GravityDemo.cacheReady && GravityDemo.programs.continuous);
     assert.equal(await page.locator('#floating-camera').isChecked(), true);
+    assert.deepEqual(await page.evaluate(() => [GravityDemo.orbitTilt, GravityDemo.orbitRotation,
+      GravityDemo.orbitNear, GravityDemo.orbitFar, GravityDemo.orbitSpeed]), [45, 120, 38, 54, 2]);
     const heldView = await page.evaluate(() => GravityDemo.cameraView());
     await page.evaluate(() => GravityDemo.applySettings({continuousTracing: false}));
     await page.waitForFunction(() => GravityDemo.cacheReady || GravityDemo.failed, null, {timeout: 180000});
