@@ -1,11 +1,13 @@
 {
   "name": "gravity-visualizer",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "A standalone WebGL2 black hole audio visualizer",
   "scripts": {
     "build": "python3 scripts/build.py",
     "build:wallpaper": "python3 scripts/build-wallpaper.py",
+    "build:legacy": "python3 scripts/build-wallpaper.py --preset legacy",
+    "render": "node scripts/render.cjs",
     "test": "node tests/physics.test.js && node tests/audio.test.js && node tests/palette.test.js && node tests/wallpaper-audio.test.js && node tests/resolution.test.js && node tests/camera.test.js",
     "test:browser": "node tests/browser.cjs",
     "test:audio-browser": "node tests/audio-browser.cjs",
@@ -20,6 +22,7 @@
     "test:appearance-controls-browser": "node tests/appearance-controls-browser.cjs",
     "test:features-browser": "node tests/features-browser.cjs",
     "test:wallpaper-browser": "node tests/wallpaper-browser.cjs",
+    "test:presets": "npm run build:wallpaper && npm run build:legacy && node tests/presets.test.js",
     "benchmark": "node tests/browser.cjs --benchmark"
   },
   "devDependencies": { "playwright": "1.63.0" }

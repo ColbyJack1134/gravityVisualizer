@@ -11,6 +11,8 @@
     "sharpness": 1,
     "starAppearance": "compact",
     "starDefinition": 0.7,
+    "starDetail": "standard",
+    "coreSizing": "fixed",
     "brightnessMin": 0.65,
     "brightnessMax": 1.4,
     "radialDimming": 0.5,

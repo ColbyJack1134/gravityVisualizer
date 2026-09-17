@@ -126,6 +126,7 @@
           });
         }
         this.renderer = new GravityRenderer(document.getElementById('universe'));
+        if (this.preset) this.renderer.applySettings(this.preset);
         this.renderer.audioInput = this.audio;
         this.renderer.onError = showError;
         this.paletteStops = {};
