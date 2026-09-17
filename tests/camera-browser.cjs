@@ -30,7 +30,10 @@ const {chromium} = require('playwright');
       {width: 1280, height: 720, radius: 33, distance: 37, elevation: 18, roll: 15, x: .03, y: .1},
       {width: 1280, height: 720, radius: 33, distance: 32, elevation: 5, roll: -30, x: -.35, y: .2},
       {width: 960, height: 270, radius: 22, distance: 85, elevation: 80, roll: 30, x: .35, y: -.2},
-      {width: 375, height: 812, radius: 33, distance: 37, elevation: 18, roll: -30, x: -.35, y: -.2}
+      {width: 375, height: 812, radius: 33, distance: 37, elevation: 18, roll: -30, x: -.35, y: -.2},
+      {width: 640, height: 360, radius: 33, distance: 10, elevation: 5, roll: 180, x: -1, y: 1},
+      {width: 640, height: 180, radius: 33, distance: 150, elevation: 80, roll: -180, x: 1, y: -1},
+      {width: 300, height: 600, radius: 33, distance: 150, elevation: -45, roll: 180, x: -1, y: -1}
     ]) {
       await page.setViewportSize({width: scene.width, height: scene.height});
       await page.waitForTimeout(200);
@@ -93,7 +96,8 @@ const {chromium} = require('playwright');
     assert.deepEqual(await page.locator('#elevation').evaluate(el => [el.min, el.max]), ['-180', '180']);
     await page.locator('.camera-advanced summary').click();
     for (const spinning of [false, true]) {
-      await page.evaluate(spinning => GravityDemo.applySettings({spinning, spin: .95, distance: 32}), spinning);
+      await page.evaluate(spinning => GravityDemo.applySettings({spinning, spin: .95, distance: 32,
+        roll: 0, framing: 0, framingY: 0}), spinning);
       for (const elevation of [-180, -135, -90, -45, 0, 45, 90, 135, 180]) {
         await page.locator('#elevation').fill(String(elevation));
         await page.locator('#elevation').dispatchEvent('input');

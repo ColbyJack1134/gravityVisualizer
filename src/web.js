@@ -185,7 +185,7 @@
           this.applySettings({ floatingCamera: false, cameraMotion: 'fixed' });
         this.camera.phi -= dx * .005;
         this.camera.theta = Math.max(-Math.PI / 2, Math.min(3 * Math.PI / 2, this.camera.theta - dy * .005));
-        this.camera.distance = Math.max(32, Math.min(85, this.camera.distance * zoom));
+        this.camera.distance = Math.max(10, Math.min(150, this.camera.distance * zoom));
         this.syncViewUI();
       };
       canvas.addEventListener('pointerdown', event => {

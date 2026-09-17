@@ -48,8 +48,9 @@ const theta = d.camera.theta;
 for (const elevation of [NaN, Infinity, -Infinity]) { view(elevation); assert.equal(d.camera.theta, theta); }
 console.log('PASS: full elevation orbit, finite orthonormal camera axes, continuous poles, inverted views and bounds.');
 d.applySettings({continuousTracing: true, floatingCamera: true, cameraMotion: 'gentle', paused: false});
+for (const [near, far] of [[32, 85], [10, 150], [10, 10], [150, 150]])
 for (const tilt of [0, 30, 89, 90]) for (const rotation of [0, 75, 360]) {
-  d.applySettings({orbitTilt: tilt, orbitRotation: rotation, orbitNear: 32, orbitFar: 85});
+  d.applySettings({orbitTilt: tilt, orbitRotation: rotation, orbitNear: near, orbitFar: far});
   const alpha = (rotation - 90) * Math.PI / 180, inclination = tilt * Math.PI / 180;
   const normal = [Math.sin(alpha) * Math.sin(inclination), -Math.cos(alpha) * Math.sin(inclination), Math.cos(inclination)];
   for (let step = 0; step <= 48; step++) {
@@ -57,12 +58,27 @@ for (const tilt of [0, 30, 89, 90]) for (const rotation of [0, 75, 360]) {
     uniforms = {}; d.cameraUniforms();
     const position = uniforms.uCamera;
     close(P.dot(normal, position), 0);
-    const secondFocus = [-53 * Math.cos(alpha), -53 * Math.sin(alpha), 0];
-    close(P.length(position) + distance(position, secondFocus), 117);
+    const secondFocus = [(near - far) * Math.cos(alpha), (near - far) * Math.sin(alpha), 0];
+    close(P.length(position) + distance(position, secondFocus), near + far);
     assert.ok(uniforms.uRight.every(Number.isFinite) && uniforms.uUp.every(Number.isFinite));
   }
-  d.orbitPhase = 0; close(d.cameraView().distance, 32);
-  d.orbitPhase = Math.PI; close(d.cameraView().distance, 85);
+  d.orbitPhase = 0; close(d.cameraView().distance, near);
+  d.orbitPhase = Math.PI; close(d.cameraView().distance, far);
+}
+d.applySettings({orbitTilt: 0, orbitRotation: 90, orbitNear: 10, orbitFar: 150});
+for (let step = -1000; step <= 1000; step++) {
+  d.orbitPhase = step * Math.PI / 1000;
+  uniforms = {}; d.cameraUniforms();
+  const [x, y] = uniforms.uCamera;
+  const eccentric = Math.atan2(y / Math.sqrt(1 - .875 ** 2), x + 70);
+  close(eccentric - .875 * Math.sin(eccentric), d.orbitPhase);
+}
+for (const [key, min, max] of [['distance', 10, 150], ['orbitNear', 10, 150], ['orbitFar', 10, 150],
+  ['orbitSpeed', -30, 30], ['roll', -Math.PI, Math.PI], ['framing', -1, 1], ['framingY', -1, 1]]) {
+  for (const [input, expected] of [[min - 1, min], [max + 1, max]]) {
+    d.applySettings({[key]: input});
+    close(key === 'distance' ? d.camera.distance : d[key], expected);
+  }
 }
 d.applySettings({orbitTilt: 30, orbitRotation: 0, orbitNear: 36, orbitFar: 48, orbitSpeed: 2});
 d.orbitPhase = .7;

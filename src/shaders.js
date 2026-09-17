@@ -126,7 +126,7 @@ layout(location=1) out vec4 continuation;
 void main(){
   vec4 sx=texture(uStateX,uv),sp=texture(uStateP,uv);vec3 x=sx.xyz,p=sp.xyz;float t=sp.w,status=sx.w;
   int remaining=0;
-  for(int i=0;i<1536;i++){
+  for(int i=0;i<1024;i++){
     if(status!=0.)break;
     vec3 middle,mp;
     if(advanceVolume(x,p,t,status,middle,mp)>=0.)remaining=i+1;
@@ -364,7 +364,7 @@ uniform float uVolumeScale;
 void main(){
   vec3 x=uCamera,p=photon(x,rayDirection(),uSpin),sum=vec3(0.);
   float t=0.,trans=1.;bool escaped=false;
-  for(int i=0;i<768;i++){
+  for(int i=0;i<1536;i++){
     float r=radius(x,uSpin);
     if(r<uHorizon+.006||dot(p,p)>1e10||trans<.012)break;
     if(r>max(75.,length(uCamera)+5.)){escaped=true;break;}

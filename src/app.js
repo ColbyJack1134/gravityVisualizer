@@ -163,9 +163,9 @@
         radialDimming: [0, 1],
         cloudThickness: [0, 1],
         starDensity: [0, 5], cloudDensity: [0, 5], speed: [1, 24], fadeSeconds: [0, 6],
-        motionStrength: [0, 1], roll: [-Math.PI / 6, Math.PI / 6],
-        orbitTilt: [0, 90], orbitRotation: [0, 360], orbitNear: [32, 85], orbitFar: [32, 85], orbitSpeed: [-12, 12],
-        framing: [-0.35, 0.35], framingY: [-0.2, 0.2], audioGain: [0.3, 3],
+        motionStrength: [0, 1], roll: [-Math.PI, Math.PI],
+        orbitTilt: [0, 90], orbitRotation: [0, 360], orbitNear: [10, 150], orbitFar: [10, 150], orbitSpeed: [-30, 30],
+        framing: [-1, 1], framingY: [-1, 1], audioGain: [0.3, 3],
         sustainStrength: [0, 1], shakeStrength: [0, 1], fpsLimit: [0, 360]
       };
       for (const [key, [min, max]] of Object.entries(ranges)) {
@@ -198,7 +198,7 @@
       if (typeof settings.elevation === 'number' && Number.isFinite(settings.elevation))
         this.camera.theta = ((90 - Math.max(-180, Math.min(180, settings.elevation))) * Math.PI) / 180;
       if (typeof settings.distance === 'number' && Number.isFinite(settings.distance))
-        this.camera.distance = Math.max(32, Math.min(85, settings.distance));
+        this.camera.distance = Math.max(10, Math.min(150, settings.distance));
       if (typeof settings.balance === 'number' && Number.isFinite(settings.balance))
         this.spectrum.balance = Math.max(0, Math.min(1, settings.balance));
       if (typeof settings.autoSensitivity === 'boolean') this.spectrum.autoSensitivity = settings.autoSensitivity;
@@ -434,7 +434,7 @@
       const mean = Math.atan2(Math.sin(this.orbitPhase), Math.cos(this.orbitPhase));
       let eccentric = mean;
       // Kepler's equation gives faster travel near the closest point.
-      for (let i = 0; i < 6; i++)
+      for (let i = 0; i < 10; i++)
         eccentric -= (eccentric - e * Math.sin(eccentric) - mean) / (1 - e * Math.cos(eccentric));
       const x = a * (Math.cos(eccentric) - e), y = a * Math.sqrt(1 - e * e) * Math.sin(eccentric);
       const tilt = this.orbitTilt * Math.PI / 180, rotation = (this.orbitRotation - 90) * Math.PI / 180;

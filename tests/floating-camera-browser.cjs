@@ -137,6 +137,37 @@ const {chromium} = require('playwright');
     assert.equal(await page.locator('#floating-camera').isDisabled(), true);
     const cachedView = await page.evaluate(() => ({...GravityDemo.camera, phi: GravityDemo.camera.phi + GravityDemo.orbitAngle}));
     for (const key of ['theta', 'phi', 'distance']) assert.ok(Math.abs(heldView[key] - cachedView[key]) < 1e-10);
+    const extremes = await page.evaluate(() => {
+      const d = GravityDemo, gl = d.gl, results = [];
+      d.setSuspended(true);
+      d.applySettings({continuousTracing: true, floatingCamera: true, orbitNear: 10, orbitFar: 150});
+      const original = d.programs.continuous;
+      const source = GravityShaders.continuousTrace
+        .replace('bool escaped=false;', 'bool escaped=false;int steps=0;')
+        .replace('for(int i=0;i<1024;i++){', 'for(int i=0;i<1024;i++){steps=i+1;')
+        .replace('color=vec4(mix(vec3(.00013,.0002,.00035),sum,fade),foreground*fade);',
+          'color=vec4(steps==1024?1.:0.,any(isnan(x))||any(isnan(p))?1.:0.,escaped?1.:0.,1.);');
+      const probe = d.program(GravityShaders.fullscreen, source);
+      d.programs.continuous = probe;
+      for (const spinning of [false, true]) for (const phase of [0, .01, .3, Math.PI]) {
+        d.applySettings({spinning, spin: .95}); d.orbitPhase = phase;
+        d.shade();
+        gl.bindFramebuffer(gl.FRAMEBUFFER, d.hdrFbo);
+        const pixels = new Float32Array(d.rw * d.rh * 4);
+        gl.readPixels(0, 0, d.rw, d.rh, gl.RGBA, gl.FLOAT, pixels);
+        let budget = 0, invalid = 0;
+        for (let i = 0; i < pixels.length; i += 4) { budget += pixels[i]; invalid += pixels[i + 1]; }
+        results.push({spinning, phase, budget, pixels: d.rw * d.rh, invalid, error: gl.getError()});
+      }
+      d.programs.continuous = original; gl.deleteProgram(probe.p);
+      return results;
+    });
+    for (const result of extremes) {
+      assert.equal(result.invalid, 0, JSON.stringify(result));
+      // Near-critical rays can outlast any finite tracing budget.
+      assert.ok(result.budget / result.pixels < .0001, JSON.stringify(result));
+      assert.equal(result.error, 0);
+    }
     assert.deepEqual(errors, []);
     console.log('PASS: tracing gate, fixed-view comparison, drag, zoom, movement, settings, pause, hold, context recovery and cached-mode restoration.');
   } finally {
