@@ -939,7 +939,7 @@
         "order": 92,
         "text": "Material",
         "type": "slider",
-        "value": 30,
+        "value": 70,
         "min": 10,
         "max": 100,
         "step": 1,

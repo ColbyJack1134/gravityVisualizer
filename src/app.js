@@ -8,7 +8,7 @@
       this.canvas = canvas;
       this.spinning = false;
       this.spin = 0.5;
-      this.material = 0.3;
+      this.material = 0.7;
       this.cloudRadius = 26.4;
       this.cloudThickness = 0.01;
       this.exposure = 1.7;

@@ -457,8 +457,8 @@ summary {
 
     <section class="control-section">
       <h2>Material & light</h2>
-      <label class="range-label" for="material">Material <output id="material-value">30%</output></label>
-      <input id="material" type="range" min="10" max="100" value="30">
+      <label class="range-label" for="material">Material <output id="material-value">70%</output></label>
+      <input id="material" type="range" min="10" max="100" value="70">
       <label class="range-label" for="cloud-radius">Cloud radius <output id="cloud-radius-value">120%</output></label>
       <input id="cloud-radius" type="range" min="50" max="150" step="1" value="120">
       <label class="range-label" for="cloud-thickness">Cloud thickness <output id="cloud-thickness-value">1%</output></label>
@@ -1586,7 +1586,7 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
       this.canvas = canvas;
       this.spinning = false;
       this.spin = 0.5;
-      this.material = 0.3;
+      this.material = 0.7;
       this.cloudRadius = 26.4;
       this.cloudThickness = 0.01;
       this.exposure = 1.7;
