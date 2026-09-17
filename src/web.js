@@ -212,6 +212,9 @@
         ['audio-balance', this.spectrum.balance],
         ['sustained-light', this.sustainStrength],
         ['star-definition', this.starDefinition],
+        ['brightness-min', this.brightnessMin],
+        ['brightness-max', this.brightnessMax],
+        ['cloud-radius', this.cloudRadius / 22],
         ['star-density', this.starDensity],
         ['cloud-density', this.cloudDensity]
       ]) {
@@ -418,6 +421,7 @@
       const controls = {
         material: ['material', 0.01], exposure: ['exposure', 1], sharpness: ['sharpness', 0.01],
         'star-definition': ['starDefinition', 0.01],
+        'brightness-min': ['brightnessMin', 0.01], 'brightness-max': ['brightnessMax', 0.01],
         'particle-fade': ['fadeSeconds', 1], speed: ['speed', 1],
         'camera-amount': ['motionStrength', 0.01], 'camera-roll': ['roll', Math.PI / 180],
         framing: ['framing', 0.01], 'framing-y': ['framingY', 0.01],
@@ -432,16 +436,17 @@
         this.applySettings({ cameraMotion: event.target.value }));
       $('star-appearance').addEventListener('change', (event) =>
         this.applySettings({ starAppearance: event.target.value }));
-      let cameraTimeout;
-      let cameraChanges = {};
-      for (const name of ['elevation', 'distance'])
+      let geometryTimeout;
+      let geometryChanges = {};
+      for (const name of ['elevation', 'distance', 'cloud-radius'])
         $(name).addEventListener('input', (event) => {
-          cameraChanges[name] = Number(event.target.value);
-          $(name + '-value').textContent = event.target.value + (name === 'elevation' ? '°' : '');
-          clearTimeout(cameraTimeout);
-          cameraTimeout = setTimeout(() => {
-            this.applySettings(cameraChanges);
-            cameraChanges = {};
+          const radius = name === 'cloud-radius';
+          geometryChanges[radius ? 'cloudRadius' : name] = Number(event.target.value) * (radius ? 0.22 : 1);
+          $(name + '-value').textContent = event.target.value + (radius ? '%' : name === 'elevation' ? '°' : '');
+          clearTimeout(geometryTimeout);
+          geometryTimeout = setTimeout(() => {
+            this.applySettings(geometryChanges);
+            geometryChanges = {};
           }, 250);
         });
       $('particles').addEventListener('change', (event) =>

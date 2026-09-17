@@ -465,6 +465,8 @@ summary {
       <h2>Material & light</h2>
       <label class="range-label" for="material">Material <output id="material-value">30%</output></label>
       <input id="material" type="range" min="10" max="100" value="30">
+      <label class="range-label" for="cloud-radius">Cloud radius <output id="cloud-radius-value">100%</output></label>
+      <input id="cloud-radius" type="range" min="50" max="150" step="1" value="100">
       <label class="range-label" for="exposure">Exposure <output id="exposure-value">1.7×</output></label>
       <input id="exposure" type="range" min="0.3" max="3" step="0.1" value="1.7">
       <label class="range-label" for="sharpness">Sharpness <output id="sharpness-value">100%</output></label>
@@ -482,6 +484,11 @@ summary {
         <label class="range-label" for="star-definition">Core strength <output id="star-definition-value">70%</output></label>
         <input id="star-definition" type="range" min="0" max="100" value="70">
       </div>
+      <label class="range-label" for="brightness-min">Minimum brightness <output id="brightness-min-value">65%</output></label>
+      <input id="brightness-min" type="range" min="0" max="400" step="5" value="65">
+      <label class="range-label" for="brightness-max">Maximum brightness <output id="brightness-max-value">140%</output></label>
+      <input id="brightness-max" type="range" min="0" max="400" step="5" value="140">
+      <p class="control-hint">Base intensity. Shading and overlap still affect visible brightness.</p>
     </section>
 
     <details class="performance-settings">
@@ -1163,6 +1170,7 @@ vec3 rayDirection(){vec2 q=(gl_FragCoord.xy+vec2(0.,uRayRow))/uRaySize*2.-1.;ret
     `
 uniform sampler2D uStateX,uStateP;
 uniform int uSlice;
+uniform float uVolumeScale;
 layout(location=0) out vec4 stateX;
 layout(location=1) out vec4 stateP;
 layout(location=2) out vec4 pathX;
@@ -1179,13 +1187,13 @@ void main(){
     if(r<uHorizon+.006){status=1.;break;}
     if(dot(p,p)>1e10){status=4.;break;}
     if(r>max(75.,length(uCamera)+5.)){status=2.;break;}
-    bool inside=abs(x.z)<4.8&&length(x.xy)<24.&&r>uISCO*.82;
+    bool inside=abs(x.z)<4.8*uVolumeScale&&length(x.xy)<24.*uVolumeScale&&r>uISCO*.82;
     vec3 old=x;
-    float h=stepSize(x,p,uSpin,uHorizon,inside?.25:1.0);
+    float h=stepSize(x,p,uSpin,uHorizon,inside?.25*uVolumeScale:1.0);
     rk4(x,p,t,1.,uSpin,h);
     if(inside){
       middle=x;mp=p;travelled=length(x-old);old=x;
-      rk4(x,p,t,1.,uSpin,stepSize(x,p,uSpin,uHorizon,.25));
+      rk4(x,p,t,1.,uSpin,stepSize(x,p,uSpin,uHorizon,.25*uVolumeScale));
       travelled+=length(x-old);break;
     }
     if(any(isnan(x))||any(isnan(p))){status=4.;break;}
@@ -1225,9 +1233,10 @@ layout(location=1) in vec4 aMomentum;
 layout(location=2) in vec2 aLifecycle;
 out vec4 vPosition;out vec4 vMomentum;out vec2 vLifecycle;
 uniform float uSpin,uHorizon,uISCO,uDt,uSeed,uRealDt,uFadeSeconds,uTimeScale;
+uniform float uCloudRadius;
 void spawn(out vec3 x,out vec3 p,out float pt,out float age){
   float id=float(gl_VertexID),s=id*1.718+uSeed*13.13;
-  float r=mix(uISCO+1.,22.,pow(hash(s+.1),.72)),angle=hash(s+7.)*2.*PI;
+  float r=mix(uISCO+1.,uCloudRadius,pow(hash(s+.1),.72)),angle=hash(s+7.)*2.*PI;
   float rho=sqrt(r*r+uSpin*uSpin);
   x=vec3(cos(angle)*rho,sin(angle)*rho,(hash(s+9.)-.5)*.025);
   vec3 tangent=vec3(-sin(angle),cos(angle),0.);
@@ -1250,7 +1259,7 @@ void main(){
   float r=radius(x,uSpin);
   bool initial=age<=0.&&life.x==0.&&life.y==0.;
   bool expired=uFadeSeconds<=0.?age<=0.:life.y>=uFadeSeconds;
-  if(initial||expired||r<uHorizon+.025||r>30.||any(isnan(x))||dot(p,p)>1e7){
+  if(initial||expired||r<uHorizon+.025||r>uCloudRadius+8.||any(isnan(x))||dot(p,p)>1e7){
     spawn(x,p,pt,age);life=vec2(0.,-1.);
   }
   else{
@@ -1277,6 +1286,7 @@ layout(location=0) in vec4 aPosition;
 layout(location=1) in vec4 aMomentum;
 layout(location=2) in vec2 aLifecycle;
 uniform float uSpin,uISCO,uMaterial,uParticleWeight,uFadeSeconds;
+uniform float uCloudRadius;uniform vec2 uBrightnessRange;
 uniform float uBands[24],uAudioDriven,uIdleParticles;
 uniform int uBandCount;
 uniform float uSustainStrength;
@@ -1295,7 +1305,7 @@ void main(){
     vWeight*=birth*death;
   }
   float inner=uISCO*.86;
-  vWeight*=smoothstep(inner,inner+.55,r)*(1.-smoothstep(22.,23.,r));
+  vWeight*=smoothstep(inner,inner+.55,r)*(1.-smoothstep(uCloudRadius,uCloudRadius+1.,r));
   float heat=pow(uISCO/max(r,uISCO),.65);
   float kind=hash(float(gl_VertexID)+37.2);
   float palettePosition=hash(float(gl_VertexID)+81.3);
@@ -1303,7 +1313,7 @@ void main(){
   float level=uBands[band];
   int colorIndex=int(palettePosition*float(textureSize(uPalette,0).x));
   vec3 tint=uWeightedPalette==1?texelFetch(uPalette,ivec2(colorIndex,0),0).rgb:uBandColors[band];
-  vColor=tint*(.28+1.9*heat)*mix(.65,1.4,kind);
+  vColor=tint*(.28+1.9*heat)*mix(uBrightnessRange.x,uBrightnessRange.y,kind);
   float amount=clamp(level*uSustainStrength,0.,1.);
   float rank=hash(float(gl_VertexID)+113.9);
   float visibility=smoothstep(rank-.025,rank+.025,mix(-.025,1.025,amount));
@@ -1556,10 +1566,13 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
       this.spinning = true;
       this.spin = 0.5;
       this.material = 0.3;
+      this.cloudRadius = 22;
       this.exposure = 1.7;
       this.sharpness = 1;
       this.starAppearance = 'compact';
       this.starDefinition = 0.7;
+      this.brightnessMin = 0.65;
+      this.brightnessMax = 1.4;
       this.starDensity = 1;
       this.cloudDensity = 1;
       this.speed = 10;
@@ -1683,9 +1696,10 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
     applySettings(settings) {
       const oldSpin = this.a(), oldCount = this.count, oldQuality = this.quality;
       const oldTheta = this.camera.theta, oldDistance = this.camera.distance;
+      const oldRadius = this.cloudRadius;
       const ranges = {
         spin: [0.05, 0.95], material: [0.1, 1], exposure: [0.3, 3], sharpness: [0, 1],
-        starDefinition: [0, 1],
+        starDefinition: [0, 1], brightnessMin: [0, 4], brightnessMax: [0, 4], cloudRadius: [11, 33],
         starDensity: [0, 5], cloudDensity: [0, 5], speed: [1, 24], fadeSeconds: [0, 6],
         motionStrength: [0, 1], roll: [-Math.PI / 6, Math.PI / 6],
         framing: [-0.35, 0.35], framingY: [-0.2, 0.2], audioGain: [0.3, 3],
@@ -1694,6 +1708,10 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
       for (const [key, [min, max]] of Object.entries(ranges)) {
         if (typeof settings[key] === 'number' && Number.isFinite(settings[key]))
           this[key] = Math.max(min, Math.min(max, settings[key]));
+      }
+      if (this.brightnessMin > this.brightnessMax) {
+        if (Number.isFinite(settings.brightnessMin)) this.brightnessMax = this.brightnessMin;
+        else this.brightnessMin = this.brightnessMax;
       }
       for (const key of ['spinning', 'paused', 'showIdleParticles'])
         if (typeof settings[key] === 'boolean') this[key] = settings[key];
@@ -1721,9 +1739,10 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
       }
       if (Object.hasOwn(settings, 'fpsLimit')) this.resetClock();
       if (this.started && !this.lost && !this.failed) {
-        if (oldSpin !== this.a() || oldCount !== this.count) this.allocateParticles();
+        if (oldRadius !== this.cloudRadius) this.updateVolumeExtent();
+        if (oldSpin !== this.a() || oldCount !== this.count || oldRadius !== this.cloudRadius) this.allocateParticles();
         if (oldSpin !== this.a() || oldQuality !== this.quality ||
-            oldTheta !== this.camera.theta || oldDistance !== this.camera.distance) this.prepareCache();
+            oldTheta !== this.camera.theta || oldDistance !== this.camera.distance || oldRadius !== this.cloudRadius) this.prepareCache();
       }
       this.onSettings?.();
     }
@@ -1887,12 +1906,16 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
       if (this.velocity) gl.deleteTexture(this.velocity);
       if (this.emissionFBO) gl.deleteFramebuffer(this.emissionFBO);
       this.volumeGrid = [512, 512, 104];
-      this.volumeExtent = this.volumeGrid.map(cells => cells * (24 / 512));
+      this.updateVolumeExtent();
       this.emissionWidth = this.volumeGrid[0] * 8;
       this.emissionHeight = this.volumeGrid[1] * (this.volumeGrid[2] / 8);
       this.emission = this.texture(this.emissionWidth, this.emissionHeight, gl.RGBA16F, true);
       this.velocity = this.texture(this.emissionWidth, this.emissionHeight, gl.RGBA16F, true);
       this.emissionFBO = this.fbo([this.emission, this.velocity]);
+    }
+    updateVolumeExtent() {
+      this.volumeScale = Math.max(1, this.cloudRadius / 22);
+      this.volumeExtent = this.volumeGrid.map(cells => cells * (24 / 512) * this.volumeScale);
     }
     resize(force = false) {
       const dpr = devicePixelRatio || 1,
@@ -1937,6 +1960,7 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
       this.f('uSpin', this.a());
       this.f('uHorizon', P.horizon(this.a()));
       this.f('uISCO', P.isco(this.a()));
+      this.f('uVolumeScale', this.volumeScale);
       this.f('uObserverEnergy', this.observerEnergy);
       this.v2('uRaySize', [this.rw, this.rh]);
       this.f('uRayRow', row);
@@ -2060,6 +2084,7 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
       this.f('uRealDt', realDt);
       this.f('uFadeSeconds', this.fadeSeconds);
       this.f('uTimeScale', this.speed);
+      this.f('uCloudRadius', this.cloudRadius);
       const next = 1 - this.particleIndex;
       gl.bindVertexArray(this.particleVAOs[this.particleIndex]);
       gl.bindBuffer(gl.ARRAY_BUFFER, null);
@@ -2086,7 +2111,10 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
       this.use(this.programs.deposit);
       this.f('uSpin', this.a());
       this.f('uISCO', P.isco(this.a()));
-      this.f('uParticleWeight', (12.8 * 65536) / this.count);
+      this.f('uCloudRadius', this.cloudRadius);
+      this.v2('uBrightnessRange', [this.brightnessMin, this.brightnessMax]);
+      // Keep particle mass fixed as volume cells grow.
+      this.f('uParticleWeight', (12.8 * 65536) / (this.count * this.volumeScale ** 3));
       this.i('uBandCount', this.spectrum.levels.length);
       this.gl.uniform1fv(this.loc('uBands[0]'), this.spectrum.levels);
       this.f('uSustainStrength', this.sustainStrength);
@@ -2587,6 +2615,9 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
         ['audio-balance', this.spectrum.balance],
         ['sustained-light', this.sustainStrength],
         ['star-definition', this.starDefinition],
+        ['brightness-min', this.brightnessMin],
+        ['brightness-max', this.brightnessMax],
+        ['cloud-radius', this.cloudRadius / 22],
         ['star-density', this.starDensity],
         ['cloud-density', this.cloudDensity]
       ]) {
@@ -2793,6 +2824,7 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
       const controls = {
         material: ['material', 0.01], exposure: ['exposure', 1], sharpness: ['sharpness', 0.01],
         'star-definition': ['starDefinition', 0.01],
+        'brightness-min': ['brightnessMin', 0.01], 'brightness-max': ['brightnessMax', 0.01],
         'particle-fade': ['fadeSeconds', 1], speed: ['speed', 1],
         'camera-amount': ['motionStrength', 0.01], 'camera-roll': ['roll', Math.PI / 180],
         framing: ['framing', 0.01], 'framing-y': ['framingY', 0.01],
@@ -2807,16 +2839,17 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
         this.applySettings({ cameraMotion: event.target.value }));
       $('star-appearance').addEventListener('change', (event) =>
         this.applySettings({ starAppearance: event.target.value }));
-      let cameraTimeout;
-      let cameraChanges = {};
-      for (const name of ['elevation', 'distance'])
+      let geometryTimeout;
+      let geometryChanges = {};
+      for (const name of ['elevation', 'distance', 'cloud-radius'])
         $(name).addEventListener('input', (event) => {
-          cameraChanges[name] = Number(event.target.value);
-          $(name + '-value').textContent = event.target.value + (name === 'elevation' ? '°' : '');
-          clearTimeout(cameraTimeout);
-          cameraTimeout = setTimeout(() => {
-            this.applySettings(cameraChanges);
-            cameraChanges = {};
+          const radius = name === 'cloud-radius';
+          geometryChanges[radius ? 'cloudRadius' : name] = Number(event.target.value) * (radius ? 0.22 : 1);
+          $(name + '-value').textContent = event.target.value + (radius ? '%' : name === 'elevation' ? '°' : '');
+          clearTimeout(geometryTimeout);
+          geometryTimeout = setTimeout(() => {
+            this.applySettings(geometryChanges);
+            geometryChanges = {};
           }, 250);
         });
       $('particles').addEventListener('change', (event) =>

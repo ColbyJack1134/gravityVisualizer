@@ -947,8 +947,20 @@
         "fraction": false,
         "precision": 0
       },
+      "cloudradius": {
+        "text": "Cloud radius (%)",
+        "type": "slider",
+        "value": 100,
+        "min": 50,
+        "max": 150,
+        "step": 1,
+        "editable": true,
+        "fraction": false,
+        "precision": 0,
+        "order": 93
+      },
       "exposure": {
-        "order": 93,
+        "order": 94,
         "text": "Exposure",
         "type": "slider",
         "value": 1.7,
@@ -959,8 +971,32 @@
         "fraction": true,
         "precision": 1
       },
+      "brightnessmin": {
+        "text": "Minimum star brightness (%)",
+        "type": "slider",
+        "value": 65,
+        "min": 0,
+        "max": 400,
+        "step": 5,
+        "editable": true,
+        "fraction": false,
+        "precision": 0,
+        "order": 95
+      },
+      "brightnessmax": {
+        "text": "Maximum star brightness (%)",
+        "type": "slider",
+        "value": 140,
+        "min": 0,
+        "max": 400,
+        "step": 5,
+        "editable": true,
+        "fraction": false,
+        "precision": 0,
+        "order": 96
+      },
       "sharpness": {
-        "order": 94,
+        "order": 97,
         "text": "Sharpness",
         "type": "slider",
         "value": 100,
@@ -972,7 +1008,7 @@
         "precision": 0
       },
       "particlefade": {
-        "order": 95,
+        "order": 98,
         "text": "Particle fade (seconds)",
         "type": "slider",
         "value": 3,
@@ -984,7 +1020,7 @@
         "precision": 1
       },
       "timescale": {
-        "order": 96,
+        "order": 99,
         "text": "Time scale",
         "type": "slider",
         "value": 10,
@@ -998,10 +1034,10 @@
       "groupperformance": {
         "type": "group",
         "text": "Performance",
-        "order": 97
+        "order": 100
       },
       "particles": {
-        "order": 98,
+        "order": 101,
         "text": "Particles",
         "type": "combo",
         "value": "65536",
@@ -1033,7 +1069,7 @@
         ]
       },
       "quality": {
-        "order": 99,
+        "order": 102,
         "text": "Quality",
         "type": "combo",
         "value": "balanced",

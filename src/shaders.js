@@ -79,6 +79,7 @@ vec3 rayDirection(){vec2 q=(gl_FragCoord.xy+vec2(0.,uRayRow))/uRaySize*2.-1.;ret
     `
 uniform sampler2D uStateX,uStateP;
 uniform int uSlice;
+uniform float uVolumeScale;
 layout(location=0) out vec4 stateX;
 layout(location=1) out vec4 stateP;
 layout(location=2) out vec4 pathX;
@@ -95,13 +96,13 @@ void main(){
     if(r<uHorizon+.006){status=1.;break;}
     if(dot(p,p)>1e10){status=4.;break;}
     if(r>max(75.,length(uCamera)+5.)){status=2.;break;}
-    bool inside=abs(x.z)<4.8&&length(x.xy)<24.&&r>uISCO*.82;
+    bool inside=abs(x.z)<4.8*uVolumeScale&&length(x.xy)<24.*uVolumeScale&&r>uISCO*.82;
     vec3 old=x;
-    float h=stepSize(x,p,uSpin,uHorizon,inside?.25:1.0);
+    float h=stepSize(x,p,uSpin,uHorizon,inside?.25*uVolumeScale:1.0);
     rk4(x,p,t,1.,uSpin,h);
     if(inside){
       middle=x;mp=p;travelled=length(x-old);old=x;
-      rk4(x,p,t,1.,uSpin,stepSize(x,p,uSpin,uHorizon,.25));
+      rk4(x,p,t,1.,uSpin,stepSize(x,p,uSpin,uHorizon,.25*uVolumeScale));
       travelled+=length(x-old);break;
     }
     if(any(isnan(x))||any(isnan(p))){status=4.;break;}
@@ -141,9 +142,10 @@ layout(location=1) in vec4 aMomentum;
 layout(location=2) in vec2 aLifecycle;
 out vec4 vPosition;out vec4 vMomentum;out vec2 vLifecycle;
 uniform float uSpin,uHorizon,uISCO,uDt,uSeed,uRealDt,uFadeSeconds,uTimeScale;
+uniform float uCloudRadius;
 void spawn(out vec3 x,out vec3 p,out float pt,out float age){
   float id=float(gl_VertexID),s=id*1.718+uSeed*13.13;
-  float r=mix(uISCO+1.,22.,pow(hash(s+.1),.72)),angle=hash(s+7.)*2.*PI;
+  float r=mix(uISCO+1.,uCloudRadius,pow(hash(s+.1),.72)),angle=hash(s+7.)*2.*PI;
   float rho=sqrt(r*r+uSpin*uSpin);
   x=vec3(cos(angle)*rho,sin(angle)*rho,(hash(s+9.)-.5)*.025);
   vec3 tangent=vec3(-sin(angle),cos(angle),0.);
@@ -166,7 +168,7 @@ void main(){
   float r=radius(x,uSpin);
   bool initial=age<=0.&&life.x==0.&&life.y==0.;
   bool expired=uFadeSeconds<=0.?age<=0.:life.y>=uFadeSeconds;
-  if(initial||expired||r<uHorizon+.025||r>30.||any(isnan(x))||dot(p,p)>1e7){
+  if(initial||expired||r<uHorizon+.025||r>uCloudRadius+8.||any(isnan(x))||dot(p,p)>1e7){
     spawn(x,p,pt,age);life=vec2(0.,-1.);
   }
   else{
@@ -193,6 +195,7 @@ layout(location=0) in vec4 aPosition;
 layout(location=1) in vec4 aMomentum;
 layout(location=2) in vec2 aLifecycle;
 uniform float uSpin,uISCO,uMaterial,uParticleWeight,uFadeSeconds;
+uniform float uCloudRadius;uniform vec2 uBrightnessRange;
 uniform float uBands[24],uAudioDriven,uIdleParticles;
 uniform int uBandCount;
 uniform float uSustainStrength;
@@ -211,7 +214,7 @@ void main(){
     vWeight*=birth*death;
   }
   float inner=uISCO*.86;
-  vWeight*=smoothstep(inner,inner+.55,r)*(1.-smoothstep(22.,23.,r));
+  vWeight*=smoothstep(inner,inner+.55,r)*(1.-smoothstep(uCloudRadius,uCloudRadius+1.,r));
   float heat=pow(uISCO/max(r,uISCO),.65);
   float kind=hash(float(gl_VertexID)+37.2);
   float palettePosition=hash(float(gl_VertexID)+81.3);
@@ -219,7 +222,7 @@ void main(){
   float level=uBands[band];
   int colorIndex=int(palettePosition*float(textureSize(uPalette,0).x));
   vec3 tint=uWeightedPalette==1?texelFetch(uPalette,ivec2(colorIndex,0),0).rgb:uBandColors[band];
-  vColor=tint*(.28+1.9*heat)*mix(.65,1.4,kind);
+  vColor=tint*(.28+1.9*heat)*mix(uBrightnessRange.x,uBrightnessRange.y,kind);
   float amount=clamp(level*uSustainStrength,0.,1.);
   float rank=hash(float(gl_VertexID)+113.9);
   float visibility=smoothstep(rank-.025,rank+.025,mix(-.025,1.025,amount));

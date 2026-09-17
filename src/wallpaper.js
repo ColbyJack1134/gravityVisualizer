@@ -8,6 +8,7 @@
     framing: ['framing', 0.01], framingy: ['framingY', 0.01],
     elevation: ['elevation', 1], distance: ['distance', 1], spin: ['spin', 1],
     material: ['material', 0.01], exposure: ['exposure', 1], sharpness: ['sharpness', 0.01],
+    cloudradius: ['cloudRadius', 0.22], brightnessmin: ['brightnessMin', 0.01], brightnessmax: ['brightnessMax', 0.01],
     particlefade: ['fadeSeconds', 1], timescale: ['speed', 1], particles: ['count', 1]
   };
   function color(value) {

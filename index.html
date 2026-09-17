@@ -108,6 +108,8 @@
       <h2>Material & light</h2>
       <label class="range-label" for="material">Material <output id="material-value">30%</output></label>
       <input id="material" type="range" min="10" max="100" value="30">
+      <label class="range-label" for="cloud-radius">Cloud radius <output id="cloud-radius-value">100%</output></label>
+      <input id="cloud-radius" type="range" min="50" max="150" step="1" value="100">
       <label class="range-label" for="exposure">Exposure <output id="exposure-value">1.7×</output></label>
       <input id="exposure" type="range" min="0.3" max="3" step="0.1" value="1.7">
       <label class="range-label" for="sharpness">Sharpness <output id="sharpness-value">100%</output></label>
@@ -125,6 +127,11 @@
         <label class="range-label" for="star-definition">Core strength <output id="star-definition-value">70%</output></label>
         <input id="star-definition" type="range" min="0" max="100" value="70">
       </div>
+      <label class="range-label" for="brightness-min">Minimum brightness <output id="brightness-min-value">65%</output></label>
+      <input id="brightness-min" type="range" min="0" max="400" step="5" value="65">
+      <label class="range-label" for="brightness-max">Maximum brightness <output id="brightness-max-value">140%</output></label>
+      <input id="brightness-max" type="range" min="0" max="400" step="5" value="140">
+      <p class="control-hint">Base intensity. Shading and overlap still affect visible brightness.</p>
     </section>
 
     <details class="performance-settings">

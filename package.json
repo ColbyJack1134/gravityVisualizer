@@ -14,6 +14,7 @@
     "test:background-browser": "node tests/background-browser.cjs",
     "test:material-browser": "node tests/material-browser.cjs",
     "test:stars-browser": "node tests/stars-browser.cjs",
+    "test:appearance-controls-browser": "node tests/appearance-controls-browser.cjs",
     "test:features-browser": "node tests/features-browser.cjs",
     "test:wallpaper-browser": "node tests/wallpaper-browser.cjs",
     "benchmark": "node tests/browser.cjs --benchmark"

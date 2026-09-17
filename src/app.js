@@ -9,10 +9,13 @@
       this.spinning = true;
       this.spin = 0.5;
       this.material = 0.3;
+      this.cloudRadius = 22;
       this.exposure = 1.7;
       this.sharpness = 1;
       this.starAppearance = 'compact';
       this.starDefinition = 0.7;
+      this.brightnessMin = 0.65;
+      this.brightnessMax = 1.4;
       this.starDensity = 1;
       this.cloudDensity = 1;
       this.speed = 10;
@@ -136,9 +139,10 @@
     applySettings(settings) {
       const oldSpin = this.a(), oldCount = this.count, oldQuality = this.quality;
       const oldTheta = this.camera.theta, oldDistance = this.camera.distance;
+      const oldRadius = this.cloudRadius;
       const ranges = {
         spin: [0.05, 0.95], material: [0.1, 1], exposure: [0.3, 3], sharpness: [0, 1],
-        starDefinition: [0, 1],
+        starDefinition: [0, 1], brightnessMin: [0, 4], brightnessMax: [0, 4], cloudRadius: [11, 33],
         starDensity: [0, 5], cloudDensity: [0, 5], speed: [1, 24], fadeSeconds: [0, 6],
         motionStrength: [0, 1], roll: [-Math.PI / 6, Math.PI / 6],
         framing: [-0.35, 0.35], framingY: [-0.2, 0.2], audioGain: [0.3, 3],
@@ -147,6 +151,10 @@
       for (const [key, [min, max]] of Object.entries(ranges)) {
         if (typeof settings[key] === 'number' && Number.isFinite(settings[key]))
           this[key] = Math.max(min, Math.min(max, settings[key]));
+      }
+      if (this.brightnessMin > this.brightnessMax) {
+        if (Number.isFinite(settings.brightnessMin)) this.brightnessMax = this.brightnessMin;
+        else this.brightnessMin = this.brightnessMax;
       }
       for (const key of ['spinning', 'paused', 'showIdleParticles'])
         if (typeof settings[key] === 'boolean') this[key] = settings[key];
@@ -174,9 +182,10 @@
       }
       if (Object.hasOwn(settings, 'fpsLimit')) this.resetClock();
       if (this.started && !this.lost && !this.failed) {
-        if (oldSpin !== this.a() || oldCount !== this.count) this.allocateParticles();
+        if (oldRadius !== this.cloudRadius) this.updateVolumeExtent();
+        if (oldSpin !== this.a() || oldCount !== this.count || oldRadius !== this.cloudRadius) this.allocateParticles();
         if (oldSpin !== this.a() || oldQuality !== this.quality ||
-            oldTheta !== this.camera.theta || oldDistance !== this.camera.distance) this.prepareCache();
+            oldTheta !== this.camera.theta || oldDistance !== this.camera.distance || oldRadius !== this.cloudRadius) this.prepareCache();
       }
       this.onSettings?.();
     }
@@ -340,12 +349,16 @@
       if (this.velocity) gl.deleteTexture(this.velocity);
       if (this.emissionFBO) gl.deleteFramebuffer(this.emissionFBO);
       this.volumeGrid = [512, 512, 104];
-      this.volumeExtent = this.volumeGrid.map(cells => cells * (24 / 512));
+      this.updateVolumeExtent();
       this.emissionWidth = this.volumeGrid[0] * 8;
       this.emissionHeight = this.volumeGrid[1] * (this.volumeGrid[2] / 8);
       this.emission = this.texture(this.emissionWidth, this.emissionHeight, gl.RGBA16F, true);
       this.velocity = this.texture(this.emissionWidth, this.emissionHeight, gl.RGBA16F, true);
       this.emissionFBO = this.fbo([this.emission, this.velocity]);
+    }
+    updateVolumeExtent() {
+      this.volumeScale = Math.max(1, this.cloudRadius / 22);
+      this.volumeExtent = this.volumeGrid.map(cells => cells * (24 / 512) * this.volumeScale);
     }
     resize(force = false) {
       const dpr = devicePixelRatio || 1,
@@ -390,6 +403,7 @@
       this.f('uSpin', this.a());
       this.f('uHorizon', P.horizon(this.a()));
       this.f('uISCO', P.isco(this.a()));
+      this.f('uVolumeScale', this.volumeScale);
       this.f('uObserverEnergy', this.observerEnergy);
       this.v2('uRaySize', [this.rw, this.rh]);
       this.f('uRayRow', row);
@@ -513,6 +527,7 @@
       this.f('uRealDt', realDt);
       this.f('uFadeSeconds', this.fadeSeconds);
       this.f('uTimeScale', this.speed);
+      this.f('uCloudRadius', this.cloudRadius);
       const next = 1 - this.particleIndex;
       gl.bindVertexArray(this.particleVAOs[this.particleIndex]);
       gl.bindBuffer(gl.ARRAY_BUFFER, null);
@@ -539,7 +554,10 @@
       this.use(this.programs.deposit);
       this.f('uSpin', this.a());
       this.f('uISCO', P.isco(this.a()));
-      this.f('uParticleWeight', (12.8 * 65536) / this.count);
+      this.f('uCloudRadius', this.cloudRadius);
+      this.v2('uBrightnessRange', [this.brightnessMin, this.brightnessMax]);
+      // Keep particle mass fixed as volume cells grow.
+      this.f('uParticleWeight', (12.8 * 65536) / (this.count * this.volumeScale ** 3));
       this.i('uBandCount', this.spectrum.levels.length);
       this.gl.uniform1fv(this.loc('uBands[0]'), this.spectrum.levels);
       this.f('uSustainStrength', this.sustainStrength);
