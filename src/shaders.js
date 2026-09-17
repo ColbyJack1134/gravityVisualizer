@@ -69,7 +69,8 @@ float stepSize(vec3 x,vec3 p,float a,float horizon,float cap){
 in vec2 uv;
 uniform vec3 uCamera,uRight,uUp,uForward;
 uniform float uAspect,uTanFov,uSpin,uHorizon,uISCO,uObserverEnergy;
-vec3 rayDirection(){vec2 q=uv*2.-1.;return normalize(uForward+q.x*uAspect*uTanFov*uRight+q.y*uTanFov*uUp);}
+uniform vec2 uRaySize;uniform float uRayRow;
+vec3 rayDirection(){vec2 q=(gl_FragCoord.xy+vec2(0.,uRayRow))/uRaySize*2.-1.;return normalize(uForward+q.x*uAspect*uTanFov*uRight+q.y*uTanFov*uUp);}
 `;
   const volumeTrace =
     header +
@@ -286,7 +287,7 @@ vec2 viewUV(vec2 p){
 in vec2 uv;out vec4 color;
 uniform sampler2DArray uPathX,uPathP;
 uniform sampler2D uSky,uEmission,uVelocity;
-uniform float uSpin,uBrightness,uObserverEnergy;
+uniform float uSpin,uBrightness,uObserverEnergy,uCacheRow;
 uniform int uSlices;
 uniform vec3 uVolumeGrid,uVolumeExtent;
 vec4 volume(sampler2D atlas,vec3 position){
@@ -299,7 +300,7 @@ vec4 volume(sampler2D atlas,vec3 position){
   return mix(texture(atlas,(tile0*uVolumeGrid.xy+local)/dims),texture(atlas,(tile1*uVolumeGrid.xy+local)/dims),fract(q.z));
 }
 void main(){
-  vec2 lookup=uv;
+  vec2 lookup=vec2(uv.x,(gl_FragCoord.y-uCacheRow)/float(textureSize(uPathX,0).y));
   if(any(lessThan(lookup,vec2(0.)))||any(greaterThan(lookup,vec2(1.)))){color=vec4(.00013,.0002,.00035,1.);return;}
   vec3 sum=vec3(0.);float trans=1.;
   for(int i=0;i<64;i++){
@@ -327,7 +328,7 @@ void main(){
   }
   vec4 sky=texture(uSky,lookup);
   if(sky.w>1.5&&sky.w<2.5)sum+=trans*background(orbit(sky.xyz));
-  float edge=min(min(lookup.x,lookup.y),min(1.-lookup.x,1.-lookup.y));
+  float edge=min(min(uv.x,uv.y),min(1.-uv.x,1.-uv.y));
   color=vec4(mix(vec3(.00013,.0002,.00035),sum,smoothstep(0.,.035,edge)),1.);
 }
 `;

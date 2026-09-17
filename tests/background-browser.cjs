@@ -50,7 +50,7 @@ const { chromium } = require('playwright');
         gl.bindBuffer(gl.ARRAY_BUFFER, null);
         return data;
       };
-      gl.bindFramebuffer(gl.FRAMEBUFFER, d.finishFbo);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, d.rayTiles[0].finishFbo);
       const sky = new Float32Array(d.rw * d.rh * 4);
       gl.readPixels(0, 0, d.rw, d.rh, gl.RGBA, gl.FLOAT, sky);
       window.backgroundProbe = {

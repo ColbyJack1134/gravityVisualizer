@@ -712,7 +712,7 @@
           },
           {
             "value": "native",
-            "label": "Native / maximum"
+            "label": "Native (screen resolution)"
           }
         ]
       }

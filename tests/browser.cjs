@@ -82,7 +82,7 @@ function tone(){
         }
         const samples=await page.evaluate(()=>{
           const d=GravityDemo,gl=d.gl,points=[[.5,.5],[.5,.56],[.56,.5],[.5,.65],[.65,.5],[.18,.27]];
-          gl.bindFramebuffer(gl.READ_FRAMEBUFFER,d.finishFbo);gl.readBuffer(gl.COLOR_ATTACHMENT0);
+          gl.bindFramebuffer(gl.READ_FRAMEBUFFER,d.rayTiles[0].finishFbo);gl.readBuffer(gl.COLOR_ATTACHMENT0);
           const samples=points.map(([u,v])=>{const x=Math.floor(u*d.rw),y=Math.floor(v*d.rh),data=new Float32Array(4);gl.readPixels(x,y,1,1,gl.RGBA,gl.FLOAT,data);return {u:(x+.5)/d.rw,v:(y+.5)/d.rh,data:Array.from(data)};});
           gl.bindFramebuffer(gl.READ_FRAMEBUFFER,null);return {samples,camera:d.camera,aspect:d.canvas.width/d.canvas.height};
         });
@@ -143,10 +143,13 @@ function tone(){
     assert.ok(await page.evaluate(x=>GravityDemo.orbitAngle>x,before));assert.equal(await page.evaluate(()=>GravityDemo.cacheBuilds),builds);
     const hold=await page.evaluate(()=>{
       const d=GravityDemo,gl=d.gl;d.paused=true;
-      const sample=()=>{d.shade();d.present();const pixels=new Uint8Array(128*128*4);gl.readPixels(Math.floor(d.canvas.width*.55),Math.floor(d.canvas.height*.4),128,128,gl.RGBA,gl.UNSIGNED_BYTE,pixels);let hash=5381;for(const byte of pixels)hash=(Math.imul(hash,33)+byte)>>>0;return hash;};
-      const before=sample();d.cameraMotion='fixed';const after=sample();d.paused=false;return {before,after};
+      const sample=()=>{d.shade();d.present();const pixels=new Uint8Array(128*128*4);gl.readPixels(Math.floor(d.canvas.width*.55),Math.floor(d.canvas.height*.4),128,128,gl.RGBA,gl.UNSIGNED_BYTE,pixels);return pixels;};
+      const view=()=>[gl.getUniform(d.programs.composite.p,d.loc('uRoll')),...gl.getUniform(d.programs.composite.p,d.loc('uFraming'))];
+      const before=sample(),beforeView=view();d.cameraMotion='fixed';const after=sample(),afterView=view();d.paused=false;
+      return {beforeView,afterView,maxDelta:after.reduce((max,value,i)=>Math.max(max,Math.abs(value-before[i])),0)};
     });
-    assert.equal(hold.after,hold.before,'Holding the camera must not snap the framing');
+    assert.deepEqual(hold.afterView,hold.beforeView,'Holding the camera must not snap the framing');
+    assert.ok(hold.maxDelta<=1,'Camera hold preserves pixels within one 8-bit display step');
     await page.locator('#camera-motion').selectOption('fixed');
     const stopped=await page.evaluate(()=>GravityDemo.orbitAngle);await page.waitForTimeout(200);assert.equal(await page.evaluate(()=>GravityDemo.orbitAngle),stopped);
     await page.locator('.camera-advanced summary').click();
@@ -172,6 +175,33 @@ function tone(){
       console.log('524k',JSON.stringify(results.rows.at(-1)));
       await page.locator('#particles').selectOption('65536');await page.locator('#fps-limit').selectOption('30');await page.waitForTimeout(3000);
       const fps=await page.evaluate(()=>GravityDemo.measuredFPS);assert.ok(fps<32);results.checks.push(`30 FPS cap (${fps.toFixed(1)} measured)`);
+    }
+    if(!benchmark){
+      await page.evaluate(()=>GravityDemo.applySettings({quality:'native',elevation:18,distance:37,spinning:true,paused:true}));await ready();
+      const native=await page.evaluate(()=>{
+        const d=GravityDemo,gl=d.gl,samples=[];
+        for(const tile of d.rayTiles){
+          gl.bindFramebuffer(gl.READ_FRAMEBUFFER,tile.finishFbo);gl.readBuffer(gl.COLOR_ATTACHMENT0);
+          for(const y of [0,tile.height-1])for(const fraction of [.2,.5,.8]){
+            const x=Math.floor(fraction*d.rw),data=new Float32Array(4);
+            gl.readPixels(x,y,1,1,gl.RGBA,gl.FLOAT,data);
+            samples.push({u:(x+.5)/d.rw,v:(tile.row+y+.5)/d.rh,data:Array.from(data)});
+          }
+        }
+        gl.bindFramebuffer(gl.READ_FRAMEBUFFER,null);
+        return {output:[d.canvas.width,d.canvas.height],render:[d.rw,d.rh],tiles:d.rayTiles.length,
+          camera:d.camera,spin:d.a(),overscan:d.overscan,samples,rays:d.diagnostics(),error:gl.getError()};
+      });
+      assert.deepEqual(native.output,[1920,1080]);assert.deepEqual(native.render,[2304,1296]);
+      assert.ok(native.tiles>1);assert.equal(native.error,0);assert.equal(native.rays.invalid,0);assert.equal(native.rays.other,0);
+      assert.equal(Object.values(native.rays).reduce((sum,count)=>sum+count,0),2304*1296);
+      for(const sample of native.samples){
+        const ref=referenceRay(native.camera,native.spin,sample.u,sample.v,1920/1080,native.overscan);
+        assert.equal(Math.round(sample.data[3]),ref.status,'Cache boundary ray classification');
+        if(ref.status===2)assert.ok(P.length(ref.direction.map((v,i)=>v-sample.data[i]))<.003,'Cache boundary ray direction');
+      }
+      results.native=native;
+      results.checks.push('Full native display density, tiled cache coverage and boundary rays versus CPU reference');
     }
     await page.evaluate(()=>{GravityDemo.contextTestExtension=GravityDemo.gl.getExtension('WEBGL_lose_context');GravityDemo.contextTestExtension.loseContext();});
     await page.waitForFunction(()=>GravityDemo.lost);await page.waitForTimeout(150);

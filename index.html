@@ -120,12 +120,13 @@
     <details class="performance-settings">
       <summary>Performance</summary>
       <label for="particles">Particles<select id="particles"><option value="16384">16,384</option><option value="32768">32,768</option><option value="65536" selected>65,536</option><option value="131072">131,072</option><option value="262144">262,144</option><option value="524288">524,288</option></select></label>
-      <label for="quality">Quality<select id="quality"><option value="draft">Draft</option><option value="balanced" selected>Balanced</option><option value="high">High</option><option value="native">Native / maximum</option></select></label>
+      <label for="quality">Quality<select id="quality"><option value="draft">Draft</option><option value="balanced" selected>Balanced</option><option value="high">High</option><option value="native">Native (screen resolution)</option></select></label>
       <label for="fps-limit">Frame cap<select id="fps-limit"><option value="0">Uncapped</option><option value="60" selected>60 FPS</option><option value="30">30 FPS</option></select></label>
       <dl class="stats">
+        <div><dt>Output size</dt><dd id="output-resolution">—</dd></div>
         <div><dt>FPS</dt><dd id="fps">—</dd></div>
         <div><dt>GPU frame</dt><dd id="gpu-time">—</dd></div>
-        <div><dt>Render size</dt><dd id="resolution">—</dd></div>
+        <div><dt title="Includes the extra camera margin used for tilt and framing">Render size</dt><dd id="resolution">—</dd></div>
       </dl>
     </details>
     <div class="transport"><button id="pause">Pause</button><button id="reset" title="Reset particles and camera">Reset</button><button id="fullscreen">Fullscreen</button></div>

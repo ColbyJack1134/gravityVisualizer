@@ -336,7 +336,7 @@
       this.emissionFBO = this.fbo([this.emission, this.velocity]);
     }
     resize(force = false) {
-      const dpr = Math.min(devicePixelRatio || 1, 1.5),
+      const dpr = devicePixelRatio || 1,
         width = Math.max(16, Math.round(innerWidth * dpr)),
         height = Math.max(16, Math.round(innerHeight * dpr));
       if (!force && width === this.canvas.width && height === this.canvas.height) return;
@@ -344,10 +344,21 @@
       this.canvas.height = height;
       this.prepareCache(true);
     }
+    renderSize() {
+      const { width, height } = this.canvas;
+      if (this.quality === 'native') {
+        // Preserve display density after cropping the camera margin.
+        return [Math.ceil(width * this.overscan), Math.ceil(height * this.overscan)];
+      }
+      const scale = { draft: 0.4, balanced: 0.65, high: 0.85 }[this.quality];
+      const cap = { draft: 260000, balanced: 750000, high: 1100000 }[this.quality];
+      const density = Math.min(scale, Math.sqrt(cap / (width * height)));
+      return [Math.max(16, Math.round(width * density)), Math.max(16, Math.round(height * density))];
+    }
     a() {
       return this.spinning ? this.spin : 0;
     }
-    cameraUniforms() {
+    cameraUniforms(row = 0) {
       const { theta, phi, distance } = this.camera;
       const pos = [
         distance * Math.sin(theta) * Math.cos(phi),
@@ -368,20 +379,14 @@
       this.f('uHorizon', P.horizon(this.a()));
       this.f('uISCO', P.isco(this.a()));
       this.f('uObserverEnergy', this.observerEnergy);
+      this.v2('uRaySize', [this.rw, this.rh]);
+      this.f('uRayRow', row);
     }
     prepareCache(resizeTargets = false) {
       if (this.lost || this.failed) return;
       this.cacheBuilds++;
-      const gl = this.gl,
-        scale = { draft: 0.4, balanced: 0.65, high: 0.85, native: 1 }[this.quality];
-      let rw = Math.round(this.canvas.width * scale),
-        rh = Math.round(this.canvas.height * scale);
-      const cap = { draft: 260000, balanced: 750000, high: 1100000, native: 1600000 }[this.quality];
-      const shrink = Math.min(1, Math.sqrt(cap / (rw * rh)));
-      rw = Math.round(rw * shrink);
-      rh = Math.round(rh * shrink);
-      rw = Math.max(16, rw);
-      rh = Math.max(16, rh);
+      const gl = this.gl;
+      const [rw, rh] = this.renderSize();
       if (rw !== this.rw || rh !== this.rh || resizeTargets) {
         this.rw = rw;
         this.rh = rh;
@@ -389,24 +394,32 @@
       }
       this.destroy(this.cacheTextures, this.cacheFbos);
       this.cacheReady = false;
-      const cache = (format = gl.RGBA32F, layers = 0) => {
-        const t = this.texture(rw, rh, format, false, layers);
-        this.cacheTextures.push(t);
-        return t;
-      };
-      this.sky = cache();
       this.slices = 64;
-      this.pathX = cache(gl.RGBA16F, this.slices);
-      this.pathP = cache(gl.RGBA16F, this.slices);
-      this.stateX = [cache(), cache()];
-      this.stateP = [cache(), cache()];
-      this.stateFbo = [
-        this.fbo([this.stateX[0], this.stateP[0]]),
-        this.fbo([this.stateX[1], this.stateP[1]])
-      ];
-      this.finishFbo = this.fbo([this.sky]);
-      this.cacheFbos.push(...this.stateFbo, this.finishFbo);
-      this.job = { next: 0, total: this.slices + 1 };
+      // Bound allocations and keep derivative quads inside each tile.
+      const rows = Math.max(2, 2 * Math.floor(512 * 1024 * 1024 / (rw * this.slices * 8 * 2)));
+      this.rayTiles = [];
+      for (let row = 0; row < rh; row += rows) {
+        const height = Math.min(rows, rh - row);
+        const cache = (format = gl.RGBA32F, layers = 0) => {
+          const t = this.texture(rw, height, format, false, layers);
+          this.cacheTextures.push(t);
+          return t;
+        };
+        const tile = {
+          row, height, sky: cache(),
+          pathX: cache(gl.RGBA16F, this.slices),
+          pathP: cache(gl.RGBA16F, this.slices),
+          stateX: [cache(), cache()], stateP: [cache(), cache()]
+        };
+        tile.stateFbo = [
+          this.fbo([tile.stateX[0], tile.stateP[0]]),
+          this.fbo([tile.stateX[1], tile.stateP[1]])
+        ];
+        tile.finishFbo = this.fbo([tile.sky]);
+        this.cacheFbos.push(...tile.stateFbo, tile.finishFbo);
+        this.rayTiles.push(tile);
+      }
+      this.job = { next: 0, total: (this.slices + 1) * this.rayTiles.length };
       gl.bindFramebuffer(gl.FRAMEBUFFER, null);
       this.lastPresentation = 0;
       this.fpsSamples = [];
@@ -436,14 +449,16 @@
       const gl = this.gl,
         job = this.job;
       if (!job) return;
+      const tile = this.rayTiles[Math.floor(job.next / (this.slices + 1))];
+      const slice = job.next % (this.slices + 1);
       gl.disable(gl.BLEND);
-      gl.viewport(0, 0, this.rw, this.rh);
-      if (job.next < this.slices) {
-        const write = job.next % 2,
+      gl.viewport(0, 0, this.rw, tile.height);
+      if (slice < this.slices) {
+        const write = slice % 2,
           read = 1 - write;
-        gl.bindFramebuffer(gl.FRAMEBUFFER, this.stateFbo[write]);
-        gl.framebufferTextureLayer(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT2, this.pathX, 0, job.next);
-        gl.framebufferTextureLayer(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT3, this.pathP, 0, job.next);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, tile.stateFbo[write]);
+        gl.framebufferTextureLayer(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT2, tile.pathX, 0, slice);
+        gl.framebufferTextureLayer(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT3, tile.pathP, 0, slice);
         gl.drawBuffers([
           gl.COLOR_ATTACHMENT0,
           gl.COLOR_ATTACHMENT1,
@@ -451,18 +466,18 @@
           gl.COLOR_ATTACHMENT3
         ]);
         this.use(this.programs.trace);
-        this.cameraUniforms();
-        this.i('uSlice', job.next);
-        this.bind('uStateX', this.stateX[read], 0);
-        this.bind('uStateP', this.stateP[read], 1);
+        this.cameraUniforms(tile.row);
+        this.i('uSlice', slice);
+        this.bind('uStateX', tile.stateX[read], 0);
+        this.bind('uStateP', tile.stateP[read], 1);
         this.quad();
       } else {
-        gl.bindFramebuffer(gl.FRAMEBUFFER, this.finishFbo);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, tile.finishFbo);
         this.use(this.programs.finish);
-        this.cameraUniforms();
+        this.cameraUniforms(tile.row);
         const read = (this.slices - 1) % 2;
-        this.bind('uStateX', this.stateX[read], 0);
-        this.bind('uStateP', this.stateP[read], 1);
+        this.bind('uStateX', tile.stateX[read], 0);
+        this.bind('uStateP', tile.stateP[read], 1);
         this.quad();
       }
       job.next++;
@@ -539,13 +554,19 @@
       this.v3('uVolumeExtent', this.volumeExtent);
       this.f('uOrbitAngle', this.orbitAngle);
       this.f('uObserverEnergy', this.observerEnergy);
-      this.bind('uSky', this.sky, 0);
       this.bind('uEmission', this.emission, 1);
-      this.bind('uPathX', this.pathX, 2, gl.TEXTURE_2D_ARRAY);
-      this.bind('uPathP', this.pathP, 3, gl.TEXTURE_2D_ARRAY);
       this.bind('uVelocity', this.velocity, 4);
       this.i('uSlices', this.slices);
-      this.quad();
+      gl.enable(gl.SCISSOR_TEST);
+      for (const tile of this.rayTiles) {
+        gl.scissor(0, tile.row, this.rw, tile.height);
+        this.f('uCacheRow', tile.row);
+        this.bind('uSky', tile.sky, 0);
+        this.bind('uPathX', tile.pathX, 2, gl.TEXTURE_2D_ARRAY);
+        this.bind('uPathP', tile.pathP, 3, gl.TEXTURE_2D_ARRAY);
+        this.quad();
+      }
+      gl.disable(gl.SCISSOR_TEST);
       this.use(this.programs.blur);
       gl.viewport(0, 0, this.bw, this.bh);
       gl.bindFramebuffer(gl.FRAMEBUFFER, this.bloomFbo[0]);
@@ -723,18 +744,19 @@
       };
     }
     diagnostics() {
-      const gl = this.gl,
-        fb = this.finishFbo;
-      gl.bindFramebuffer(gl.READ_FRAMEBUFFER, fb);
-      gl.readBuffer(gl.COLOR_ATTACHMENT0);
-      const data = new Float32Array(this.rw * this.rh * 4);
-      gl.readPixels(0, 0, this.rw, this.rh, gl.RGBA, gl.FLOAT, data);
+      const gl = this.gl;
       const result = { captured: 0, escaped: 0, budget: 0, invalid: 0, other: 0 };
-      for (let i = 3; i < data.length; i += 4) {
-        const v = Math.round(data[i]);
-        result[
-          v === 1 ? 'captured' : v === 2 ? 'escaped' : v === 3 ? 'budget' : v === 4 ? 'invalid' : 'other'
-        ]++;
+      for (const tile of this.rayTiles) {
+        gl.bindFramebuffer(gl.READ_FRAMEBUFFER, tile.finishFbo);
+        gl.readBuffer(gl.COLOR_ATTACHMENT0);
+        const data = new Float32Array(this.rw * tile.height * 4);
+        gl.readPixels(0, 0, this.rw, tile.height, gl.RGBA, gl.FLOAT, data);
+        for (let i = 3; i < data.length; i += 4) {
+          const v = Math.round(data[i]);
+          result[
+            v === 1 ? 'captured' : v === 2 ? 'escaped' : v === 3 ? 'budget' : v === 4 ? 'invalid' : 'other'
+          ]++;
+        }
       }
       gl.bindFramebuffer(gl.READ_FRAMEBUFFER, null);
       return result;

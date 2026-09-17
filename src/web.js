@@ -25,6 +25,7 @@
         $('trace-progress').style.width = Math.round(progress * 100) + '%';
         $('trace-percent').textContent = Math.round(progress * 100) + '%';
         $('resolution').textContent = this.rw + ' × ' + this.rh;
+        $('output-resolution').textContent = this.canvas.width + ' × ' + this.canvas.height;
       };
       this.onError = showError;
       this.bindUI();
