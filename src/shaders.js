@@ -72,23 +72,10 @@ uniform float uAspect,uTanFov,uSpin,uHorizon,uISCO,uObserverEnergy;
 uniform vec2 uRaySize;uniform float uRayRow;
 vec3 rayDirection(){vec2 q=(gl_FragCoord.xy+vec2(0.,uRayRow))/uRaySize*2.-1.;return normalize(uForward+q.x*uAspect*uTanFov*uRight+q.y*uTanFov*uUp);}
 `;
-  const volumeTrace =
-    header +
-    common +
-    rayUniforms +
-    `
-uniform sampler2D uStateX,uStateP;
-uniform int uSlice;
+  const volumePath = `
 uniform float uVolumeScale;
-layout(location=0) out vec4 stateX;
-layout(location=1) out vec4 stateP;
-layout(location=2) out vec4 pathX;
-layout(location=3) out vec4 pathP;
-void main(){
-  vec4 sx=texture(uStateX,uv),sp=texture(uStateP,uv);
-  vec3 x=uSlice==0?uCamera:sx.xyz,p=uSlice==0?photon(x,rayDirection(),uSpin):sp.xyz;
-  float status=uSlice==0?0.:sx.w,t=uSlice==0?0.:sp.w;
-  vec3 middle=x,mp=p;float travelled=0.;
+float advanceVolume(inout vec3 x,inout vec3 p,inout float t,inout float status,out vec3 middle,out vec3 mp){
+  middle=x;mp=p;float travelled=0.;
   // Skip empty space; spend the path cache on the finite-thickness disk.
   for(int i=0;i<400;i++){
     if(status!=0.)break;
@@ -107,30 +94,42 @@ void main(){
     }
     if(any(isnan(x))||any(isnan(p))){status=4.;break;}
   }
+  return status!=0.&&travelled==0.?-1.:travelled;
+}
+`;
+  const volumeTrace =
+    header + common + rayUniforms + volumePath + `
+uniform sampler2D uStateX,uStateP;
+uniform int uSlice;
+layout(location=0) out vec4 stateX;
+layout(location=1) out vec4 stateP;
+layout(location=2) out vec4 pathX;
+layout(location=3) out vec4 pathP;
+void main(){
+  vec4 sx=texture(uStateX,uv),sp=texture(uStateP,uv);
+  vec3 x=uSlice==0?uCamera:sx.xyz,p=uSlice==0?photon(x,rayDirection(),uSpin):sp.xyz;
+  float status=uSlice==0?0.:sx.w,t=uSlice==0?0.:sp.w;
+  vec3 middle,mp;float travelled=advanceVolume(x,p,t,status,middle,mp);
   stateX=vec4(x,status);stateP=vec4(p,t);
-  pathX=vec4(middle,status!=0.&&travelled==0.?-1.:travelled);pathP=vec4(clamp(mp,vec3(-60000.),vec3(60000.)),0.);
+  pathX=vec4(middle,travelled);pathP=vec4(clamp(mp,vec3(-60000.),vec3(60000.)),0.);
 }
 `;
   const volumeFinish =
-    header +
-    common +
-    rayUniforms +
-    `
+    header + common + rayUniforms + volumePath + `
 uniform sampler2D uStateX,uStateP;
-out vec4 sky;
+layout(location=0) out vec4 sky;
+layout(location=1) out vec4 continuation;
 void main(){
   vec4 sx=texture(uStateX,uv),sp=texture(uStateP,uv);vec3 x=sx.xyz,p=sp.xyz;float t=sp.w,status=sx.w;
+  int remaining=0;
   for(int i=0;i<1536;i++){
     if(status!=0.)break;
-    float r=radius(x,uSpin);
-    if(r<uHorizon+.006){status=1.;break;}
-    if(dot(p,p)>1e10){status=4.;break;}
-    if(r>max(75.,length(uCamera)+5.)){status=2.;break;}
-    rk4(x,p,t,1.,uSpin,stepSize(x,p,uSpin,uHorizon,1.8));
-    if(any(isnan(x))||any(isnan(p))){status=4.;break;}
+    vec3 middle,mp;
+    if(advanceVolume(x,p,t,status,middle,mp)>=0.)remaining=i+1;
   }
   if(status==0.)status=3.;
   vec3 dx,dp;float dt;flow(x,p,1.,uSpin,dx,dp,dt);sky=vec4(normalize(dx),status);
+  continuation=vec4(float(remaining),0.,0.,0.);
 }
 `;
   const particleUpdate =
@@ -288,14 +287,13 @@ vec2 viewUV(vec2 p){
   const volumeShade =
     header +
     common +
-    skyCode +
     viewCode +
     `
 in vec2 uv;out vec4 color;
 uniform sampler2DArray uPathX,uPathP;
-uniform sampler2D uSky,uEmission,uVelocity;
+uniform sampler2D uEmission,uVelocity,uBase,uSources;
 uniform float uSpin,uBrightness,uObserverEnergy,uCacheRow;
-uniform int uSlices;
+uniform int uSlices;uniform bool uContinuation;
 uniform vec3 uVolumeGrid,uVolumeExtent;
 vec4 volume(sampler2D atlas,vec3 position){
   vec3 q=(position/(uVolumeExtent*2.)+.5)*uVolumeGrid-.5;
@@ -319,33 +317,54 @@ vec4 volume(sampler2D atlas,vec3 position){
   }
   return sum;
 }
+void accumulate(vec4 path,vec3 p,inout vec3 sum,inout float trans){
+  path.xyz=orbit(path.xyz);p=orbit(p);
+  float r,f;vec3 l,dr,df;metric(path.xyz,uSpin,r,f,l,dr,df);
+  vec3 direction=normalize(p-f*(-1.+dot(l,p))*l);
+  vec3 cells=abs(direction)*path.w*uVolumeGrid/(uVolumeExtent*2.);
+  // Bound spacing in all directions, including diagonal rays.
+  int samples=clamp(int(ceil(length(cells)*.625)),1,4);
+  for(int j=0;j<4;j++){
+    if(j>=samples||trans<.012)break;
+    vec3 position=path.xyz+direction*((float(j)+.5)/float(samples)-.5)*path.w;
+    vec4 e=volume(uEmission,position);
+    if(e.a<.0001)continue;
+    vec4 velocities=volume(uVelocity,position);
+    float g=clamp(uObserverEnergy*e.a/max(velocities.w+dot(velocities.xyz,p),.05*e.a),.08,3.);
+    float alpha=1.-exp(-e.a*path.w/float(samples)*.22);
+    vec3 light=e.rgb/max(e.a,.001)*pow(g,3.)*uBrightness;
+    sum+=trans*alpha*light;trans*=1.-alpha;
+  }
+}
 void main(){
   vec2 lookup=vec2(uv.x,(gl_FragCoord.y-uCacheRow)/float(textureSize(uPathX,0).y));
-  if(any(lessThan(lookup,vec2(0.)))||any(greaterThan(lookup,vec2(1.)))){color=vec4(.00013,.0002,.00035,0.);return;}
-  vec3 sum=vec3(0.);float trans=1.;
-  for(int i=0;i<64;i++){
-    if(i>=uSlices||trans<.012)break;
-    vec4 path=texture(uPathX,vec3(lookup,float(i)));path.xyz=orbit(path.xyz);
+  vec4 initial=uContinuation?texelFetch(uBase,ivec2(texture(uSources,lookup).xy),0):vec4(0.,0.,0.,1.);
+  vec3 sum=initial.rgb;float trans=initial.a;
+  for(int i=0;i<uSlices;i++){
+    if(trans<.012)break;
+    vec4 path=texture(uPathX,vec3(lookup,float(i)));
     if(path.w<0.)break;
     if(path.w<.00001)continue;
-    vec3 p=orbit(texture(uPathP,vec3(lookup,float(i))).xyz);
-    float r,f;vec3 l,dr,df;metric(path.xyz,uSpin,r,f,l,dr,df);
-    vec3 direction=normalize(p-f*(-1.+dot(l,p))*l);
-    vec3 cells=abs(direction)*path.w*uVolumeGrid/(uVolumeExtent*2.);
-    // Bound spacing in all directions, including diagonal rays.
-    int samples=clamp(int(ceil(length(cells)*.625)),1,4);
-    for(int j=0;j<4;j++){
-      if(j>=samples||trans<.012)break;
-      vec3 position=path.xyz+direction*((float(j)+.5)/float(samples)-.5)*path.w;
-      vec4 e=volume(uEmission,position);
-      if(e.a<.0001)continue;
-      vec4 velocities=volume(uVelocity,position);
-      float g=clamp(uObserverEnergy*e.a/max(velocities.w+dot(velocities.xyz,p),.05*e.a),.08,3.);
-      float alpha=1.-exp(-e.a*path.w/float(samples)*.22);
-      vec3 light=e.rgb/max(e.a,.001)*pow(g,3.)*uBrightness;
-      sum+=trans*alpha*light;trans*=1.-alpha;
+    accumulate(path,texture(uPathP,vec3(lookup,float(i))).xyz,sum,trans);
+  }
+  color=vec4(sum,trans);
+}
+`;
+  const volumeComposite = header + common + skyCode + viewCode + `
+in vec2 uv;out vec4 color;
+uniform sampler2D uBase,uContinuationImage,uTailIndex,uSky;
+uniform bool uContinuation;uniform float uCacheRow;
+void main(){
+  vec2 lookup=vec2(uv.x,(gl_FragCoord.y-uCacheRow)/float(textureSize(uSky,0).y));
+  vec4 light=texture(uBase,uv);
+  if(uContinuation){
+    int index=int(texture(uTailIndex,lookup).r)-1;
+    if(index>=0){
+      int width=textureSize(uContinuationImage,0).x;
+      light=texelFetch(uContinuationImage,ivec2(index%width,index/width),0);
     }
   }
+  vec3 sum=light.rgb;float trans=light.a;
   float foreground=max(sum.r,max(sum.g,sum.b));
   vec4 sky=texture(uSky,lookup);
   if(sky.w>1.5&&sky.w<2.5)sum+=trans*background(orbit(sky.xyz));
@@ -456,6 +475,7 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
     depositVertex,
     depositFragment,
     volumeShade,
+    volumeComposite,
     starAppearance,
     blur,
     composite

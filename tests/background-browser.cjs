@@ -171,7 +171,7 @@ const { chromium } = require('playwright');
         d.shade();
         d.present();
         return ['uStarDensity', 'uCloudDensity'].map((name) =>
-          gl.getUniform(d.programs.shade.p, gl.getUniformLocation(d.programs.shade.p, name))
+          gl.getUniform(d.programs.volumeComposite.p, gl.getUniformLocation(d.programs.volumeComposite.p, name))
         );
       }),
       [2.5, 0.25]

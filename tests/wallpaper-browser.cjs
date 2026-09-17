@@ -123,7 +123,7 @@ const project = require('../wallpaper/project.json');
     const zero = await page.evaluate(() => {
       const r = GravityWallpaper.renderer;
       r.deposit(); r.shade(); r.present();
-      const gl = r.gl, p = r.programs.shade.p;
+      const gl = r.gl, p = r.programs.volumeComposite.p;
       return { values: [r.starDensity, r.cloudDensity, r.framing, r.framingY, r.sharpness, r.fadeSeconds, r.spectrum.balance, r.shakeStrength],
         stars: gl.getUniform(p, gl.getUniformLocation(p, 'uStarDensity')), clouds: gl.getUniform(p, gl.getUniformLocation(p, 'uCloudDensity')),
         animated: r.palette.hsv.animated, paused: r.paused, colors: Array.from(r.audioColors), builds: r.cacheBuilds };

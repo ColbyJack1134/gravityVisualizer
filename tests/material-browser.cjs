@@ -82,7 +82,8 @@ const spread=values=>Math.max(...values)/Math.min(...values)-1;
         d.i('uSlices',64);d.f('uSpin',0);d.f('uBrightness',1);d.f('uObserverEnergy',1);d.f('uOrbitAngle',0);
         d.f('uCacheRow',0);
         d.v3('uVolumeGrid',d.volumeGrid);d.v3('uVolumeExtent',d.volumeExtent);
-        d.bind('uPathX',tx,0,gl.TEXTURE_2D_ARRAY);d.bind('uPathP',tp,1,gl.TEXTURE_2D_ARRAY);d.bind('uSky',sky,2);d.bind('uEmission',d.emission,3);
+        d.bind('uPathX',tx,0,gl.TEXTURE_2D_ARRAY);d.bind('uPathP',tp,1,gl.TEXTURE_2D_ARRAY);d.bind('uEmission',d.emission,3);
+        d.bind('uBase',sky,2);d.bind('uSources',sky,2);d.i('uContinuation',0);
         // Zero spatial velocity and velocity.w=emission.a exclude Doppler changes.
         d.bind('uVelocity',d.velocity,4);d.quad();
         const pixels=new Float32Array(width*width*4);gl.readBuffer(gl.COLOR_ATTACHMENT0);gl.readPixels(0,0,width,width,gl.RGBA,gl.FLOAT,pixels);

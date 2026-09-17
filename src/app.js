@@ -204,6 +204,7 @@
         update: this.program(S.particleUpdate, S.emptyFragment, ['vPosition', 'vMomentum', 'vLifecycle']),
         deposit: this.program(S.depositVertex, S.depositFragment),
         shade: this.program(S.fullscreen, S.volumeShade),
+        volumeComposite: this.program(S.fullscreen, S.volumeComposite),
         stars: this.program(S.fullscreen, S.starAppearance),
         blur: this.program(S.fullscreen, S.blur),
         composite: this.program(S.fullscreen, S.composite)
@@ -428,36 +429,86 @@
       this.rayTiles = [];
       for (let row = 0; row < rh; row += rows) {
         const height = Math.min(rows, rh - row);
-        const cache = (format = gl.RGBA32F, layers = 0) => {
-          const t = this.texture(rw, height, format, false, layers);
-          this.cacheTextures.push(t);
-          return t;
-        };
-        const tile = {
-          row, height, sky: cache(),
-          pathX: cache(gl.RGBA16F, this.slices),
-          pathP: cache(gl.RGBA16F, this.slices),
-          stateX: [cache(), cache()], stateP: [cache(), cache()]
-        };
-        tile.stateFbo = [
-          this.fbo([tile.stateX[0], tile.stateP[0]]),
-          this.fbo([tile.stateX[1], tile.stateP[1]])
-        ];
-        tile.finishFbo = this.fbo([tile.sky]);
-        this.cacheFbos.push(...tile.stateFbo, tile.finishFbo);
+        const tile = { row, ...this.allocatePathCache(rw, height, this.slices) };
+        tile.sky = this.texture(rw, height, gl.RGBA32F);
+        tile.tailIndex = this.texture(rw, height, gl.RGBA32F);
+        tile.finishFbo = this.fbo([tile.sky, tile.tailIndex]);
+        this.cacheTextures.push(tile.sky, tile.tailIndex);
+        this.cacheFbos.push(tile.finishFbo);
         this.rayTiles.push(tile);
       }
-      this.job = { next: 0, total: (this.slices + 1) * this.rayTiles.length };
+      this.job = { tile: 0, slice: 0, tail: false, next: 0, total: (this.slices + 2) * this.rayTiles.length };
       gl.bindFramebuffer(gl.FRAMEBUFFER, null);
       this.lastPresentation = 0;
       this.fpsSamples = [];
       this.onTrace?.(0, 'Loading');
+    }
+    allocatePathCache(width, height, slices) {
+      const gl = this.gl;
+      const cache = (layers = 0) => {
+        const t = this.texture(width, height, layers ? gl.RGBA16F : gl.RGBA32F, false, layers);
+        this.cacheTextures.push(t);
+        return t;
+      };
+      const path = { width, height, slices, pathX: cache(slices), pathP: cache(slices),
+        stateX: [cache(), cache()], stateP: [cache(), cache()] };
+      path.stateFbo = [this.fbo([path.stateX[0], path.stateP[0]]), this.fbo([path.stateX[1], path.stateP[1]])];
+      this.cacheFbos.push(...path.stateFbo);
+      return path;
+    }
+    prepareContinuation(tile) {
+      const gl = this.gl, size = tile.width * tile.height * 4;
+      const index = new Float32Array(size), selected = [];
+      gl.readBuffer(gl.COLOR_ATTACHMENT1);
+      gl.readPixels(0, 0, tile.width, tile.height, gl.RGBA, gl.FLOAT, index);
+      let slices = 0;
+      for (let i = 0; i < size; i += 4) {
+        if (index[i] <= 0) continue;
+        slices = Math.max(slices, index[i]);
+        selected.push(i);
+        index[i] = selected.length;
+      }
+      if (!selected.length) return;
+      if (slices > gl.getParameter(gl.MAX_ARRAY_TEXTURE_LAYERS))
+        throw new Error('This view requires more ray-path layers than the GPU supports.');
+      const states = [new Float32Array(size), new Float32Array(size)];
+      gl.bindFramebuffer(gl.FRAMEBUFFER, tile.stateFbo[(this.slices - 1) % 2]);
+      for (let i = 0; i < 2; i++) {
+        gl.readBuffer(gl.COLOR_ATTACHMENT0 + i);
+        gl.readPixels(0, 0, tile.width, tile.height, gl.RGBA, gl.FLOAT, states[i]);
+      }
+      const width = Math.min(512, selected.length), height = Math.ceil(selected.length / width);
+      const tail = this.allocatePathCache(width, height, slices);
+      tail.count = selected.length;
+      tail.sources = this.texture(width, height, gl.RGBA32F);
+      tail.image = this.texture(width, height, gl.RGBA32F);
+      tail.imageFbo = this.fbo([tail.image]);
+      this.cacheTextures.push(tail.sources, tail.image);
+      this.cacheFbos.push(tail.imageFbo);
+      const sources = new Float32Array(width * height * 4);
+      selected.forEach((offset, i) => sources.set([offset / 4 % tile.width,
+        Math.floor(offset / 4 / tile.width) + tile.row], i * 4));
+      gl.bindTexture(gl.TEXTURE_2D, tail.sources);
+      gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, width, height, gl.RGBA, gl.FLOAT, sources);
+      // Pack only rays with uncached volume samples.
+      for (const [component, texture] of [tail.stateX[1], tail.stateP[1]].entries()) {
+        const data = new Float32Array(width * height * 4);
+        for (let i = 0; i < width * height; i++) data[i * 4 + 3] = component === 0 ? 1 : 0;
+        selected.forEach((offset, i) => data.set(states[component].subarray(offset, offset + 4), i * 4));
+        gl.bindTexture(gl.TEXTURE_2D, texture);
+        gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, width, height, gl.RGBA, gl.FLOAT, data);
+      }
+      gl.bindTexture(gl.TEXTURE_2D, tile.tailIndex);
+      gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, tile.width, tile.height, gl.RGBA, gl.FLOAT, index);
+      tile.tail = tail;
     }
     allocateRenderTargets() {
       const gl = this.gl;
       this.destroy(this.renderTextures, this.renderFbos);
       this.hdr = this.texture(this.rw, this.rh, gl.RGBA16F, true);
       this.hdrFbo = this.fbo([this.hdr]);
+      this.materialBase = this.texture(this.rw, this.rh, gl.RGBA32F);
+      this.materialBaseFbo = this.fbo([this.materialBase]);
       this.starImage = null;
       this.displayImage = this.hdr;
       this.bw = Math.max(8, Math.floor(this.rw / 3));
@@ -467,8 +518,8 @@
         this.texture(this.bw, this.bh, gl.RGBA16F, true)
       ];
       this.bloomFbo = this.bloom.map((t) => this.fbo([t]));
-      this.renderTextures.push(this.hdr, ...this.bloom);
-      this.renderFbos.push(this.hdrFbo, ...this.bloomFbo);
+      this.renderTextures.push(this.hdr, this.materialBase, ...this.bloom);
+      this.renderFbos.push(this.hdrFbo, this.materialBaseFbo, ...this.bloomFbo);
       for (const fbo of this.renderFbos) {
         gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
         gl.clearColor(0, 0, 0, 1);
@@ -479,16 +530,16 @@
       const gl = this.gl,
         job = this.job;
       if (!job) return;
-      const tile = this.rayTiles[Math.floor(job.next / (this.slices + 1))];
-      const slice = job.next % (this.slices + 1);
+      const tile = this.rayTiles[job.tile], path = job.tail ? tile.tail : tile;
+      const slice = job.slice;
       gl.disable(gl.BLEND);
-      gl.viewport(0, 0, this.rw, tile.height);
-      if (slice < this.slices) {
+      gl.viewport(0, 0, path.width, path.height);
+      if (slice < path.slices) {
         const write = slice % 2,
           read = 1 - write;
-        gl.bindFramebuffer(gl.FRAMEBUFFER, tile.stateFbo[write]);
-        gl.framebufferTextureLayer(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT2, tile.pathX, 0, slice);
-        gl.framebufferTextureLayer(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT3, tile.pathP, 0, slice);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, path.stateFbo[write]);
+        gl.framebufferTextureLayer(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT2, path.pathX, 0, slice);
+        gl.framebufferTextureLayer(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT3, path.pathP, 0, slice);
         gl.drawBuffers([
           gl.COLOR_ATTACHMENT0,
           gl.COLOR_ATTACHMENT1,
@@ -497,10 +548,14 @@
         ]);
         this.use(this.programs.trace);
         this.cameraUniforms(tile.row);
-        this.i('uSlice', slice);
-        this.bind('uStateX', tile.stateX[read], 0);
-        this.bind('uStateP', tile.stateP[read], 1);
+        this.i('uSlice', job.tail ? this.slices + slice : slice);
+        this.bind('uStateX', path.stateX[read], 0);
+        this.bind('uStateP', path.stateP[read], 1);
         this.quad();
+        job.slice++;
+        if (job.tail && job.slice === path.slices) {
+          job.tile++; job.slice = 0; job.tail = false;
+        }
       } else {
         gl.bindFramebuffer(gl.FRAMEBUFFER, tile.finishFbo);
         this.use(this.programs.finish);
@@ -509,10 +564,14 @@
         this.bind('uStateX', tile.stateX[read], 0);
         this.bind('uStateP', tile.stateP[read], 1);
         this.quad();
+        this.prepareContinuation(tile);
+        job.slice = 0;
+        if (tile.tail) job.tail = true;
+        else job.tile++;
       }
-      job.next++;
+      job.next = job.tile * (this.slices + 2) + (job.tail ? this.slices + 1 + job.slice / tile.tail.slices : job.slice);
       this.onTrace?.(job.next / job.total);
-      if (job.next >= job.total) {
+      if (job.tile === this.rayTiles.length) {
         this.job = null;
         this.cacheReady = true;
         this.fpsSamples = [];
@@ -584,27 +643,58 @@
     }
     shade() {
       const gl = this.gl;
-      gl.bindFramebuffer(gl.FRAMEBUFFER, this.hdrFbo);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, this.materialBaseFbo);
       gl.viewport(0, 0, this.rw, this.rh);
       this.use(this.programs.shade);
       this.f('uSpin', this.a());
       this.f('uBrightness', 1.1);
-      this.f('uStarDensity', this.starDensity);
-      this.f('uCloudDensity', this.cloudDensity);
       this.v3('uVolumeGrid', this.volumeGrid);
       this.v3('uVolumeExtent', this.volumeExtent);
       this.f('uOrbitAngle', this.orbitAngle);
       this.f('uObserverEnergy', this.observerEnergy);
       this.bind('uEmission', this.emission, 1);
       this.bind('uVelocity', this.velocity, 4);
+      this.bind('uBase', this.hdr, 0);
+      this.bind('uSources', this.paletteTexture, 5);
+      this.i('uContinuation', 0);
       this.i('uSlices', this.slices);
       gl.enable(gl.SCISSOR_TEST);
       for (const tile of this.rayTiles) {
         gl.scissor(0, tile.row, this.rw, tile.height);
         this.f('uCacheRow', tile.row);
-        this.bind('uSky', tile.sky, 0);
         this.bind('uPathX', tile.pathX, 2, gl.TEXTURE_2D_ARRAY);
         this.bind('uPathP', tile.pathP, 3, gl.TEXTURE_2D_ARRAY);
+        this.quad();
+      }
+      gl.disable(gl.SCISSOR_TEST);
+      this.i('uContinuation', 1);
+      this.f('uCacheRow', 0);
+      this.bind('uBase', this.materialBase, 0);
+      for (const {tail} of this.rayTiles) {
+        if (!tail) continue;
+        gl.bindFramebuffer(gl.FRAMEBUFFER, tail.imageFbo);
+        gl.viewport(0, 0, tail.width, tail.height);
+        this.i('uSlices', tail.slices);
+        this.bind('uSources', tail.sources, 5);
+        this.bind('uPathX', tail.pathX, 2, gl.TEXTURE_2D_ARRAY);
+        this.bind('uPathP', tail.pathP, 3, gl.TEXTURE_2D_ARRAY);
+        this.quad();
+      }
+      gl.bindFramebuffer(gl.FRAMEBUFFER, this.hdrFbo);
+      gl.viewport(0, 0, this.rw, this.rh);
+      this.use(this.programs.volumeComposite);
+      this.f('uStarDensity', this.starDensity);
+      this.f('uCloudDensity', this.cloudDensity);
+      this.f('uOrbitAngle', this.orbitAngle);
+      this.bind('uBase', this.materialBase, 0);
+      gl.enable(gl.SCISSOR_TEST);
+      for (const tile of this.rayTiles) {
+        gl.scissor(0, tile.row, this.rw, tile.height);
+        this.f('uCacheRow', tile.row);
+        this.i('uContinuation', tile.tail ? 1 : 0);
+        this.bind('uSky', tile.sky, 1);
+        this.bind('uTailIndex', tile.tailIndex, 2);
+        this.bind('uContinuationImage', tile.tail?.image || this.materialBase, 3);
         this.quad();
       }
       gl.disable(gl.SCISSOR_TEST);
