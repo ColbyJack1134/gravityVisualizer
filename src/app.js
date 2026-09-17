@@ -11,10 +11,8 @@
       this.material = 0.3;
       this.exposure = 1.7;
       this.sharpness = 1;
-      this.starAppearance = 'soft';
+      this.starAppearance = 'compact';
       this.starDefinition = 0.7;
-      this.glintStrength = 0.35;
-      this.glintLength = 0.4;
       this.starDensity = 1;
       this.cloudDensity = 1;
       this.speed = 10;
@@ -136,7 +134,7 @@
       const oldTheta = this.camera.theta, oldDistance = this.camera.distance;
       const ranges = {
         spin: [0.05, 0.95], material: [0.1, 1], exposure: [0.3, 3], sharpness: [0, 1],
-        starDefinition: [0, 1], glintStrength: [0, 1], glintLength: [0, 1],
+        starDefinition: [0, 1],
         starDensity: [0, 5], cloudDensity: [0, 5], speed: [1, 24], fadeSeconds: [0, 6],
         motionStrength: [0, 1], roll: [-Math.PI / 6, Math.PI / 6],
         framing: [-0.35, 0.35], framingY: [-0.2, 0.2], audioGain: [0.3, 3],
@@ -154,7 +152,7 @@
         this.quality = settings.quality;
       if (['gentle', 'music', 'fixed'].includes(settings.cameraMotion))
         this.cameraMotion = settings.cameraMotion;
-      if (['soft', 'compact', 'glints'].includes(settings.starAppearance))
+      if (['compact', 'soft'].includes(settings.starAppearance))
         this.starAppearance = settings.starAppearance;
       if (typeof settings.elevation === 'number' && Number.isFinite(settings.elevation))
         this.camera.theta = ((90 - Math.max(5, Math.min(80, settings.elevation))) * Math.PI) / 180;
@@ -597,8 +595,7 @@
     styleStars() {
       const gl = this.gl;
       this.displayImage = this.hdr;
-      const glints = this.starAppearance === 'glints' && this.glintStrength > 0;
-      if (this.starAppearance === 'soft' || (this.starDefinition === 0 && !glints)) return;
+      if (this.starAppearance === 'soft' || this.starDefinition === 0) return;
       if (!this.starImage) {
         this.starImage = this.texture(this.rw, this.rh, gl.RGBA16F, true);
         this.starFbo = this.fbo([this.starImage]);
@@ -641,8 +638,6 @@
       this.f('uExposure', this.exposure);
       this.f('uGlow', 0.1);
       this.f('uSharpness', this.sharpness);
-      this.f('uGlintStrength', this.starAppearance === 'glints' ? this.glintStrength : 0);
-      this.f('uGlintLength', this.glintLength);
       this.quad();
     }
     refreshPalette(force = false) {

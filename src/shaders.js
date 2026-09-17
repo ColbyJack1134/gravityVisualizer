@@ -368,13 +368,7 @@ void main(){
   float detail=.5*(contrast+sqrt(contrast*contrast+.04));
   float gain=mix(1.,.45+2.75*detail,uDefinition);
   c.rgb*=1.+clamp(c.a/max(peak,1e-7),0.,1.)*(gain-1.);
-  // The smaller curvature rejects ridges at any angle.
-  vec2 curvature=vec2(c.a-(left+right)*.5,c.a-(down+up)*.5);
-  float crossTerm=(ne+sw-nw-se)*.125;
-  float roundness=max(0.,.5*(curvature.x+curvature.y
-    -length(vec2(curvature.x-curvature.y,2.*crossTerm)))/max(c.a,.0005));
-  float glint=smoothstep(.12,.45,roundness)*smoothstep(.045,.22,c.a);
-  color=vec4(c.rgb,glint);
+  color=vec4(c.rgb,1.);
 }
 `;
   const blur =
@@ -400,7 +394,6 @@ void main(){
     viewCode +
     `
 in vec2 uv;out vec4 color;uniform sampler2D uImage,uBloom;uniform float uExposure,uGlow,uSharpness;
-uniform float uGlintStrength,uGlintLength;
 vec3 aces(vec3 v){return clamp((v*(2.51*v+.03))/(v*(2.43*v+.59)+.14),0.,1.);}
 vec3 reconstruct(vec2 coord){
   // Catmull–Rom reconstruction with nine bilinear taps.
@@ -438,23 +431,9 @@ vec3 sharpen(vec3 c,vec2 coord){
   float detail=clamp((peak-surrounding)/max(peak,.002),-.4,.6);
   return c*(1.+uSharpness*detail*smoothstep(.0005,.008,peak));
 }
-vec3 glintSource(vec2 coord){vec4 c=texture(uImage,coord);return c.rgb*c.a;}
-vec3 glints(vec2 coord){
-  if(uGlintStrength<=0.)return vec3(0.);
-  float span=mix(2.,16.,uGlintLength)/1080.;
-  vec2 dx=viewUV(uv+vec2(span/uViewAspect,0.))-coord;
-  vec2 dy=viewUV(uv+vec2(0.,span))-coord;
-  vec3 sum=vec3(0.);
-  for(int i=1;i<=12;i++){
-    float t=float(i)/12.,weight=(1.-t)*(1.-t);
-    sum+=(glintSource(coord+dx*t)+glintSource(coord-dx*t)
-      +glintSource(coord+dy*t)+glintSource(coord-dy*t))*weight;
-  }
-  return sum*(uGlintStrength/12.);
-}
 void main(){
 vec2 lookup=viewUV(uv);
-vec3 c=sharpen(reconstruct(lookup),lookup)+texture(uBloom,lookup).rgb*uGlow+glints(lookup);
+vec3 c=sharpen(reconstruct(lookup),lookup)+texture(uBloom,lookup).rgb*uGlow;
 if(any(lessThan(lookup,vec2(0.)))||any(greaterThan(lookup,vec2(1.))))c=vec3(.00013,.0002,.00035);
 // Compress all channels by the same factor to preserve hue.
 c=max(c,vec3(0.));float peak=max(c.r,max(c.g,c.b));

@@ -463,16 +463,10 @@ summary {
 
     <section class="control-section">
       <h2>Star appearance</h2>
-      <label for="star-appearance">Style<select id="star-appearance"><option value="soft" selected>Soft (original)</option><option value="compact">Compact stars</option><option value="glints">Photographic glints</option></select></label>
-      <div id="star-definition-controls" hidden>
+      <label for="star-appearance">Style<select id="star-appearance"><option value="compact" selected>Compact</option><option value="soft">Soft</option></select></label>
+      <div id="star-definition-controls">
         <label class="range-label" for="star-definition">Core strength <output id="star-definition-value">70%</output></label>
         <input id="star-definition" type="range" min="0" max="100" value="70">
-      </div>
-      <div id="glint-controls" hidden>
-        <label class="range-label" for="glint-strength">Glint strength <output id="glint-strength-value">35%</output></label>
-        <input id="glint-strength" type="range" min="0" max="100" value="35">
-        <label class="range-label" for="glint-length">Glint length <output id="glint-length-value">40%</output></label>
-        <input id="glint-length" type="range" min="0" max="100" value="40">
       </div>
     </section>
 
@@ -1363,13 +1357,7 @@ void main(){
   float detail=.5*(contrast+sqrt(contrast*contrast+.04));
   float gain=mix(1.,.45+2.75*detail,uDefinition);
   c.rgb*=1.+clamp(c.a/max(peak,1e-7),0.,1.)*(gain-1.);
-  // The smaller curvature rejects ridges at any angle.
-  vec2 curvature=vec2(c.a-(left+right)*.5,c.a-(down+up)*.5);
-  float crossTerm=(ne+sw-nw-se)*.125;
-  float roundness=max(0.,.5*(curvature.x+curvature.y
-    -length(vec2(curvature.x-curvature.y,2.*crossTerm)))/max(c.a,.0005));
-  float glint=smoothstep(.12,.45,roundness)*smoothstep(.045,.22,c.a);
-  color=vec4(c.rgb,glint);
+  color=vec4(c.rgb,1.);
 }
 `;
   const blur =
@@ -1395,7 +1383,6 @@ void main(){
     viewCode +
     `
 in vec2 uv;out vec4 color;uniform sampler2D uImage,uBloom;uniform float uExposure,uGlow,uSharpness;
-uniform float uGlintStrength,uGlintLength;
 vec3 aces(vec3 v){return clamp((v*(2.51*v+.03))/(v*(2.43*v+.59)+.14),0.,1.);}
 vec3 reconstruct(vec2 coord){
   // Catmull–Rom reconstruction with nine bilinear taps.
@@ -1433,23 +1420,9 @@ vec3 sharpen(vec3 c,vec2 coord){
   float detail=clamp((peak-surrounding)/max(peak,.002),-.4,.6);
   return c*(1.+uSharpness*detail*smoothstep(.0005,.008,peak));
 }
-vec3 glintSource(vec2 coord){vec4 c=texture(uImage,coord);return c.rgb*c.a;}
-vec3 glints(vec2 coord){
-  if(uGlintStrength<=0.)return vec3(0.);
-  float span=mix(2.,16.,uGlintLength)/1080.;
-  vec2 dx=viewUV(uv+vec2(span/uViewAspect,0.))-coord;
-  vec2 dy=viewUV(uv+vec2(0.,span))-coord;
-  vec3 sum=vec3(0.);
-  for(int i=1;i<=12;i++){
-    float t=float(i)/12.,weight=(1.-t)*(1.-t);
-    sum+=(glintSource(coord+dx*t)+glintSource(coord-dx*t)
-      +glintSource(coord+dy*t)+glintSource(coord-dy*t))*weight;
-  }
-  return sum*(uGlintStrength/12.);
-}
 void main(){
 vec2 lookup=viewUV(uv);
-vec3 c=sharpen(reconstruct(lookup),lookup)+texture(uBloom,lookup).rgb*uGlow+glints(lookup);
+vec3 c=sharpen(reconstruct(lookup),lookup)+texture(uBloom,lookup).rgb*uGlow;
 if(any(lessThan(lookup,vec2(0.)))||any(greaterThan(lookup,vec2(1.))))c=vec3(.00013,.0002,.00035);
 // Compress all channels by the same factor to preserve hue.
 c=max(c,vec3(0.));float peak=max(c.r,max(c.g,c.b));
@@ -1486,10 +1459,8 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
       this.material = 0.3;
       this.exposure = 1.7;
       this.sharpness = 1;
-      this.starAppearance = 'soft';
+      this.starAppearance = 'compact';
       this.starDefinition = 0.7;
-      this.glintStrength = 0.35;
-      this.glintLength = 0.4;
       this.starDensity = 1;
       this.cloudDensity = 1;
       this.speed = 10;
@@ -1611,7 +1582,7 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
       const oldTheta = this.camera.theta, oldDistance = this.camera.distance;
       const ranges = {
         spin: [0.05, 0.95], material: [0.1, 1], exposure: [0.3, 3], sharpness: [0, 1],
-        starDefinition: [0, 1], glintStrength: [0, 1], glintLength: [0, 1],
+        starDefinition: [0, 1],
         starDensity: [0, 5], cloudDensity: [0, 5], speed: [1, 24], fadeSeconds: [0, 6],
         motionStrength: [0, 1], roll: [-Math.PI / 6, Math.PI / 6],
         framing: [-0.35, 0.35], framingY: [-0.2, 0.2], audioGain: [0.3, 3],
@@ -1629,7 +1600,7 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
         this.quality = settings.quality;
       if (['gentle', 'music', 'fixed'].includes(settings.cameraMotion))
         this.cameraMotion = settings.cameraMotion;
-      if (['soft', 'compact', 'glints'].includes(settings.starAppearance))
+      if (['compact', 'soft'].includes(settings.starAppearance))
         this.starAppearance = settings.starAppearance;
       if (typeof settings.elevation === 'number' && Number.isFinite(settings.elevation))
         this.camera.theta = ((90 - Math.max(5, Math.min(80, settings.elevation))) * Math.PI) / 180;
@@ -2072,8 +2043,7 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
     styleStars() {
       const gl = this.gl;
       this.displayImage = this.hdr;
-      const glints = this.starAppearance === 'glints' && this.glintStrength > 0;
-      if (this.starAppearance === 'soft' || (this.starDefinition === 0 && !glints)) return;
+      if (this.starAppearance === 'soft' || this.starDefinition === 0) return;
       if (!this.starImage) {
         this.starImage = this.texture(this.rw, this.rh, gl.RGBA16F, true);
         this.starFbo = this.fbo([this.starImage]);
@@ -2116,8 +2086,6 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
       this.f('uExposure', this.exposure);
       this.f('uGlow', 0.1);
       this.f('uSharpness', this.sharpness);
-      this.f('uGlintStrength', this.starAppearance === 'glints' ? this.glintStrength : 0);
-      this.f('uGlintLength', this.glintLength);
       this.quad();
     }
     refreshPalette(force = false) {
@@ -2453,7 +2421,6 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
       $('sharpness-value').textContent = Math.round(this.sharpness * 100) + '%';
       $('star-appearance').value = this.starAppearance;
       $('star-definition-controls').hidden = this.starAppearance === 'soft';
-      $('glint-controls').hidden = this.starAppearance !== 'glints';
       $('particle-fade').value = this.fadeSeconds;
       $('particle-fade-value').textContent = this.fadeSeconds.toFixed(1) + ' s';
       this.syncPaletteUI();
@@ -2466,8 +2433,6 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
         ['audio-balance', this.spectrum.balance],
         ['sustained-light', this.sustainStrength],
         ['star-definition', this.starDefinition],
-        ['glint-strength', this.glintStrength],
-        ['glint-length', this.glintLength],
         ['star-density', this.starDensity],
         ['cloud-density', this.cloudDensity]
       ]) {
@@ -2672,8 +2637,7 @@ c=pow(c,vec3(1./2.2));float vignette=1.-.14*dot(uv-.5,uv-.5);color=vec4(c*vignet
       });
       const controls = {
         material: ['material', 0.01], exposure: ['exposure', 1], sharpness: ['sharpness', 0.01],
-        'star-definition': ['starDefinition', 0.01], 'glint-strength': ['glintStrength', 0.01],
-        'glint-length': ['glintLength', 0.01],
+        'star-definition': ['starDefinition', 0.01],
         'particle-fade': ['fadeSeconds', 1], speed: ['speed', 1],
         'camera-amount': ['motionStrength', 0.01], 'camera-roll': ['roll', Math.PI / 180],
         framing: ['framing', 0.01], 'framing-y': ['framingY', 0.01],

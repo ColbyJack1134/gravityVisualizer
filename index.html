@@ -119,16 +119,10 @@
 
     <section class="control-section">
       <h2>Star appearance</h2>
-      <label for="star-appearance">Style<select id="star-appearance"><option value="soft" selected>Soft (original)</option><option value="compact">Compact stars</option><option value="glints">Photographic glints</option></select></label>
-      <div id="star-definition-controls" hidden>
+      <label for="star-appearance">Style<select id="star-appearance"><option value="compact" selected>Compact</option><option value="soft">Soft</option></select></label>
+      <div id="star-definition-controls">
         <label class="range-label" for="star-definition">Core strength <output id="star-definition-value">70%</output></label>
         <input id="star-definition" type="range" min="0" max="100" value="70">
-      </div>
-      <div id="glint-controls" hidden>
-        <label class="range-label" for="glint-strength">Glint strength <output id="glint-strength-value">35%</output></label>
-        <input id="glint-strength" type="range" min="0" max="100" value="35">
-        <label class="range-label" for="glint-length">Glint length <output id="glint-length-value">40%</output></label>
-        <input id="glint-length" type="range" min="0" max="100" value="40">
       </div>
     </section>
 
