@@ -186,7 +186,7 @@
         this.camera.phi -= dx * .005;
         this.camera.theta = Math.max(-Math.PI / 2, Math.min(3 * Math.PI / 2, this.camera.theta - dy * .005));
         this.camera.distance = Math.max(32, Math.min(85, this.camera.distance * zoom));
-        this.syncUI();
+        this.syncViewUI();
       };
       canvas.addEventListener('pointerdown', event => {
         if (!this.continuousTracing || event.button !== 0 || drag) return;
@@ -288,6 +288,9 @@
       $('manual-sensitivity').hidden = this.spectrum.autoSensitivity;
       $('bass-shake').value = this.shakeStrength * 100;
       $('bass-shake-value').textContent = Math.round(this.shakeStrength * 100) + '%';
+      this.syncViewUI();
+    }
+    syncViewUI() {
       $('elevation').value = Math.round(90 - (this.camera.theta * 180) / Math.PI);
       $('elevation-value').textContent = $('elevation').value + '°';
       $('distance').value = this.camera.distance;
