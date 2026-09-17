@@ -1,6 +1,6 @@
 {
   "title": "Gravity [Audio Visualizer]",
-  "description": "A black hole and orbiting particles that respond to live audio.\n\nVideo demo: https://github.com/ColbyJack1134/gravityVisualizer/releases/download/v0.2.0/gravity-demo-1080p60.mp4",
+  "description": "A black hole and orbiting particles that respond to live audio.\n\nSource: https://github.com/ColbyJack1134/gravityVisualizer",
   "type": "web",
   "file": "index.html",
   "preview": "preview.gif",
