@@ -51,19 +51,20 @@ const project = require('../wallpaper/project.json');
       return { stats: r.stats(), framing: [r.framing, r.framingY], fps: r.fpsLimit,
         material: r.material, exposure: r.exposure, sharpness: r.sharpness, fade: r.fadeSeconds,
         brightness: [r.brightnessMin, r.brightnessMax], radius: r.cloudRadius, dimming: r.radialDimming,
-        thickness: r.cloudThickness,
+        thickness: r.cloudThickness, tilt: r.roll * 180 / Math.PI, elevation: 90 - r.camera.theta * 180 / Math.PI,
         animated: r.palette.hsv.animated, colors: r.palette.custom.stops.map(c => c.toUpperCase()), registrations: audioRegistrations,
         idle: [r.idlePalette.mode, r.idlePalette.weighted.animated, r.idlePalette.weighted.weights],
         rendered: Array.from(r.paletteColors), auto: r.spectrum.autoSensitivity,
         showIdleParticles: r.showIdleParticles, silenceThreshold: r.spectrum.silenceThreshold };
     });
     assert.equal(defaults.stats.cacheBuilds, 1, 'Early settings must precede the first cache allocation');
-    assert.equal(defaults.stats.particles, 65536); assert.equal(defaults.stats.spin, 0.5);
+    assert.equal(defaults.stats.particles, 65536); assert.equal(defaults.stats.spin, 0);
     assert.deepEqual(defaults.framing, [0.03, 0.1]); assert.equal(defaults.fps, 30);
     assert.equal(defaults.material, 0.3); assert.equal(defaults.exposure, 1.7);
-    assert.deepEqual(defaults.brightness.map(v => Math.round(v * 100)), [65, 140]); assert.equal(defaults.radius, 22);
+    assert.deepEqual(defaults.brightness.map(v => Math.round(v * 100)), [65, 140]); assert.equal(defaults.radius, 26.4);
     assert.equal(defaults.dimming, .5);
-    assert.equal(defaults.thickness, .15);
+    assert.equal(defaults.thickness, .01);
+    assert.equal(defaults.tilt, 10); assert.equal(defaults.elevation, 5); assert.equal(defaults.stats.cameraDistance, 37);
     for (const percent of [0, 50, 100]) {
       await apply({radialdimming: percent});
       assert.equal(await page.evaluate(() => {

@@ -1,0 +1,120 @@
+{
+  "name": "Legacy",
+  "sourceCommit": "ed54404d8c90355b18e8bcf566a01af342e1e47f",
+  "settings": {
+    "spinning": true,
+    "spin": 0.5,
+    "material": 0.3,
+    "cloudRadius": 22,
+    "cloudThickness": 0.15,
+    "exposure": 1.7,
+    "sharpness": 1,
+    "starAppearance": "compact",
+    "starDefinition": 0.7,
+    "brightnessMin": 0.65,
+    "brightnessMax": 1.4,
+    "radialDimming": 0.5,
+    "starDensity": 1,
+    "cloudDensity": 1,
+    "speed": 10,
+    "count": 65536,
+    "quality": "balanced",
+    "fpsLimit": 60,
+    "fadeSeconds": 3,
+    "cameraMotion": "gentle",
+    "motionStrength": 0.55,
+    "roll": 0.2617993877991494,
+    "framing": 0.03,
+    "framingY": 0.1,
+    "paused": false,
+    "audioGain": 1,
+    "sustainStrength": 1,
+    "showIdleParticles": true,
+    "shakeStrength": 0.7,
+    "elevation": 18,
+    "distance": 37,
+    "balance": 0.75,
+    "autoSensitivity": true,
+    "silenceThreshold": 0,
+    "palette": {
+      "mode": "hsv",
+      "solid": "#aa44ff",
+      "saturation": 1,
+      "hsv": {
+        "offset": 0,
+        "animated": true,
+        "speed": 0.5
+      },
+      "custom": {
+        "offset": 0,
+        "animated": true,
+        "speed": 0.5,
+        "stops": [
+          "#23D183",
+          "#1DCA97",
+          "#17C2AB",
+          "#12BBC0",
+          "#0CB3D4",
+          "#06ACE8"
+        ]
+      },
+      "weighted": {
+        "offset": 0,
+        "animated": false,
+        "speed": 0.5,
+        "stops": [
+          "#ffc38a",
+          "#ffead5",
+          "#f9faff",
+          "#bfd5ff"
+        ],
+        "weights": [
+          8,
+          12,
+          60,
+          20
+        ]
+      }
+    },
+    "idlePalette": {
+      "mode": "weighted",
+      "solid": "#ffffff",
+      "saturation": 1,
+      "hsv": {
+        "offset": 0,
+        "animated": true,
+        "speed": 0.5
+      },
+      "custom": {
+        "offset": 0,
+        "animated": true,
+        "speed": 0.5,
+        "stops": [
+          "#23D183",
+          "#1DCA97",
+          "#17C2AB",
+          "#12BBC0",
+          "#0CB3D4",
+          "#06ACE8"
+        ]
+      },
+      "weighted": {
+        "offset": 0,
+        "animated": false,
+        "speed": 0.5,
+        "stops": [
+          "#ffc38a",
+          "#ffead5",
+          "#f9faff",
+          "#bfd5ff"
+        ],
+        "weights": [
+          8,
+          12,
+          60,
+          20
+        ]
+      }
+    }
+  }
+}

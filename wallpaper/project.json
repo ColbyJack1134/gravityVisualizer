@@ -850,7 +850,7 @@
         "order": 83,
         "text": "Tilt",
         "type": "slider",
-        "value": 15,
+        "value": 10,
         "min": -30,
         "max": 30,
         "step": 1,
@@ -886,7 +886,7 @@
         "order": 86,
         "text": "Elevation",
         "type": "slider",
-        "value": 18,
+        "value": 5,
         "min": 5,
         "max": 80,
         "step": 1,
@@ -915,7 +915,7 @@
         "order": 89,
         "text": "Spinning black hole",
         "type": "bool",
-        "value": true
+        "value": false
       },
       "spin": {
         "order": 90,
@@ -950,7 +950,7 @@
       "cloudradius": {
         "text": "Cloud radius (%)",
         "type": "slider",
-        "value": 100,
+        "value": 120,
         "min": 50,
         "max": 150,
         "step": 1,
@@ -962,7 +962,7 @@
       "cloudthickness": {
         "text": "Cloud thickness (%)",
         "type": "slider",
-        "value": 15,
+        "value": 1,
         "min": 0,
         "max": 100,
         "step": 1,

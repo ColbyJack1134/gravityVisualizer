@@ -1,16 +1,16 @@
 (function () {
   'use strict';
   const P = GravityPhysics, S = GravityShaders;
-  const defaultCamera = { theta: (72 * Math.PI) / 180, phi: -Math.PI / 2, distance: 37 };
+  const defaultCamera = { theta: (85 * Math.PI) / 180, phi: -Math.PI / 2, distance: 37 };
   const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
   class Renderer {
     constructor(canvas) {
       this.canvas = canvas;
-      this.spinning = true;
+      this.spinning = false;
       this.spin = 0.5;
       this.material = 0.3;
-      this.cloudRadius = 22;
-      this.cloudThickness = 0.15;
+      this.cloudRadius = 26.4;
+      this.cloudThickness = 0.01;
       this.exposure = 1.7;
       this.sharpness = 1;
       this.starAppearance = 'compact';
@@ -31,7 +31,7 @@
       this.cameraTime = 0;
       this.orbitAngle = 0;
       this.motionStrength = 0.55;
-      this.roll = (15 * Math.PI) / 180;
+      this.roll = (10 * Math.PI) / 180;
       this.framing = 0.03;
       this.framingY = 0.1;
       this.overscan = 1.2;

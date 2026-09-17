@@ -22,9 +22,12 @@ const {chromium} = require('playwright');
   try {
     await page.goto((process.env.GRAVITY_URL || pathToFileURL(path.resolve('gravity-demo.html')).href) + '?motion=fixed&ui=1');
     await ready();
-    assert.deepEqual(await page.evaluate(() => [GravityDemo.brightnessMin, GravityDemo.brightnessMax, GravityDemo.cloudRadius]), [.65, 1.4, 22]);
+    assert.deepEqual(await page.evaluate(() => [GravityDemo.brightnessMin, GravityDemo.brightnessMax, GravityDemo.cloudRadius]), [.65, 1.4, 26.4]);
     assert.equal(await page.locator('#radial-dimming').inputValue(), '50');
-    assert.equal(await page.locator('#cloud-thickness').inputValue(), '15');
+    for (const [id, value] of [['camera-roll', '10'], ['elevation', '5'], ['distance', '37'], ['cloud-radius', '120']])
+      assert.equal(await page.locator('#' + id).inputValue(), value);
+    assert.equal(await page.locator('[data-metric="static"]').getAttribute('aria-pressed'), 'true');
+    assert.equal(await page.locator('#cloud-thickness').inputValue(), '1');
     for (const [id, section] of [['brightness-min', 'Star appearance'], ['brightness-max', 'Star appearance'], ['radial-dimming', 'Star appearance'], ['cloud-radius', 'Material & light'], ['cloud-thickness', 'Material & light']])
       assert.equal(await page.locator('#' + id).evaluate(el => el.closest('section').querySelector('h2').textContent), section);
     await page.evaluate(() => {

@@ -15,7 +15,7 @@ const {chromium} = require('playwright');
     await page.goto((process.env.GRAVITY_URL || pathToFileURL(path.resolve('gravity-demo.html')).href) + '?motion=fixed');
     await page.waitForFunction(() => window.GravityDemo?.cacheReady || window.GravityDemo?.failed, null, {timeout: 180000});
     assert.equal(await page.evaluate(() => GravityDemo.failed), false);
-    await page.evaluate(() => { GravityDemo.setSuspended(true); GravityDemo.paused = true; });
+    await page.evaluate(() => { GravityDemo.setSuspended(true); GravityDemo.paused = true; GravityDemo.applySettings({spinning: true, cloudThickness: .15}); });
     for (const settings of [
       {cloudRadius: 22, elevation: 5}, {cloudRadius: 33, elevation: 18},
       {cloudRadius: 33, elevation: 5}, {cloudRadius: 11, elevation: 80},
