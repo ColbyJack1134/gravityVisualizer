@@ -33,11 +33,11 @@
       this.continuousTracing = false;
       this.floatingCamera = false;
       this.orbitPhase = 0;
-      this.orbitTilt = 30;
-      this.orbitRotation = 0;
-      this.orbitNear = 36;
-      this.orbitFar = 48;
-      this.orbitSpeed = 2;
+      this.orbitTilt = 90;
+      this.orbitRotation = 3;
+      this.orbitNear = 25;
+      this.orbitFar = 45;
+      this.orbitSpeed = 10;
       this.cameraTime = 0;
       this.orbitAngle = 0;
       this.motionStrength = 0.55;

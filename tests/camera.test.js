@@ -6,6 +6,11 @@ const context = vm.createContext({window: {}, GravityPhysics: P, GravityShaders:
   GravityAudio: require('../src/audio.js'), GravityPalette: require('../src/palette.js')});
 vm.runInContext(fs.readFileSync(require.resolve('../src/app.js'), 'utf8'), context);
 const d = new context.window.GravityRenderer({width: 1280, height: 720, getContext: () => ({})});
+assert.deepEqual([d.continuousTracing, d.floatingCamera, d.orbitTilt, d.orbitRotation,
+  d.orbitNear, d.orbitFar, d.orbitSpeed], [false, false, 90, 3, 25, 45, 10]);
+const properties = require('../wallpaper/project.json').general.properties;
+assert.deepEqual(['continuoustracing', 'floatingcamera', 'orbittilt', 'orbitrotation', 'orbitnear', 'orbitfar', 'orbitspeed']
+  .map(key => properties[key].value), [false, false, 90, 3, 25, 45, 10]);
 d.cacheRoll = 0; d.cacheFraming = [0, 0]; d.volumeScale = 1; d.rw = 832; d.rh = 468;
 let uniforms;
 d.f = d.v2 = d.v3 = (name, value) => { uniforms[name] = value; };

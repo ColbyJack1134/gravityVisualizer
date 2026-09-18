@@ -16,6 +16,8 @@ const {chromium} = require('playwright');
     assert.equal(await page.evaluate(() => GravityDemo.failed), false);
     assert.equal(await page.locator('#continuous-tracing').isChecked(), false);
     assert.equal(await page.locator('#floating-camera').isDisabled(), true);
+    assert.deepEqual(await page.evaluate(() => [GravityDemo.orbitTilt, GravityDemo.orbitRotation,
+      GravityDemo.orbitNear, GravityDemo.orbitFar, GravityDemo.orbitSpeed]), [90, 3, 25, 45, 10]);
     const inactive = await page.evaluate(() => ({...GravityDemo.camera}));
     await page.mouse.move(400, 100); await page.mouse.down();
     await page.mouse.move(440, 130); await page.mouse.up(); await page.mouse.wheel(0, 100);

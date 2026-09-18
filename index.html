@@ -79,16 +79,16 @@
       <label class="check-label"><input id="continuous-tracing" type="checkbox"> Continuous tracing (intensive)</label>
       <label class="check-label camera-suboption"><input id="floating-camera" type="checkbox" disabled> Floating camera</label>
       <div id="orbit-controls" class="camera-suboption" hidden>
-        <label class="range-label" for="orbit-tilt">Orbit tilt <output id="orbit-tilt-value">30°</output></label>
-        <input id="orbit-tilt" type="range" min="0" max="90" value="30">
-        <label class="range-label" for="orbit-rotation">Orbit rotation <output id="orbit-rotation-value">0°</output></label>
-        <input id="orbit-rotation" type="range" min="0" max="360" value="0">
-        <label class="range-label" for="orbit-near">Closest distance <output id="orbit-near-value">36</output></label>
-        <input id="orbit-near" type="range" min="10" max="150" value="36">
-        <label class="range-label" for="orbit-far">Farthest distance <output id="orbit-far-value">48</output></label>
-        <input id="orbit-far" type="range" min="10" max="150" value="48">
-        <label class="range-label" for="orbit-speed">Orbit speed <output id="orbit-speed-value">2°/s</output></label>
-        <input id="orbit-speed" type="range" min="-30" max="30" step="0.1" value="2">
+        <label class="range-label" for="orbit-tilt">Orbit tilt <output id="orbit-tilt-value">90°</output></label>
+        <input id="orbit-tilt" type="range" min="0" max="90" value="90">
+        <label class="range-label" for="orbit-rotation">Orbit rotation <output id="orbit-rotation-value">3°</output></label>
+        <input id="orbit-rotation" type="range" min="0" max="360" value="3">
+        <label class="range-label" for="orbit-near">Closest distance <output id="orbit-near-value">25</output></label>
+        <input id="orbit-near" type="range" min="10" max="150" value="25">
+        <label class="range-label" for="orbit-far">Farthest distance <output id="orbit-far-value">45</output></label>
+        <input id="orbit-far" type="range" min="10" max="150" value="45">
+        <label class="range-label" for="orbit-speed">Orbit speed <output id="orbit-speed-value">10°/s</output></label>
+        <input id="orbit-speed" type="range" min="-30" max="30" step="0.1" value="10">
       </div>
       <select id="camera-motion" aria-label="Camera movement"><option value="gentle">Slow orbit</option><option value="music">Music-driven orbit</option><option value="fixed">Hold this view</option></select>
       <label id="camera-amount-label" class="range-label" for="camera-amount">Movement</label>
