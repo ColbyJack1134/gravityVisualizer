@@ -8,7 +8,7 @@
     "build:wallpaper": "python3 scripts/build-wallpaper.py",
     "build:legacy": "python3 scripts/build-wallpaper.py --preset legacy",
     "render": "node scripts/render.cjs",
-    "test": "node tests/physics.test.js && node tests/audio.test.js && node tests/palette.test.js && node tests/wallpaper-audio.test.js && node tests/resolution.test.js && node tests/camera.test.js",
+    "test": "node tests/physics.test.js && node tests/audio.test.js && node tests/palette.test.js && node tests/wallpaper-audio.test.js && node tests/resolution.test.js && node tests/camera.test.js && node tests/camera-momentum.test.js",
     "test:browser": "node tests/browser.cjs",
     "test:audio-browser": "node tests/audio-browser.cjs",
     "test:capture-browser": "node tests/capture-browser.cjs",

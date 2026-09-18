@@ -1,6 +1,7 @@
 (function () {
   'use strict';
   const $ = (id) => document.getElementById(id);
+  const wrapTheta = theta => ((theta + Math.PI / 2) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) - Math.PI / 2;
   class WebDemo extends GravityRenderer {
     constructor() {
       super($('universe'));
@@ -185,30 +186,43 @@
         if (!this.continuousTracing || this.lost || this.failed) return;
         if (this.floatingCamera || this.cameraMotion !== 'fixed')
           this.applySettings({ floatingCamera: false, cameraMotion: 'fixed' });
-        this.camera.phi -= dx * .005;
-        this.camera.theta = Math.max(-Math.PI / 2, Math.min(3 * Math.PI / 2, this.camera.theta - dy * .005));
+        const x = -dx * .0075, y = -dy * .0035;
+        this.camera.phi += x;
+        this.camera.theta = wrapTheta(this.camera.theta + y);
         this.camera.distance = Math.max(10, Math.min(150, this.camera.distance * zoom));
         this.syncViewUI();
+        return { x, y };
       };
       canvas.addEventListener('pointerdown', event => {
         if (!this.continuousTracing || event.button !== 0 || drag) return;
-        drag = { id: event.pointerId, x: event.clientX, y: event.clientY };
+        this.cameraMomentum = null;
+        drag = { id: event.pointerId, x: event.clientX, y: event.clientY, time: event.timeStamp, vx: 0, vy: 0 };
         canvas.setPointerCapture(event.pointerId);
       });
       canvas.addEventListener('pointermove', event => {
         if (!drag || drag.id !== event.pointerId) return;
         const dx = event.clientX - drag.x, dy = event.clientY - drag.y;
+        const elapsed = Math.max(8, event.timeStamp - drag.time) / 1000;
         drag.x = event.clientX; drag.y = event.clientY;
-        if (dx || dy) move(dx, dy);
+        drag.time = event.timeStamp;
+        const movement = (dx || dy) && move(dx, dy);
+        drag.vx = movement ? Math.max(-8, Math.min(8, movement.x / elapsed)) : 0;
+        drag.vy = movement ? Math.max(-8, Math.min(8, movement.y / elapsed)) : 0;
       });
       const release = event => {
         if (!drag || drag.id !== event.pointerId) return;
-        if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
+        const age = event.timeStamp - drag.time;
+        this.cameraMomentum = event.type === 'pointerup' && age < 100
+          ? { x: drag.vx * Math.exp(-age / 50), y: drag.vy * Math.exp(-age / 50) } : null;
         drag = null;
+        if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
       };
       canvas.addEventListener('pointerup', release);
       canvas.addEventListener('pointercancel', release);
-      canvas.addEventListener('lostpointercapture', () => { drag = null; });
+      canvas.addEventListener('lostpointercapture', () => {
+        if (drag) this.cameraMomentum = null;
+        drag = null;
+      });
       canvas.addEventListener('wheel', event => {
         if (!this.continuousTracing || event.ctrlKey) return;
         event.preventDefault();
@@ -216,6 +230,35 @@
         const delta = Math.max(-200, Math.min(200, event.deltaY * scale));
         if (delta) move(0, 0, Math.exp(delta * .001));
       }, { passive: false });
+    }
+    advanceCamera(dt, response = 1) {
+      super.advanceCamera(dt, response);
+      const momentum = this.cameraMomentum;
+      if (!momentum) return;
+      if (!this.continuousTracing || this.floatingCamera || this.cameraMotion !== 'fixed' || this.paused) {
+        this.cameraMomentum = null;
+        return;
+      }
+      const decay = Math.exp(-4 * dt), step = (1 - decay) / 4;
+      this.camera.phi += momentum.x * step;
+      this.camera.theta = wrapTheta(this.camera.theta + momentum.y * step);
+      momentum.x *= decay;
+      momentum.y *= decay;
+      if (Math.hypot(momentum.x, momentum.y) < .001) this.cameraMomentum = null;
+      this.syncViewUI();
+    }
+    applySettings(settings) {
+      if (['continuousTracing', 'floatingCamera', 'cameraMotion', 'elevation', 'distance', 'paused']
+        .some(key => Object.hasOwn(settings, key))) this.cameraMomentum = null;
+      super.applySettings(settings);
+    }
+    reset() {
+      this.cameraMomentum = null;
+      super.reset();
+    }
+    resetClock() {
+      this.cameraMomentum = null;
+      super.resetClock();
     }
     syncUI() {
       for (const b of document.querySelectorAll('[data-metric]')) {
